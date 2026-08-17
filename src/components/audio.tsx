@@ -47,6 +47,7 @@ const TimeLine: React.FC<{ duration: number; paused: boolean }> = ({ duration, p
     const [currentTime, setCurrentTime] = useState(audioRef.currentTime);
     const [rate, setRate] = useState(audioRef.playbackRate);
     const [localAudioMode, setLocalAudioMode] = useState(false);
+    const [waveformFailed, setWaveformFailed] = useState(false);
 
     useEffect(() => {
         return audioStatePubSub.sub(self.current, (data) => {
@@ -57,6 +58,7 @@ const TimeLine: React.FC<{ duration: number; paused: boolean }> = ({ duration, p
                 }
                 case AudioActionType.getDuration: {
                     setLocalAudioMode(audioRef.src.startsWith("blob:"));
+                    setWaveformFailed(false);
                     break;
                 }
             }
@@ -111,7 +113,7 @@ const TimeLine: React.FC<{ duration: number; paused: boolean }> = ({ duration, p
 
     const { prefState } = useContext(appContext, ChangBits.prefState);
 
-    const showWaveform = prefState.showWaveform && localAudioMode;
+    const showWaveform = prefState.showWaveform && localAudioMode && !waveformFailed;
 
     const fixed = showWaveform ? prefState.fixed : 0;
 
@@ -128,7 +130,11 @@ const TimeLine: React.FC<{ duration: number; paused: boolean }> = ({ duration, p
             {showWaveform
                 ? (
                     <div className="slider waveform-container">
-                        <Waveform value={currentTime} onSeek={onSeek} />
+                        <Waveform
+                            source={audioRef.src}
+                            onSeek={onSeek}
+                            onUnavailable={() => setWaveformFailed(true)}
+                        />
                     </div>
                 )
                 : (

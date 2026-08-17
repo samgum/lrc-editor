@@ -57,14 +57,14 @@ audio::-webkit-media-controls-enclosure {
 
 @media (width <= 768px) {
     .lrc-audio {
-        grid-template-rows: 4px 40px 26px;
+        grid-template-rows: 32px 40px 26px;
         grid-template-columns: repeat(4, 40px) minmax(70px, 1fr);
-        min-height: 82px;
+        min-height: 110px;
         padding-top: 0;
     }
 
     .timeline-slider {
-        --slider-height: 4px;
+        --slider-height: 32px;
 
         grid-row: 1;
         grid-column: 1 / -1;
@@ -101,7 +101,7 @@ audio::-webkit-media-controls-enclosure {
     }
 
     .app-main {
-        padding-bottom: 96px;
+        padding-bottom: 124px;
     }
 }
 
