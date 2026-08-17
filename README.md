@@ -23,7 +23,8 @@ The web application is static and keeps lyric text, preferences, and local media
 - Keep the selected line centered, record from a persistent timing toolbar, and undo or redo timestamp edits.
 - Configure every timing and playback shortcut from the key-binding screen.
 - Keep editing state and preferences locally between sessions.
-- Use the built-in LRC tools to compress repeated tags, remove tags, remove empty lines, transform timestamps, split translations, and replace lyric text while retaining timestamps.
+- Use an original-style LRC utility workspace to compress repeated tags, remove tags or empty lines, transform timestamps, split translations, and build a translated LRC from an untimed translation while preserving the complete source axis.
+- Use the integrated Lyrics Tools functions to remove Genius section labels, clean copied tracklists, replace plain text or regular expressions in bulk, and convert lyric case without changing timestamps.
 - Switch between system, light, and dark themes; choose an accent color.
 - Use English, Japanese, Korean, Polish, Brazilian Portuguese, Slovak, Simplified Chinese, Traditional Chinese (Hong Kong), or Traditional Chinese (Taiwan).
 - Install the site as a PWA and receive shared media URLs through the Web Share Target API.
@@ -36,7 +37,7 @@ LRC Editor Media Bridge accepts only validated YouTube or Bilibili video identif
 
 Download the current unpacked extension package from [GitHub Releases](https://github.com/samgum/lrc-editor/releases/latest).
 
-- The temporary URL is not added to browser history, local storage, logs, or a project server.
+- The temporary URL and audio data are not added to browser history, storage, logs, or a project server. The original YouTube or Bilibili input is retained only for the current tab session so a refresh can request a new temporary URL.
 - The extension does not read site cookies, tabs, browsing history, or account data.
 - The localized popup opens LRC Editor and shows the supported platforms.
 - Host permissions are limited to the YouTube, Bilibili, and media CDN endpoints used by the resolvers.
