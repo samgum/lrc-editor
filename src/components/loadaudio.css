@@ -1,0 +1,152 @@
+.dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: none;
+    margin: auto;
+}
+
+.dialog[open] {
+    display: block;
+    animation: dialog-enter var(--animation-duration) ease-out;
+}
+
+.dialog-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    color: #888888;
+    list-style: none;
+    border-radius: 4px;
+}
+
+.dialog::backdrop {
+    background: #00000080;
+}
+
+.dialog-close svg {
+    width: 24px;
+    height: 24px;
+}
+
+.loadaudio-dialog {
+    width: min(560px, calc(100% - 24px));
+    height: fit-content;
+    color: var(--font-color);
+    background: var(--surface-color);
+    border: 1px solid #88888855;
+    border-radius: 8px;
+    box-shadow: 0 24px 70px #00000055;
+}
+
+.loadaudio-body {
+    display: grid;
+    gap: 20px;
+    padding: 26px;
+}
+
+.loadaudio-body h2 {
+    margin: 0 52px 0 0;
+    font-family: Bahnschrift, "Segoe UI Variable Display", "Noto Sans", sans-serif;
+    font-size: 1.35rem;
+}
+
+.media-file-action {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 72px;
+    padding: 18px 0;
+    border-top: 1px solid #88888844;
+    border-bottom: 1px solid #88888844;
+    cursor: pointer;
+}
+
+.media-file-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    opacity: 0;
+}
+
+.media-file-action span, .audio-input-form > label {
+    color: #888888;
+    font-size: 0.8rem;
+}
+
+.media-file-action strong {
+    text-align: right;
+}
+
+.audio-input-form {
+    display: grid;
+    gap: 8px;
+}
+
+.audio-input-form > div {
+    display: flex;
+    gap: 8px;
+}
+
+.audio-input-form input[type="url"] {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 10px 2px;
+    color: inherit;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid #88888866;
+}
+
+.audio-input-form .button {
+    flex: 0 0 auto;
+    color: var(--theme-contrast-color);
+    background: var(--theme-color);
+}
+
+.media-extension-link {
+    width: fit-content;
+    color: var(--theme-color);
+    font-size: 0.82rem;
+    text-underline-offset: 3px;
+}
+
+.media-extension-link:hover, .media-extension-link:focus-visible {
+    text-decoration: underline;
+}
+
+@keyframes dialog-enter {
+    from {
+        transform: translateY(12px);
+        opacity: 0;
+    }
+}
+
+@media (width <= 520px) {
+    .loadaudio-body {
+        padding: 22px 18px;
+    }
+
+    .media-file-action {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .media-file-action strong {
+        text-align: left;
+    }
+
+    .audio-input-form > div {
+        align-items: stretch;
+        flex-direction: column;
+    }
+}

@@ -1,0 +1,9 @@
+{
+    "audioSrc": "audio-src",
+    "mediaInput": "media-input",
+    "overwriteText": "overwrite-text",
+    "editorDetailsOpen": "editor-details-open",
+    "syncMode": "sync-mode",
+    "selectIndex": "select-index",
+    "ratelimit": "x-ratelimit"
+}

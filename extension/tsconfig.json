@@ -1,0 +1,15 @@
+{
+    "extends": "../tsconfig.json",
+    "compilerOptions": {
+        "rootDir": "..",
+        "types": [
+            "chrome",
+            "vite/client"
+        ]
+    },
+    "include": [
+        "src",
+        "../src/shared"
+    ],
+    "references": []
+}

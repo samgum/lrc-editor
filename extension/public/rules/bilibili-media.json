@@ -1,0 +1,27 @@
+[
+    {
+        "id": 1,
+        "priority": 1,
+        "action": {
+            "type": "modifyHeaders",
+            "requestHeaders": [
+                {
+                    "header": "Referer",
+                    "operation": "set",
+                    "value": "https://www.bilibili.com/"
+                }
+            ]
+        },
+        "condition": {
+            "regexFilter": "^https://[^/]+\\.bilivideo\\.com/",
+            "initiatorDomains": [
+                "lrc.sgmy.org",
+                "localhost",
+                "127.0.0.1"
+            ],
+            "resourceTypes": [
+                "media"
+            ]
+        }
+    }
+]

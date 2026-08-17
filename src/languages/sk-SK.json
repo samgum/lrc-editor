@@ -1,0 +1,103 @@
+{
+    "languageName": "Slovenčina",
+    "header": {
+        "home": "domov",
+        "editor": "editor",
+        "synchronizer": "synchronizátor",
+        "preferences": "nastavenia",
+        "tools": "Nástroje LRC",
+        "keybindings": "Klávesové skratky"
+    },
+    "audio": {
+        "loadAudio": "načítať zvuk",
+        "play": "prehrať",
+        "pause": "pozastaviť",
+        "replay5s": "dozadu 5s",
+        "forward5s": "dopredu 5s",
+        "resetRate": "obnoviť rýchlosť prehrávania",
+        "error": [
+            "chyba zvuku",
+            "zvuk prerušený používateľom",
+            "chyba siete zvuku",
+            "chyba dekódovania zvuku",
+            "zvuk nie je podporovaný"
+        ]
+    },
+    "loadAudio": {
+        "file": "Súbor",
+        "url": "URL",
+        "loadFile": "Kliknite sem alebo presuňte zvukový súbor na túto stránku"
+    },
+    "editor": {
+        "metaInfo": "meta info",
+        "album": "album",
+        "title": "názov",
+        "artist": "interpret",
+        "uploadText": "nahrať text",
+        "copyText": "vybrať všetko a kopírovať",
+        "downloadText": "stiahnuť",
+        "utils": "lrc nástroje"
+    },
+    "preferences": {
+        "language": "Jazyk",
+        "builtInAudio": "Použite vstavaný prehrávač zvuku prehliadača",
+        "spaceButton": "Medzerník na obrazovke",
+        "showWaveform": "Zobraziť vlnovú formu",
+        "themeColor": "Farba motívu",
+        "lrcFormat": "Zmeniť formát výstupu",
+        "fixed": "Fixný časový údaj",
+        "leftSpace": "Ľavá medzera",
+        "rightSpace": "Pravá medzera",
+        "clearCache": "Vymazať vyrovnávaciu pamäť",
+        "themeMode": {
+            "label": "Motív",
+            "auto": "automaticky",
+            "light": "svetlý",
+            "dark": "tmavý"
+        },
+        "seekStepMs": "Krok v sekundách (ms)",
+        "fineTuneMs": "Dostrojený posun (ms)",
+        "interactiveSeek": "Efektivný režim",
+        "allowBackgroundAudio": "Povoliť prehrávanie zvuku v pozadí"
+    },
+    "notify": {
+        "audioLoaded": "Zvuk načítaný."
+    },
+    "keybindings": {
+        "title": "Klávesové skratky",
+        "resetToDefaults": "Obnoviť predvolené",
+        "save": "Uložiť",
+        "record": "Nahrávať",
+        "recording": "Nahrávanie...",
+        "noBinding": "Žiadna skratka",
+        "saveSuccess": "Klávesové skratky boli uložené!",
+        "resetSuccess": "Predvolené klávesové skratky boli obnovené. Kliknite 'Uložiť' pre aplikovanie zmien.",
+        "conflictError": "Nemožno uložiť: Nájdené %d konflikty klávesových skratiek. Vyriešte konflikty a skúste znova.",
+        "action": "Akcia",
+        "description": "Popis",
+        "currentBinding": "Aktuálna skratka",
+        "removeBinding": "Odstrániť skratku",
+        "actions": {
+            "sync": "Pridať/Aktualizovať Časovú Znázornenie",
+            "deleteTime": "Odstrániť Časovú Znázornenie",
+            "resetOffset": "Resetovať Offset",
+            "decreaseOffset": "Znížiť Offset",
+            "increaseOffset": "Zvýšiť Offset",
+            "prevLine": "Predchádzajúca Riadok",
+            "nextLine": "Ďalší Riadok",
+            "firstLine": "Prvý Riadok",
+            "lastLine": "Posledný Riadok",
+            "pageUp": "Stránka Hore",
+            "pageDown": "Stránka Dole",
+            "seekBackward": "Hľadať Späť",
+            "seekForward": "Hľadať Vpred",
+            "resetRate": "Resetovať Rýchlosť Prehrávania",
+            "increaseRate": "Zvýšiť Rýchlosť Prehrávania",
+            "decreaseRate": "Znížiť Rýchlosť Prehrávania",
+            "togglePlay": "Prepnúť Prehrávanie/Pauza",
+            "showHelp": "Zobraziť Pomoc"
+        },
+        "cancel": "Zrušiť",
+        "remove": "Odstrániť"
+    }
+}

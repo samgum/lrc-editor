@@ -1,0 +1,6 @@
+{
+    "extensionName": { "message": "LRC Editor Media Bridge" },
+    "extensionDescription": { "message": "YouTube と Bilibili の音声を端末上で LRC Editor 用に解析します。" },
+    "supportedSources": { "message": "対応サービス" },
+    "openEditor": { "message": "LRC Editor を開く" }
+}

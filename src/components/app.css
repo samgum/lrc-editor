@@ -1,0 +1,226 @@
+:root {
+    color: var(--font-color);
+    font-family:
+        "Segoe UI Variable Text", Aptos, "Noto Sans", "Helvetica Neue", sans-serif, "Apple Color Emoji",
+        "Segoe UI Emoji";
+    background-color: var(--background-color);
+    font-feature-settings: "kern" 1;
+    font-kerning: normal;
+    caret-color: var(--theme-color);
+    overscroll-behavior-y: contain;
+}
+
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+:root, textarea, input {
+    font-variant-numeric: tabular-nums;
+}
+
+[lang]:lang(zh) {
+    font-family:
+        "Segoe UI Variable Text", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Source Han Sans SC",
+        "Noto Sans CJK SC", "WenQuanYi Micro Hei", sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+[lang]:lang(zh-HK) {
+    font-family:
+        "Segoe UI Variable Text", "PingFang HK", "Microsoft JhengHei UI", "Microsoft JhengHei", "Source Han Sans HK",
+        "Noto Sans CJK TC", sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+[lang]:lang(zh-TW) {
+    font-family:
+        "Segoe UI Variable Text", "PingFang TC", "Microsoft JhengHei UI", "Microsoft JhengHei", "Source Han Sans TW",
+        "Noto Sans CJK TC", sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+[lang]:lang(ja) {
+    font-family:
+        "Segoe UI Variable Text", "Hiragino Kaku Gothic Pro", "Yu Gothic UI", "Yu Gothic", "Meiryo UI", Meiryo,
+        "Source Han Sans JP", "Noto Sans CJK JP", sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+select, input, textarea {
+    color: inherit;
+}
+
+::selection {
+    color: var(--theme-contrast-color);
+    background-color: var(--theme-color);
+}
+
+@supports (-ms-ime-align: auto) and (not (position: sticky)) {
+    /* In Edge 15 is not possible to use css variables in pseudo elements */
+    ::selection {
+        color: unset;
+        background-color: unset;
+    }
+}
+
+:focus:not(:focus-visible) {
+    outline: none;
+}
+
+:focus-visible {
+    outline: 2px solid var(--theme-color);
+    outline-offset: 2px;
+}
+
+a {
+    color: currentColor;
+    text-decoration: none;
+}
+
+a, button, [type="submit"] {
+    padding: 0 8px;
+    background: 0;
+    border: 0;
+    cursor: pointer;
+    appearance: none;
+    user-select: none;
+}
+
+button, a, [type="submit"] {
+    transition:
+        color var(--transition-duration) var(--ease-standard),
+        background-color var(--transition-duration) var(--ease-standard),
+        border-color var(--transition-duration) var(--ease-standard),
+        box-shadow var(--transition-duration) var(--ease-standard),
+        transform 160ms var(--ease-emphasized),
+        opacity var(--transition-duration) var(--ease-standard);
+}
+
+button:active:not(:disabled), a:active {
+    transform: translateY(1px) scale(0.985);
+}
+
+@media (hover: hover) {
+    .button:hover:not(:disabled), .editor-tools-item:hover, .aside-button:hover, .lrc-audio > button:hover {
+        transform: translateY(-1px);
+    }
+}
+
+ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.link {
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.link:hover {
+    text-decoration-color: var(--theme-color);
+}
+
+a > * {
+    pointer-events: none;
+}
+
+.button {
+    padding: 8px;
+    color: var(--black);
+    background-color: white;
+    border-radius: var(--border-radius);
+    opacity: 0.8;
+}
+
+.button:hover {
+    opacity: 1;
+}
+
+.app-failure {
+    display: grid;
+    place-content: center;
+    min-height: 100svh;
+    padding: 2rem;
+    text-align: center;
+}
+
+.app-failure strong {
+    font-size: 2rem;
+}
+
+.app-failure button {
+    justify-self: center;
+    padding: 0.65rem 1rem;
+    color: var(--theme-contrast-color);
+    background: var(--theme-color);
+    border-radius: 4px;
+}
+
+.glow {
+    transition: text-shadow var(--transition-duration) ease;
+}
+
+.glow:hover {
+    text-shadow: 0 0 4px currentColor;
+}
+
+.glow > svg {
+    transition: filter var(--transition-duration) ease;
+}
+
+.glow:hover > svg {
+    filter: var(--drop-shadow);
+}
+
+.ripple {
+    position: relative;
+    overflow: hidden;
+    transform: translate3d(0, 0, 0);
+}
+
+.ripple::after {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    background-image: radial-gradient(circle, #000000 10%, transparent 10%);
+    background-repeat: no-repeat;
+    background-position: 50%;
+    transform: scale3d(10, 10, 1);
+    opacity: 0;
+    transition: transform 0.5s, opacity 1s;
+    content: "";
+    pointer-events: none;
+}
+
+.ripple:active::after {
+    transform: scale3d(0, 0, 1);
+    opacity: 0.2;
+    transition: 0s;
+}
+
+.select-all {
+    user-select: all;
+}
+
+.page-loading {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: var(--background-color);
+}
+
+.start-loading {
+    width: 36px;
+    height: 36px;
+    border: 2px solid #88888844;
+    border-top-color: var(--theme-color);
+    border-radius: 50%;
+    animation: start-loading-spin 700ms linear infinite;
+}
+
+@keyframes start-loading-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

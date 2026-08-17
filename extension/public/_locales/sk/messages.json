@@ -1,0 +1,6 @@
+{
+    "extensionName": { "message": "LRC Editor Media Bridge" },
+    "extensionDescription": { "message": "Lokálne rozpozná zvuk YouTube a Bilibili pre LRC Editor." },
+    "supportedSources": { "message": "Podporované zdroje" },
+    "openEditor": { "message": "Otvoriť LRC Editor" }
+}

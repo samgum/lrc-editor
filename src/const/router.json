@@ -1,0 +1,8 @@
+{
+    "home": "/",
+    "editor": "/editor/",
+    "synchronizer": "/synchronizer/",
+    "tools": "/tools/",
+    "preferences": "/preferences/",
+    "keybindings": "/keybindings/"
+}

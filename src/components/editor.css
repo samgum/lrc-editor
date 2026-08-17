@@ -1,0 +1,176 @@
+.app-editor {
+    display: flex;
+    flex: 1 1 auto;
+    width: min(1440px, 100%);
+    min-width: 0;
+    min-height: calc(100svh - 148px);
+    margin: 0 auto;
+    overflow: hidden;
+    background: var(--surface-color);
+    border: 1px solid #88888838;
+    border-radius: 7px;
+    box-shadow: 0 8px 28px #00000008;
+}
+
+.app-editor {
+    flex-direction: column;
+}
+
+.editor-commandbar {
+    position: relative;
+    flex: 0 0 auto;
+    min-height: 52px;
+    border-bottom: 1px solid #8888882e;
+}
+
+.editor-commandbar > details {
+    min-height: 52px;
+    padding: 0 188px 0 16px;
+}
+
+.app-editor summary {
+    display: flex;
+    align-items: center;
+    width: fit-content;
+    height: 52px;
+    color: #77737b;
+    font-weight: 650;
+    font-size: 0.78rem;
+    letter-spacing: 0.035em;
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+}
+
+.app-editor summary::-webkit-details-marker {
+    display: none;
+}
+
+.app-editor summary::before {
+    width: 7px;
+    height: 7px;
+    margin-right: 8px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(-45deg);
+    transition: transform var(--transition-duration) ease;
+    content: "";
+}
+
+.editor-commandbar details[open] > summary::before {
+    transform: rotate(45deg) translate(-2px, -2px);
+}
+
+.app-editor-infobox {
+    display: none;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    padding: 0 0 12px;
+    font-size: 0.9rem;
+}
+
+[open] > .app-editor-infobox {
+    display: grid;
+}
+
+.app-editor-infobox > label {
+    display: grid;
+    min-width: 0;
+    gap: 4px;
+}
+
+.app-editor-infobox span {
+    color: #888888;
+    font-size: 0.7rem;
+}
+
+.app-editor-infobox input {
+    min-width: 0;
+    padding: 3px 2px 6px;
+    border: 0;
+    border-bottom: 1px solid #88888855;
+}
+
+.editor-tools {
+    position: absolute;
+    top: 5px;
+    right: 8px;
+    display: flex;
+    gap: 1px;
+}
+
+.editor-tools-item {
+    display: inline-grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    color: #77737b;
+    border-radius: 5px;
+    transition: color var(--transition-duration) ease, background-color var(--transition-duration) ease;
+}
+
+.editor-tools-item:hover, .editor-tools-item:focus-visible {
+    color: var(--theme-color);
+    background: #88888812;
+}
+
+.editor-tools-item > svg {
+    width: 22px;
+    height: 22px;
+}
+
+.app-textarea {
+    flex: 1 1 auto;
+    min-height: 22rem;
+    padding: clamp(16px, 2.2vw, 26px) !important;
+    line-height: 1.62;
+    border: 0;
+    resize: none;
+    overscroll-behavior-y: contain;
+}
+
+.app-editor input, .app-editor textarea {
+    color: inherit;
+    background: transparent;
+    outline: none;
+}
+
+@media (width <= 720px) {
+    .app-editor {
+        min-height: calc(100svh - 168px);
+        border-right: 0;
+        border-left: 0;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .editor-commandbar > details {
+        padding-right: 154px;
+        padding-left: 12px;
+    }
+
+    .editor-tools {
+        right: 4px;
+    }
+
+    .editor-tools-item {
+        width: 36px;
+    }
+
+    [open] > .app-editor-infobox {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        padding-bottom: 10px;
+    }
+
+    .app-editor-infobox > label:last-child {
+        grid-column: 1 / -1;
+    }
+
+    .app-textarea {
+        min-height: 20rem;
+        padding: 14px !important;
+    }
+}

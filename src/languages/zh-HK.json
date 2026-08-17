@@ -1,0 +1,103 @@
+{
+    "languageName": "繁體中文(香港)",
+    "header": {
+        "home": "主頁",
+        "editor": "編輯",
+        "synchronizer": "同步",
+        "preferences": "設定",
+        "tools": "實用工具",
+        "keybindings": "按鍵設定"
+    },
+    "audio": {
+        "loadAudio": "匯入音訊",
+        "play": "播放",
+        "pause": "暫停",
+        "replay5s": "倒轉 5s",
+        "forward5s": "快轉 5s",
+        "resetRate": "重設播放速度",
+        "error": [
+            "音訊錯誤",
+            "音訊請求被用戶終止",
+            "音訊網絡請求錯誤",
+            "音訊解碼錯誤",
+            "瀏覽器無法支援此音訊格式"
+        ]
+    },
+    "loadAudio": {
+        "file": "檔案",
+        "url": "URL",
+        "loadFile": "點選這裏或直接拖放音訊檔案到這個頁面"
+    },
+    "editor": {
+        "metaInfo": "元數據",
+        "album": "所屬專輯",
+        "title": "歌曲名",
+        "artist": "藝人名",
+        "uploadText": "匯入文本",
+        "copyText": "全選拷貝",
+        "downloadText": "下載",
+        "utils": "實用工具"
+    },
+    "preferences": {
+        "language": "語言(language)",
+        "builtInAudio": "使用瀏覽器內建音訊播放器",
+        "spaceButton": "啓用螢幕 Space 鍵",
+        "showWaveform": "顯示音訊波形",
+        "themeColor": "主題顏色",
+        "lrcFormat": "歌詞輸出格式控制",
+        "fixed": "時間標籤小數點",
+        "leftSpace": "左側空格",
+        "rightSpace": "右側空格",
+        "clearCache": "清除快取",
+        "themeMode": {
+            "label": "主題模式",
+            "auto": "跟隨系統",
+            "light": "亮色模式",
+            "dark": "暗色模式"
+        },
+        "seekStepMs": "前進/後退時間(毫秒)",
+        "fineTuneMs": "微調偏移量(毫秒)",
+        "interactiveSeek": "交互式歌詞",
+        "allowBackgroundAudio": "允許音訊後台播放"
+    },
+    "notify": {
+        "audioLoaded": "音訊已匯入"
+    },
+    "keybindings": {
+        "title": "鍵位設定",
+        "resetToDefaults": "恢復預設",
+        "save": "儲存",
+        "record": "錄製",
+        "recording": "錄製中...",
+        "noBinding": "無綁定",
+        "saveSuccess": "鍵位設定已儲存！",
+        "resetSuccess": "已恢復預設鍵位，點擊「儲存」以使變更生效",
+        "conflictError": "無法儲存：發現 %d 個快捷鍵衝突。請解決衝突後重試。",
+        "action": "動作",
+        "description": "描述",
+        "currentBinding": "當前綁定",
+        "removeBinding": "移除綁定",
+        "actions": {
+            "sync": "新增/更新時間戳",
+            "deleteTime": "刪除時間戳",
+            "resetOffset": "重置偏移",
+            "decreaseOffset": "減少偏移",
+            "increaseOffset": "增加偏移",
+            "prevLine": "上一行",
+            "nextLine": "下一行",
+            "firstLine": "第一行",
+            "lastLine": "最後一行",
+            "pageUp": "上一頁",
+            "pageDown": "下一頁",
+            "seekBackward": "音訊後退",
+            "seekForward": "音訊前進",
+            "resetRate": "重置播放速度",
+            "increaseRate": "增加播放速度",
+            "decreaseRate": "減少播放速度",
+            "togglePlay": "切換播放/暫停",
+            "showHelp": "顯示說明"
+        },
+        "cancel": "取消",
+        "remove": "移除"
+    }
+}

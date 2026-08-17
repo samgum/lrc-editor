@@ -1,0 +1,24 @@
+{
+    "developer": {
+        "name": "伤感咩吖",
+        "url": "https://github.com/samgum"
+    },
+    "repository": "https://github.com/samgum/lrc-editor",
+    "references": [
+        {
+            "name": "lrc-maker",
+            "author": "magic-akari",
+            "url": "https://github.com/magic-akari/lrc-maker"
+        },
+        {
+            "name": "lrc-maker-cdgz",
+            "author": "重叠广州（CDGZ-ofc）",
+            "url": "https://github.com/CDGZ-ofc/lrc-maker-cdgz"
+        },
+        {
+            "name": "lrc-utils",
+            "author": "magic-akari",
+            "url": "https://github.com/magic-akari/lrc-utils"
+        }
+    ]
+}

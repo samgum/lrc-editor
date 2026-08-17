@@ -1,0 +1,109 @@
+.keybindings-page {
+    width: min(960px, 100%);
+    margin: 0 auto;
+    padding: 0;
+}
+
+.keybindings-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.keybindings-heading h1 {
+    margin: 0;
+    font-size: 1.4rem;
+}
+
+.keybindings-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.keybindings-actions .button, .keybinding-record {
+    color: var(--theme-contrast-color);
+    background-color: var(--theme-color);
+}
+
+.keybindings-conflicts {
+    padding: 0.75rem;
+    color: #9f1428;
+    background-color: #ffccd4;
+    border-radius: var(--border-radius);
+}
+
+.keybindings-list {
+    display: grid;
+    gap: 1px;
+    overflow: hidden;
+    border-radius: var(--border-radius);
+}
+
+.keybinding-row {
+    display: grid;
+    grid-template-columns: minmax(12rem, 1fr) minmax(16rem, 2fr) auto;
+    align-items: center;
+    gap: 1rem;
+    min-height: 64px;
+    padding: 0.75rem 1rem;
+    background-color: #00000012;
+    transition: background-color var(--transition-duration) var(--ease-standard);
+}
+
+@media (hover: hover) {
+    .keybinding-row:hover {
+        background-color: rgb(var(--theme-rgb) / 8%);
+    }
+}
+
+.keybinding-values {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.keybinding-chip {
+    display: inline-flex;
+    align-items: center;
+    overflow: hidden;
+    color: var(--theme-color);
+    border: 1px solid currentColor;
+    border-radius: 999px;
+}
+
+.keybinding-chip kbd {
+    padding: 0.25rem 0.6rem;
+    font: inherit;
+}
+
+.keybinding-chip button {
+    align-self: stretch;
+    padding: 0 0.55rem;
+    color: inherit;
+    border-left: 1px solid currentColor;
+}
+
+.keybinding-empty {
+    opacity: 0.6;
+}
+
+@media (width <= 720px) {
+    .keybindings-heading, .keybinding-row {
+        align-items: stretch;
+    }
+
+    .keybindings-heading {
+        flex-direction: column;
+    }
+
+    .keybinding-row {
+        grid-template-columns: 1fr auto;
+    }
+
+    .keybinding-values {
+        grid-column: 1 / -1;
+        grid-row: 2;
+    }
+}

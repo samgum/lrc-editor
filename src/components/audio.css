@@ -1,0 +1,268 @@
+audio {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 32px;
+    margin-bottom: env(safe-area-inset-bottom);
+    background-color: var(--semi-black-color);
+}
+
+audio::-webkit-media-controls-enclosure {
+    border-radius: 0;
+}
+
+[disabled] {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.lrc-audio {
+    display: grid;
+    grid-template-columns: repeat(4, 42px) auto minmax(160px, 1fr) auto minmax(90px, 140px);
+    align-items: center;
+    gap: 4px;
+    min-height: 56px;
+    padding: 6px max(10px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom))
+        max(10px, env(safe-area-inset-left));
+    color: var(--white);
+    font-size: 14px;
+    background-color: var(--semi-black-color);
+    user-select: none;
+}
+
+.lrc-audio > time {
+    min-width: 68px;
+    font-family: "Cascadia Mono", Consolas, monospace;
+    text-align: center;
+}
+
+.slider {
+    --slider-height: 32px;
+
+    position: relative;
+    height: var(--slider-height);
+    margin: 0 5px;
+}
+
+.slider > progress, .slider > input {
+    position: absolute;
+    right: 0;
+    left: 0;
+    width: 100%;
+}
+
+.waveform-container > .waveform {
+    height: 100%;
+}
+
+@media (width <= 768px) {
+    .lrc-audio {
+        grid-template-rows: 4px 40px 26px;
+        grid-template-columns: repeat(4, 40px) minmax(70px, 1fr);
+        min-height: 82px;
+        padding-top: 0;
+    }
+
+    .timeline-slider {
+        --slider-height: 4px;
+
+        grid-row: 1;
+        grid-column: 1 / -1;
+        margin: 0;
+    }
+
+    .waveform-container {
+        grid-row: 1;
+        grid-column: 1 / -1;
+        margin: 0;
+        padding: 0 8px;
+        background-color: var(--semi-black-color);
+    }
+
+    .lrc-audio > button:nth-child(-n+4), .lrc-audio > time {
+        grid-row: 2;
+    }
+
+    .lrc-audio > time {
+        grid-column: 5;
+        justify-self: end;
+    }
+
+    .lrc-audio > button:nth-child(7) {
+        grid-row: 3;
+        grid-column: 1;
+    }
+
+    .playbackrate-slider {
+        grid-row: 3;
+        grid-column: 2 / -1;
+        width: 100%;
+        max-width: none !important;
+    }
+
+    .app-main {
+        padding-bottom: 96px;
+    }
+}
+
+.lrc-audio > button {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    color: #eeeeee;
+    border-radius: 4px;
+}
+
+.lrc-audio > button:hover, .lrc-audio > button:focus-visible {
+    color: var(--theme-color);
+    background: #ffffff0d;
+}
+
+.lrc-audio > button:nth-child(3) {
+    color: var(--theme-contrast-color);
+    background: var(--theme-color);
+}
+
+.lrc-audio > button svg {
+    width: 23px;
+    height: 23px;
+}
+
+.timeline-slider {
+    min-width: 0;
+}
+
+.playbackrate-slider {
+    max-width: 150px;
+}
+
+input[type="range"] {
+    --thumb-size: 16px;
+
+    height: var(--slider-height);
+    margin: 0;
+    padding: 0;
+    color: var(--theme-color);
+    background-color: transparent;
+    appearance: none;
+}
+
+input[type="range"]:focus {
+    outline: none;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+    height: var(--slider-height);
+    background-color: transparent;
+    border: 0;
+}
+
+input[type="range"]::-moz-range-track {
+    height: var(--slider-height);
+    background-color: transparent;
+    border: 0;
+}
+
+input[type="range"]::-ms-track {
+    top: -6px;
+    color: transparent;
+    background-color: transparent;
+    border-color: transparent;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    z-index: 10;
+    width: var(--thumb-size);
+    height: var(--thumb-size);
+    margin-top: calc((var(--slider-height) - var(--thumb-size)) / 2);
+    background-color: currentColor;
+    border: 0;
+    border-radius: 50%;
+    box-shadow: 0 0 4px 1px var(--black);
+    filter: brightness(120%);
+    transition: box-shadow var(--transition-duration) ease-in-out;
+    -webkit-appearance: none;
+}
+
+input[type="range"]:hover::-webkit-slider-thumb {
+    box-shadow: 0 0 4px 1px var(--white);
+}
+
+input[type="range"]::-moz-range-thumb {
+    z-index: 10;
+    width: var(--thumb-size);
+    height: var(--thumb-size);
+    margin-top: calc((var(--slider-height) - var(--thumb-size)) / 2);
+    background-color: currentColor;
+    border: 0;
+    border-radius: 50%;
+    box-shadow: 0 0 4px 1px var(--black);
+    filter: brightness(120%);
+    transition: box-shadow var(--transition-duration) ease-in-out;
+    -moz-appearance: none;
+}
+
+input[type="range"]:hover::-moz-range-thumb {
+    box-shadow: 0 0 4px var(--white);
+}
+
+input[type="range"]::-ms-fill-upper, input[type="range"]::-ms-fill-lower {
+    background-color: transparent;
+}
+
+input[type="range"]::-ms-thumb {
+    /* In Edge css variables nor work in pseudo elements */
+    width: 16px;
+    height: 16px;
+    margin-top: -1px;
+    background-color: currentColor;
+    border-radius: 50%;
+}
+
+input[type="range"]::-ms-tooltip {
+    display: none;
+}
+
+.slider > progress {
+    --progress-meter-color: var(--theme-color);
+
+    display: inline-block;
+    box-sizing: border-box;
+    height: 4px;
+    margin: calc(var(--slider-height) / 2 - 2px) 0;
+    color: var(--progress-meter-color);
+    vertical-align: 0;
+    background: var(--white);
+    border: none;
+    border-radius: 2px;
+    box-shadow: 0 0 4px var(--black);
+    transition: box-shadow var(--transition-duration) ease-in-out;
+    appearance: none;
+}
+
+.slider:hover progress {
+    box-shadow: 0 0 4px var(--white);
+}
+
+progress::-moz-progress-bar {
+    background-color: var(--progress-meter-color);
+    background-image: linear-gradient(-45deg, #ffffff00 0, #ffffff00 50%, #ffffffcc 62.5%, #ffffff00 75%);
+    background-size: 35px 20px, 100% 100%, 100% 100%;
+    border-radius: 2px;
+}
+
+progress::-webkit-progress-bar {
+    background-color: #eeeeee;
+    border-radius: 2px;
+    box-shadow: 0 2px 5px #00000044 inset;
+}
+
+progress::-webkit-progress-value {
+    background-color: var(--progress-meter-color);
+    background-image: linear-gradient(-45deg, #ffffff00 0, #ffffff00 50%, #ffffffcc 62.5%, #ffffff00 75%);
+    background-repeat: repeat-x;
+    background-size: 40px 40px, 100% 100%, 100% 100%;
+    border-radius: 2px;
+}

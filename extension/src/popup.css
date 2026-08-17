@@ -1,0 +1,70 @@
+:root {
+    color: #f8f6f2;
+    font-family: "Segoe UI Variable Text", Aptos, "Noto Sans", sans-serif;
+    background: #191a1f;
+}
+
+body {
+    width: 280px;
+    margin: 0;
+    padding: 18px;
+}
+
+header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #ffffff1f;
+}
+
+header img {
+    border-radius: 6px;
+}
+
+header strong {
+    font-family: Bahnschrift, "Segoe UI Variable Display", "Noto Sans", sans-serif;
+    font-size: 0.98rem;
+}
+
+main {
+    padding: 16px 0;
+}
+
+main > span {
+    color: #ffffff88;
+    font-size: 0.75rem;
+}
+
+ul {
+    display: grid;
+    gap: 10px;
+    margin: 12px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+li {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+li::before {
+    width: 7px;
+    height: 7px;
+    background: #f58ea8;
+    border-radius: 50%;
+    content: "";
+}
+
+.open-editor {
+    display: block;
+    padding: 10px 12px;
+    color: #191a1f;
+    font-weight: 650;
+    text-align: center;
+    text-decoration: none;
+    background: #f58ea8;
+    border-radius: 5px;
+}

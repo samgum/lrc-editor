@@ -1,0 +1,103 @@
+{
+    "languageName": "Português",
+    "header": {
+        "home": "início",
+        "editor": "editor",
+        "synchronizer": "sincronizador",
+        "preferences": "preferências",
+        "tools": "Ferramentas LRC",
+        "keybindings": "Atalhos de teclado"
+    },
+    "audio": {
+        "loadAudio": "carregar áudio",
+        "play": "play",
+        "pause": "pausar",
+        "replay5s": "repetir 5s",
+        "forward5s": "avançar 5s",
+        "resetRate": "redefinir a taxa de reprodução",
+        "error": [
+            "erro de áudio",
+            "áudio abortado pelo usuário",
+            "erro de rede de áudio",
+            "erro de decodificação de áudio",
+            "áudio não suportado"
+        ]
+    },
+    "loadAudio": {
+        "file": "Arquivo",
+        "url": "URL",
+        "loadFile": "Clique aqui ou solte um arquivo de áudio nesta página"
+    },
+    "editor": {
+        "metaInfo": "informações meta",
+        "album": "álbum",
+        "title": "título",
+        "artist": "artista",
+        "uploadText": "enviar texto",
+        "copyText": "selecione tudo e copie",
+        "downloadText": "baixar",
+        "utils": "lrc utils"
+    },
+    "preferences": {
+        "language": "Linguagem",
+        "builtInAudio": "Use o player de áudio integrado do navegador",
+        "spaceButton": "Tecla de espaço na tela",
+        "showWaveform": "Mostrar forma de onda de áudio",
+        "themeColor": "Cor do tema",
+        "lrcFormat": "Ajuste de formato LRC",
+        "fixed": "Data-de-tempo fixo",
+        "leftSpace": "Espaço esquerdo",
+        "rightSpace": "Espaço direito",
+        "clearCache": "Limpar cache",
+        "themeMode": {
+            "label": "Modo de tema",
+            "auto": "auto",
+            "light": "claro",
+            "dark": "escuro"
+        },
+        "seekStepMs": "Passo em segundos (ms)",
+        "fineTuneMs": "Ajuste fino de deslocamento (ms)",
+        "interactiveSeek": "Modo de Eficiência",
+        "allowBackgroundAudio": "Permitir reprodução de áudio em segundo plano"
+    },
+    "notify": {
+        "audioLoaded": "Áudio carregado"
+    },
+    "keybindings": {
+        "title": "Atalhos de Teclado",
+        "resetToDefaults": "Redefinir Padrões",
+        "save": "Salvar",
+        "record": "Gravar",
+        "recording": "Gravando...",
+        "noBinding": "Sem Atalho",
+        "saveSuccess": "Atalhos de teclado salvos!",
+        "resetSuccess": "Atalhos de teclado padrão restaurados. Clique em 'Salvar' para aplicar as alterações.",
+        "conflictError": "Não é possível salvar: Encontrados %d conflitos de atalhos de teclado. Resolva os conflitos e tente novamente.",
+        "action": "Ação",
+        "description": "Descrição",
+        "currentBinding": "Atalho Atual",
+        "removeBinding": "Remover Atalho",
+        "actions": {
+            "sync": "Adicionar/Atualizar Carimbo de Tempo",
+            "deleteTime": "Excluir Carimbo de Tempo",
+            "resetOffset": "Redefinir Deslocamento",
+            "decreaseOffset": "Diminuir Deslocamento",
+            "increaseOffset": "Aumentar Deslocamento",
+            "prevLine": "Linha Anterior",
+            "nextLine": "Próxima Linha",
+            "firstLine": "Primeira Linha",
+            "lastLine": "Última Linha",
+            "pageUp": "Página para Cima",
+            "pageDown": "Página para Baixo",
+            "seekBackward": "Retroceder Áudio",
+            "seekForward": "Avançar Áudio",
+            "resetRate": "Redefinir Velocidade de Reprodução",
+            "increaseRate": "Aumentar Velocidade de Reprodução",
+            "decreaseRate": "Diminuir Velocidade de Reprodução",
+            "togglePlay": "Alternar Reprodução/Pausa",
+            "showHelp": "Mostrar Ajuda"
+        },
+        "cancel": "Cancelar",
+        "remove": "Remover"
+    }
+}

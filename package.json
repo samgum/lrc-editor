@@ -1,0 +1,63 @@
+{
+    "name": "lrc-editor",
+    "version": "0.3.0",
+    "description": "面向 lrc.sgmy.org 的跨平台 LRC 编辑与打轴工具",
+    "license": "MIT",
+    "keywords": [
+        "lrc",
+        "lrc maker",
+        "lyric",
+        "lyric maker"
+    ],
+    "homepage": "https://lrc.sgmy.org",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/samgum/lrc-editor.git"
+    },
+    "files": [
+        "src",
+        "build"
+    ],
+    "packageManager": "pnpm@10.11.0",
+    "type": "module",
+    "scripts": {
+        "start": "vite",
+        "build": "vite build",
+        "build:extension": "vite build --config vite.extension.config.ts",
+        "build:all": "pnpm build && pnpm build:extension",
+        "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.node.json && tsc -p extension/tsconfig.json",
+        "test": "vitest run",
+        "fix:fmt": "dprint fmt",
+        "check:fmt": "dprint check",
+        "check:lint": "oxlint src extension/src worker plugins -D correctness"
+    },
+    "imports": {
+        "#const/*": "./src/const/*"
+    },
+    "dependencies": {
+        "@ffmpeg/core": "0.12.10",
+        "@ffmpeg/ffmpeg": "0.12.15",
+        "@lrc-maker/lrc-parser": "^0.1.17",
+        "@wavesurfer/react": "^1.0.11",
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0",
+        "wavesurfer.js": "^7.9.5"
+    },
+    "devDependencies": {
+        "@swc/core": "^1.11.29",
+        "@types/chrome": "^0.2.6",
+        "@types/node": "^22.15.21",
+        "@types/react": "^18.2.0",
+        "@types/react-dom": "^18.2.0",
+        "core-js": "^3.42.0",
+        "dprint": "^0.50.0",
+        "lightningcss": "1.32.0",
+        "oxlint": "^0.16.11",
+        "rollup-plugin-swc3": "^0.12.1",
+        "toggle-switch-css": "^1.0.3",
+        "typescript": "^5.8.3",
+        "vite": "^6.3.5",
+        "vitest": "^4.1.10",
+        "youtubei.js": "18.0.0"
+    }
+}

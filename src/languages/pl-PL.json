@@ -1,0 +1,103 @@
+{
+    "languageName": "Polski",
+    "header": {
+        "home": "strona główna",
+        "editor": "edytor",
+        "synchronizer": "synchronizator",
+        "preferences": "preferencje",
+        "tools": "Narzędzia LRC",
+        "keybindings": "Skróty klawiszowe"
+    },
+    "audio": {
+        "loadAudio": "załaduj plik audio",
+        "play": "odtwórz",
+        "pause": "zatrzymaj",
+        "replay5s": "cofnij o 5s",
+        "forward5s": "przewiń o 5s",
+        "resetRate": "zresetuj szybkość odtwarzania",
+        "error": [
+            "błąd audio",
+            "odtwarzanie audio przerwane przez użytkownika",
+            "błąd audio sieci",
+            "błąd dekodowania audio",
+            "audio nieobsługiwane"
+        ]
+    },
+    "loadAudio": {
+        "file": "Plik",
+        "url": "URL",
+        "loadFile": "Kliknij lub upuść plik audio na tej stronie"
+    },
+    "editor": {
+        "metaInfo": "informacje o metadanych",
+        "album": "album",
+        "title": "tytuł",
+        "artist": "artysta",
+        "uploadText": "załaduj tekst",
+        "copyText": "zaznacz wszystko i skopiuj",
+        "downloadText": "pobierz",
+        "utils": "narzędzia LRC"
+    },
+    "preferences": {
+        "language": "Język",
+        "builtInAudio": "Użyj wbudowanego odtwarzacza audio przeglądarki",
+        "spaceButton": "Klawisz spacji na ekranie",
+        "showWaveform": "Pokaż przebieg audio",
+        "themeColor": "Kolor motywu",
+        "lrcFormat": "Zmień format wyjściowy",
+        "fixed": "Poprawka znacznika czasu",
+        "leftSpace": "Lewy odstęp",
+        "rightSpace": "Prawy odstęp",
+        "clearCache": "Wyczyść pamięć podręczną",
+        "themeMode": {
+            "label": "Tryb Motywu",
+            "auto": "automatyczny",
+            "light": "jasny",
+            "dark": "ciemny"
+        },
+        "seekStepMs": "Krok sekund (ms)",
+        "fineTuneMs": "Dokładny przesunięcie (ms)",
+        "interactiveSeek": "Tryb Efektywności",
+        "allowBackgroundAudio": "Zezwól na odtwarzanie audio w tle"
+    },
+    "notify": {
+        "audioLoaded": "Audio załadowane."
+    },
+    "keybindings": {
+        "title": "Skróty klawiszowe",
+        "resetToDefaults": "Przywróć domyślne",
+        "save": "Zapisz",
+        "record": "Nagraj",
+        "recording": "Nagrywanie...",
+        "noBinding": "Brak przypisania",
+        "saveSuccess": "Skróty klawiszowe zapisane!",
+        "resetSuccess": "Domyślne skróty klawiszowe przywrócone. Kliknij 'Zapisz', aby zastosować zmiany.",
+        "conflictError": "Nie można zapisać: Znaleziono %d konfliktów skrótów klawiszowych. Rozwiąż konflikty i spróbuj ponownie.",
+        "action": "Akcja",
+        "description": "Opis",
+        "currentBinding": "Aktualne przypisanie",
+        "removeBinding": "Usuń przypisanie",
+        "actions": {
+            "sync": "Dodaj/Aktualizuj Znacznik Czasu",
+            "deleteTime": "Usuń Znacznik Czasu",
+            "resetOffset": "Zresetuj Przesunięcie",
+            "decreaseOffset": "Zmniejsz Przesunięcie",
+            "increaseOffset": "Zwiększ Przesunięcie",
+            "prevLine": "Poprzednia Linia",
+            "nextLine": "Następna Linia",
+            "firstLine": "Pierwsza Linia",
+            "lastLine": "Ostatnia Linia",
+            "pageUp": "Strona W Górę",
+            "pageDown": "Strona W Dół",
+            "seekBackward": "Szukaj Wstecz",
+            "seekForward": "Szukaj Naprzód",
+            "resetRate": "Zresetuj Prędkość Odtwarzania",
+            "increaseRate": "Zwiększ Prędkość Odtwarzania",
+            "decreaseRate": "Zmniejsz Prędkość Odtwarzania",
+            "togglePlay": "Przełącz Odtwarzanie/Pauzę",
+            "showHelp": "Pokaż Pomoc"
+        },
+        "cancel": "Anuluj",
+        "remove": "Usuń"
+    }
+}

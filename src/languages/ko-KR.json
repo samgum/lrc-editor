@@ -1,0 +1,103 @@
+{
+    "languageName": "한국어",
+    "header": {
+        "home": "홈",
+        "editor": "편집기",
+        "synchronizer": "동기화",
+        "preferences": "설정",
+        "tools": "LRC 도구",
+        "keybindings": "키 설정"
+    },
+    "audio": {
+        "loadAudio": "음원 로드하기",
+        "play": "재생",
+        "pause": "일시 중지",
+        "replay5s": "5초 뒤로 가기",
+        "forward5s": "5초 건너뛰기",
+        "resetRate": "재생 속도 다시 설정",
+        "error": [
+            "오디오 오류",
+            "사용자가 오디오를 중단함",
+            "오디오 네트워크 오류",
+            "오디오 디코딩 오류",
+            "지원하지 않는 오디오 타입입니다"
+        ]
+    },
+    "loadAudio": {
+        "file": "파일",
+        "url": "링크",
+        "loadFile": "파일 선택하거나 오디오 파일을 이 페이지에 드롭하세요"
+    },
+    "editor": {
+        "metaInfo": "메타데이터",
+        "album": "앨범",
+        "title": "트랙 이름",
+        "artist": "아티스트",
+        "uploadText": "텍스트 업로드",
+        "copyText": "모두 선택 및 복사",
+        "downloadText": "다운로드",
+        "utils": "lrc 도구"
+    },
+    "preferences": {
+        "language": "언어(language)",
+        "builtInAudio": "브라우저 내장 오디오 재생기 사용하기",
+        "spaceButton": "온 스크린 스페이스 키",
+        "showWaveform": "오디오 파형 표시",
+        "themeColor": "테마 색",
+        "lrcFormat": "LRC 파일 예시",
+        "fixed": "시간 소숫점 자리수",
+        "leftSpace": "가사 왼쪽 여백",
+        "rightSpace": "가사 오른쪽 여백",
+        "clearCache": "캐시 제거",
+        "themeMode": {
+            "label": "테마 모드",
+            "auto": "자동",
+            "light": "라이트",
+            "dark": "다크"
+        },
+        "seekStepMs": "단계 초(ms)",
+        "fineTuneMs": "미세 조정 오프셋(ms)",
+        "interactiveSeek": "효율 모드",
+        "allowBackgroundAudio": "배경 오디오 재생 허용"
+    },
+    "notify": {
+        "audioLoaded": "음원 로드됨"
+    },
+    "keybindings": {
+        "title": "키 바인딩",
+        "resetToDefaults": "기본값으로 리셋",
+        "save": "저장",
+        "record": "기록",
+        "recording": "녹음 중...",
+        "noBinding": "바인딩 없음",
+        "saveSuccess": "키 바인딩이 저장되었습니다!",
+        "resetSuccess": "기본 키 바인딩이 복원되었습니다. 변경사항을 적용하려면 '저장'을 클릭하세요.",
+        "conflictError": "저장할 수 없습니다: %d개의 키 바인딩 충돌이 발견되었습니다. 충돌을 해결하고 다시 시도하세요.",
+        "action": "동작",
+        "description": "설명",
+        "currentBinding": "현재 바인딩",
+        "removeBinding": "바인딩 제거",
+        "actions": {
+            "sync": "타임스탬프 추가/업데이트",
+            "deleteTime": "타임스탬프 삭제",
+            "resetOffset": "오프셋 리셋",
+            "decreaseOffset": "오프셋 감소",
+            "increaseOffset": "오프셋 증가",
+            "prevLine": "이전 행",
+            "nextLine": "다음 행",
+            "firstLine": "첫 행",
+            "lastLine": "마지막 행",
+            "pageUp": "페이지 위",
+            "pageDown": "페이지 아래",
+            "seekBackward": "오디오 뒤로 가기",
+            "seekForward": "오디오 앞으로 가기",
+            "resetRate": "재생 속도 리셋",
+            "increaseRate": "재생 속도 증가",
+            "decreaseRate": "재생 속도 감소",
+            "togglePlay": "재생/일시정지 전환",
+            "showHelp": "도움말 표시"
+        },
+        "cancel": "취소",
+        "remove": "삭제"
+    }
+}

@@ -1,0 +1,6 @@
+{
+    "extensionName": { "message": "LRC Editor Media Bridge" },
+    "extensionDescription": { "message": "Resolve localmente áudio do YouTube e Bilibili para o LRC Editor." },
+    "supportedSources": { "message": "Fontes compatíveis" },
+    "openEditor": { "message": "Abrir LRC Editor" }
+}

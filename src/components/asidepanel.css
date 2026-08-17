@@ -1,0 +1,64 @@
+.aside-panel {
+    position: sticky;
+    top: 143px;
+    display: grid;
+    overflow: hidden;
+    color: #ffffffc7;
+    background: #191a1f;
+    border: 1px solid #ffffff16;
+    border-radius: 6px;
+}
+
+.aside-button {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    color: inherit;
+    border-bottom: 1px solid #ffffff18;
+}
+
+.aside-button:last-child {
+    border-bottom: 0;
+}
+
+.aside-button:hover, .aside-button:focus-visible {
+    color: var(--theme-color);
+    background: #ffffff0d;
+}
+
+.aside-button > svg {
+    width: 21px;
+    height: 21px;
+}
+
+.syncmode-button.highlight {
+    color: var(--theme-contrast-color);
+    background: var(--theme-color);
+}
+
+.syncmode-button.highlight .lock-open, .syncmode-button.select .lock-close {
+    visibility: hidden;
+}
+
+@media (width <= 820px) {
+    .aside-panel {
+        position: static;
+        order: -1;
+        display: flex;
+        align-self: flex-end;
+        border-radius: 5px;
+    }
+
+    .aside-button {
+        width: 42px;
+        height: 40px;
+        border-right: 1px solid #ffffff18;
+        border-bottom: 0;
+    }
+
+    .aside-button:last-child {
+        border-right: 0;
+    }
+}

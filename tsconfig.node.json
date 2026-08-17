@@ -1,0 +1,18 @@
+{
+    "compilerOptions": {
+        "noEmit": true,
+        "skipLibCheck": true,
+        "target": "esnext",
+        "module": "esnext",
+        "moduleResolution": "bundler",
+        "allowSyntheticDefaultImports": true
+    },
+    "include": [
+        "vite.config.ts",
+        "vite.extension.config.ts",
+        "vitest.config.ts",
+        "plugins",
+        "scripts",
+        "package.json"
+    ]
+}
