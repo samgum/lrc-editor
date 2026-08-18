@@ -54,7 +54,7 @@ export const Editor: React.FC<{
     lrcState: LrcState;
     lrcDispatch: React.Dispatch<LrcAction>;
 }> = ({ lrcState, lrcDispatch }) => {
-    const { prefState, lang, trimOptions } = useContext(appContext);
+    const { prefState, prefDispatch, lang, trimOptions } = useContext(appContext);
 
     const parse = useCallback(
         (ev: React.FocusEvent<HTMLTextAreaElement>) => {
@@ -213,11 +213,18 @@ export const Editor: React.FC<{
         activeAlignment.current = operation;
     }, [alignmentErrorText, lang.editor, lrcDispatch, prefState.fixed, text, trimOptions]);
 
+    const onAiAlignClick = useCallback(() => {
+        if (!prefState.aiAlignmentEnabled) {
+            prefDispatch({ type: "aiAlignmentEnabled", payload: true });
+        }
+        onAiAlign();
+    }, [onAiAlign, prefDispatch, prefState.aiAlignmentEnabled]);
+
     const aiStatus = aiState && !aiState.error ? statusText(aiState) : aiState?.error;
 
     return (
         <div className="app-editor">
-            <header className={`editor-commandbar${prefState.aiAlignmentEnabled ? " ai-enabled" : ""}`}>
+            <header className="editor-commandbar ai-enabled">
                 <details ref={details} open={detailsOpened} onToggle={onDetailsToggle}>
                     <summary>{lang.editor.metaInfo}</summary>
                     <section className="app-editor-infobox" onBlur={setInfo}>
@@ -252,16 +259,18 @@ export const Editor: React.FC<{
                 </details>
 
                 <section className="editor-tools">
-                    {prefState.aiAlignmentEnabled && (
-                        <button
-                            className="editor-tools-item ripple ai-align-button"
-                            title={lang.editor.aiAlign}
-                            aria-label={lang.editor.aiAlign}
-                            onClick={onAiAlign}
-                        >
-                            <AiAlignSVG />
-                        </button>
-                    )}
+                    <button
+                        className={`editor-tools-item ripple ai-align-button${
+                            prefState.aiAlignmentEnabled ? "" : " is-off"
+                        }`}
+                        title={prefState.aiAlignmentEnabled ? lang.editor.aiAlign : lang.editor.aiEnableAndAlign}
+                        aria-label={prefState.aiAlignmentEnabled ? lang.editor.aiAlign : lang.editor.aiEnableAndAlign}
+                        aria-pressed={prefState.aiAlignmentEnabled}
+                        onClick={onAiAlignClick}
+                    >
+                        <AiAlignSVG />
+                        <span>AI</span>
+                    </button>
                     <label className="editor-tools-item ripple" title={lang.editor.uploadText}>
                         <input hidden={true} type="file" accept="text/*, .txt, .lrc" onChange={onTextFileUpload} />
                         <OpenFileSVG />

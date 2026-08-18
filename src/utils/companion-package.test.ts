@@ -9,6 +9,7 @@ describe("local AI companion package", () => {
         for (
             const file of [
                 "install-ai-aligner.ps1",
+                "install-ai-aligner.cmd",
                 "start-ai-aligner.ps1",
                 "start-ai-aligner.cmd",
                 "install-ai-aligner.sh",
@@ -17,6 +18,7 @@ describe("local AI companion package", () => {
                 "start-ai-aligner.command",
                 "README.md",
                 "README-zh.md",
+                "INSTALL.txt",
             ]
         ) {
             expect(existsSync(resolve(companionRoot, file))).toBe(true);
@@ -30,8 +32,10 @@ describe("local AI companion package", () => {
         expect(installer).toContain("4898a3cbc569349c5db87bbc931c9d6fa124d64d");
         expect(installer).toContain("Join-Path $resolvedInstallRoot \"models\"");
         expect(installer).toContain("Join-Path $resolvedInstallRoot \"runtime\"");
-        expect(installer).toContain("Read-Host \"Install directory");
+        expect(installer).toContain("Read-Host \"Choose installation location [1/2/3]\"");
         expect(installer).toContain("EstimateOnly");
+        expect(installer).toContain("\"--managed-python\", \"--no-bin\", \"--no-registry\"");
+        expect(installer).toContain("UV_MANAGED_PYTHON");
     });
 
     it("downloads models through the upstream model libraries", () => {

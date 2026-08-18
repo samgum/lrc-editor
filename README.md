@@ -39,6 +39,8 @@ LRC Editor Media Bridge accepts only validated YouTube or Bilibili video identif
 
 Download the current unpacked extension package from [GitHub Releases](https://github.com/samgum/lrc-editor/releases/latest).
 
+Extract the complete ZIP before loading it. On Windows, double-click `INSTALL-EXTENSION.cmd` to open the correct browser management page and extracted directory; browser security still requires the final **Load unpacked** confirmation.
+
 - The temporary URL and audio data are not added to browser history, storage, logs, or a project server. The original YouTube or Bilibili input is retained only for the current tab session so a refresh can request a new temporary URL.
 - The extension does not read site cookies, tabs, browsing history, or account data.
 - YouTube playback integrity data is obtained through an invisible muted embed, which is closed immediately without opening a tab or window.
@@ -50,9 +52,9 @@ The YouTube resolver uses the private InnerTube interface through `youtubei.js`;
 
 ## Optional local AI alignment
 
-AI alignment is disabled by default. When disabled, the page does not probe local ports, transfer media, or create a model task. After it is enabled, work starts only when **AI align** is selected in the editor. Repeated clicks reopen the same progress card, while the extension and local service reject concurrent duplicate jobs.
+AI alignment is disabled by default. The labeled **AI** button remains visible in the editor; clicking it enables the feature and starts the requested alignment. Before that click, the page does not probe local ports, transfer media, or create a model task. Repeated clicks reopen the same progress card, while the extension and local service reject concurrent duplicate jobs.
 
-Media Bridge v0.4.0 is the only browser extension: media resolution and local AI bridging are combined in the same package. The AI installer below is an optional local model engine, not a second browser extension.
+Media Bridge v0.4.1 is the only browser extension: media resolution and local AI bridging are combined in the same package. The AI installer below is an optional local model engine, not a second browser extension.
 
 Windows, macOS, and Linux companion installers keep the managed runtime, verified engine revision, models, jobs, and reusable analysis cache in one user-selected directory. They install an isolated uv-managed Python runtime internally, so users do not need a system Python installation or Python commands. NVIDIA CUDA is private to the companion on Windows/Linux; macOS and unsupported GPUs use the complete CPU path. See the [local AI alignment guide](./companion/README.md).
 

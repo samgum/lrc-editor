@@ -13,6 +13,11 @@ const manifest = JSON.parse(readFileSync(resolve(extensionRoot, "manifest.json")
 };
 
 describe("extension package", () => {
+    it("includes clear unpacked-extension installation helpers", () => {
+        expect(existsSync(resolve(extensionRoot, "INSTALL-EXTENSION.cmd"))).toBe(true);
+        expect(existsSync(resolve(extensionRoot, "INSTALL-EXTENSION.txt"))).toBe(true);
+    });
+
     it("keeps the classic content script free of runtime imports", () => {
         const bridgeSource = readFileSync(resolve("extension/src/bridge.ts"), "utf8");
         expect(bridgeSource).not.toMatch(/^import\s+(?!type\b)/m);
@@ -33,7 +38,7 @@ describe("extension package", () => {
             action: { responseHeaders?: Array<{ header: string }> };
             condition: { resourceTypes: string[] };
         }>;
-        expect(manifest.version).toBe("0.4.0");
+        expect(manifest.version).toBe("0.4.1");
         expect(rules[0].condition.resourceTypes).toEqual(expect.arrayContaining(["media", "xmlhttprequest"]));
         expect(rules[1].condition.resourceTypes).toEqual(expect.arrayContaining(["media", "xmlhttprequest"]));
         expect(rules[1].action.responseHeaders?.map((header) => header.header)).toContain(

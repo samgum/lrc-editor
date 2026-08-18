@@ -29,6 +29,7 @@
         },
         "editor": {
             "aiAlign": "AI でタイミング調整",
+            "aiEnableAndAlign": "ローカル AI を有効にして実行",
             "aiTitle": "ローカル AI タイミング調整",
             "aiConnecting": "ローカルサービスに接続中…",
             "aiUploading": "読み込んだ音声をローカルサービスへ転送中…",
@@ -148,6 +149,7 @@
         },
         "editor": {
             "aiAlign": "AI 싱크",
+            "aiEnableAndAlign": "로컬 AI 싱크 사용 및 실행",
             "aiTitle": "로컬 AI 가사 싱크",
             "aiConnecting": "로컬 서비스에 연결 중…",
             "aiUploading": "불러온 오디오를 로컬 서비스로 전송 중…",
@@ -267,6 +269,7 @@
         },
         "editor": {
             "aiAlign": "Wyrównaj przez AI",
+            "aiEnableAndAlign": "Włącz i uruchom lokalne wyrównanie AI",
             "aiTitle": "Lokalne wyrównanie AI",
             "aiConnecting": "Łączenie z usługą lokalną…",
             "aiUploading": "Przesyłanie wczytanego dźwięku do usługi lokalnej…",
@@ -386,6 +389,7 @@
         },
         "editor": {
             "aiAlign": "Alinhar com IA",
+            "aiEnableAndAlign": "Ativar e executar alinhamento local com IA",
             "aiTitle": "Alinhamento local com IA",
             "aiConnecting": "Conectando ao serviço local…",
             "aiUploading": "Enviando o áudio carregado ao serviço local…",
@@ -505,6 +509,7 @@
         },
         "editor": {
             "aiAlign": "Zarovnať pomocou AI",
+            "aiEnableAndAlign": "Povoliť a spustiť lokálne zarovnanie AI",
             "aiTitle": "Lokálne zarovnanie AI",
             "aiConnecting": "Pripájanie k lokálnej službe…",
             "aiUploading": "Odosielanie načítaného zvuku lokálnej službe…",
@@ -624,6 +629,7 @@
         },
         "editor": {
             "aiAlign": "AI 對軸",
+            "aiEnableAndAlign": "啟用並執行本機 AI 對軸",
             "aiTitle": "本機 AI 對軸",
             "aiConnecting": "正在連接本機服務…",
             "aiUploading": "正在把已載入音訊交給本機服務…",
@@ -743,6 +749,7 @@
         },
         "editor": {
             "aiAlign": "AI 對軸",
+            "aiEnableAndAlign": "啟用並執行本機 AI 對軸",
             "aiTitle": "本機 AI 對軸",
             "aiConnecting": "正在連接本機服務…",
             "aiUploading": "正在把已載入音訊交給本機服務…",

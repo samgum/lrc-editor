@@ -62,6 +62,7 @@
         "downloadText": "download",
         "utils": "lrc utils",
         "aiAlign": "AI align",
+        "aiEnableAndAlign": "Enable and run local AI alignment",
         "aiTitle": "Local AI alignment",
         "aiConnecting": "Connecting to the local aligner…",
         "aiUploading": "Sending the loaded media to the local aligner…",

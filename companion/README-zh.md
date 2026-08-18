@@ -7,12 +7,12 @@
 ## Windows 安装
 
 1. 从最新 [LRC Editor Release](https://github.com/samgum/lrc-editor/releases/latest) 下载并解压 `lrc-editor-ai-aligner` 安装包。
-2. 右键 `install-ai-aligner.ps1`，选择“使用 PowerShell 运行”，选择安装目录后等待全部下载完成。
+2. 双击 `install-ai-aligner.cmd`；选择 1 使用 C 盘默认目录、2 使用 `D:\LRC Editor AI`、3 输入自定义目录，然后等待全部下载完成。
 3. 只在需要 AI 对轴时双击 `start-ai-aligner.cmd`，并保持终端窗口开启。
-4. 安装或更新到 LRC Editor Media Bridge v0.4.0 或更高版本。
+4. 安装或更新到 LRC Editor Media Bridge v0.4.1 或更高版本。
 5. 在 LRC Editor 中开启“设置 → 启用本机 AI 对轴”，载入媒体、打开编辑器，再点击“AI 对轴”。
 
-缺少 Git、FFmpeg 或 uv 时，安装脚本会通过 WinGet 自动安装。uv 会把隔离的 Python 3.11 运行环境放进组件目录，不需要用户安装系统 Python，也不需要手动使用 Python 命令。
+缺少 Git、FFmpeg 或 uv 时，安装脚本会通过 WinGet 自动安装。安装器始终把 uv 管理的 Python 3.11 下载到所选目录内的 `python`，并只用这个解释器创建 `environment`；不会复用、注册或加入系统 PATH，用户无需预装 Python。删除整个 AI 安装目录即可一并移除这套私有 Python。
 
 ## macOS／Linux 安装
 

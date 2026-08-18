@@ -27,14 +27,14 @@ function Add-PrivateNvidiaRuntimePath {
 }
 
 if (-not (Test-Path -LiteralPath $venvPython)) {
-    throw "The AI aligner is not installed. Run install-ai-aligner.ps1 first."
+    throw "The AI aligner is not installed. Run install-ai-aligner.cmd first."
 }
 if (-not (Test-Path -LiteralPath (Join-Path $engineRoot "src\lyrics_aligner\server.py"))) {
-    throw "The installed alignment engine is incomplete. Run install-ai-aligner.ps1 again."
+    throw "The installed alignment engine is incomplete. Run install-ai-aligner.cmd again."
 }
 if ($null -eq (Get-Command ffmpeg -ErrorAction SilentlyContinue) -or
     $null -eq (Get-Command ffprobe -ErrorAction SilentlyContinue)) {
-    throw "FFmpeg is not available. Run install-ai-aligner.ps1 again."
+    throw "FFmpeg is not available. Run install-ai-aligner.cmd again."
 }
 
 function Get-RunningAlignerUrl {

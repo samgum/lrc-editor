@@ -23,12 +23,31 @@ if ([string]::IsNullOrWhiteSpace($InstallRoot)) {
         $InstallRoot = $defaultInstallRoot
     } else {
         Write-Host "Choose one directory for the engine, models, private GPU runtime, and job cache."
-        Write-Host "Default: $defaultInstallRoot"
-        $selectedInstallRoot = Read-Host "Install directory (press Enter to use the default)"
-        $InstallRoot = if ([string]::IsNullOrWhiteSpace($selectedInstallRoot)) {
-            $defaultInstallRoot
+        Write-Host "1. C drive default: $defaultInstallRoot"
+        if (Test-Path -LiteralPath "D:\") {
+            Write-Host "2. D drive: D:\LRC Editor AI"
         } else {
-            $selectedInstallRoot.Trim().Trim('"')
+            Write-Host "2. D drive: unavailable on this computer"
+        }
+        Write-Host "3. Custom directory"
+        $pathChoice = Read-Host "Choose installation location [1/2/3]"
+        switch ($pathChoice.Trim()) {
+            "2" {
+                if (-not (Test-Path -LiteralPath "D:\")) {
+                    throw "D drive is unavailable. Run the installer again and choose 1 or 3."
+                }
+                $InstallRoot = "D:\LRC Editor AI"
+            }
+            "3" {
+                $selectedInstallRoot = Read-Host "Enter an absolute installation directory"
+                if ([string]::IsNullOrWhiteSpace($selectedInstallRoot)) {
+                    throw "A custom installation directory is required for option 3."
+                }
+                $InstallRoot = $selectedInstallRoot.Trim().Trim('"')
+            }
+            default {
+                $InstallRoot = $defaultInstallRoot
+            }
         }
     }
 }
@@ -285,10 +304,44 @@ Ensure-Junction -Path (Join-Path $engineRoot "runtime") -Target $runtimeRoot
 $env:UV_PYTHON_INSTALL_DIR = $pythonRoot
 $env:UV_CACHE_DIR = $downloadCacheRoot
 $env:UV_NO_MODIFY_PATH = "1"
-if (-not (Test-Path -LiteralPath $venvPython)) {
-    Write-Host "Creating an isolated managed runtime..." -ForegroundColor Cyan
-    Invoke-Checked -FilePath $uv -Arguments @("venv", "--python", "3.11", $environmentRoot) `
-        -FailureMessage "Unable to create the managed runtime"
+$env:UV_MANAGED_PYTHON = "1"
+Write-Host "Installing private Python 3.11 inside the selected directory..." -ForegroundColor Cyan
+Invoke-Checked -FilePath $uv -Arguments @(
+    "python", "install", "3.11", "--install-dir", $pythonRoot,
+    "--managed-python", "--no-bin", "--no-registry"
+) -FailureMessage "Unable to install the private Python runtime"
+$savedPreference = $ErrorActionPreference
+try {
+    $ErrorActionPreference = "Continue"
+    $managedPython = (& $uv python find 3.11 --managed-python --no-project).Trim()
+    $managedPythonExitCode = $LASTEXITCODE
+} finally {
+    $ErrorActionPreference = $savedPreference
+}
+if ($managedPythonExitCode -ne 0 -or -not (Test-Path -LiteralPath $managedPython)) {
+    throw "The private Python executable could not be located."
+}
+$resolvedManagedPython = [System.IO.Path]::GetFullPath($managedPython)
+if (-not $resolvedManagedPython.StartsWith($pythonRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "uv selected a Python runtime outside the chosen installation directory."
+}
+
+$rebuildEnvironment = -not (Test-Path -LiteralPath $venvPython)
+if (-not $rebuildEnvironment) {
+    $existingBase = (& $venvPython -c "import sys; print(sys.base_prefix)").Trim()
+    $rebuildEnvironment = -not [System.IO.Path]::GetFullPath($existingBase).StartsWith(
+        $pythonRoot,
+        [System.StringComparison]::OrdinalIgnoreCase
+    )
+}
+if ($rebuildEnvironment) {
+    Write-Host "Creating an isolated environment from the private Python runtime..." -ForegroundColor Cyan
+    $venvArguments = @("venv", "--python", $resolvedManagedPython, "--managed-python")
+    if (Test-Path -LiteralPath $environmentRoot) {
+        $venvArguments += "--clear"
+    }
+    $venvArguments += $environmentRoot
+    Invoke-Checked -FilePath $uv -Arguments $venvArguments -FailureMessage "Unable to create the private environment"
 }
 
 Write-Host "Installing the local engine for $computeMode..." -ForegroundColor Cyan
@@ -425,7 +478,14 @@ print("Selected backend: $backendName")
 Invoke-Checked -FilePath $venvPython -Arguments @("-c", $verificationCode) `
     -FailureMessage "The local alignment engine failed verification"
 
-foreach ($fileName in @("start-ai-aligner.ps1", "start-ai-aligner.cmd", "README.md", "README-zh.md")) {
+foreach ($fileName in @(
+    "install-ai-aligner.cmd",
+    "start-ai-aligner.ps1",
+    "start-ai-aligner.cmd",
+    "README.md",
+    "README-zh.md",
+    "INSTALL.txt"
+)) {
     $sourcePath = Join-Path $PSScriptRoot $fileName
     $destinationPath = Join-Path $resolvedInstallRoot $fileName
     $shouldCopy = (Test-Path -LiteralPath $sourcePath) -and `
@@ -449,6 +509,8 @@ $state = [ordered]@{
     gpuMemoryMb = $gpuMemoryMb
     installRoot = $resolvedInstallRoot
     modelRoot = $modelRoot
+    pythonRoot = $pythonRoot
+    managedPython = $resolvedManagedPython
     modelBytes = [long]$modelBytes
     modelsDownloaded = -not [bool]$SkipModelDownload
     expectedDownload = $expectedDownload

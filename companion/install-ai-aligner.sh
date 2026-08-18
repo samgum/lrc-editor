@@ -260,8 +260,31 @@ ensure_symlink "$engine_root/runtime" "$runtime_root"
 export UV_PYTHON_INSTALL_DIR="$python_root"
 export UV_CACHE_DIR="$download_cache_root"
 export UV_NO_MODIFY_PATH=1
+export UV_MANAGED_PYTHON=1
+echo "Installing private Python 3.11 inside the selected directory..."
+"$uv_command" python install 3.11 --install-dir "$python_root" --managed-python --no-bin
+managed_python="$("$uv_command" python find 3.11 --managed-python --no-project)"
+if [[ ! -x "$managed_python" || "$managed_python" != "$python_root"/* ]]; then
+    echo "uv selected a Python runtime outside the chosen installation directory." >&2
+    exit 1
+fi
+
+rebuild_environment=0
 if [[ ! -x "$venv_python" ]]; then
-    "$uv_command" venv --python 3.11 "$environment_root"
+    rebuild_environment=1
+else
+    existing_base="$("$venv_python" -c 'import sys; print(sys.base_prefix)')"
+    if [[ "$existing_base" != "$python_root"/* ]]; then
+        rebuild_environment=1
+    fi
+fi
+if [[ "$rebuild_environment" -eq 1 ]]; then
+    venv_arguments=(venv --python "$managed_python" --managed-python)
+    if [[ -e "$environment_root" ]]; then
+        venv_arguments+=(--clear)
+    fi
+    venv_arguments+=("$environment_root")
+    "$uv_command" "${venv_arguments[@]}"
 fi
 
 reinstall_cpu=0
@@ -331,7 +354,7 @@ if [[ "$use_cuda" -eq 0 && "$skip_models" -eq 0 ]]; then
 fi
 "$venv_python" -c 'from lyrics_aligner.server import app; assert app.title == "Lyrics Forced Aligner"; assert app.version == "0.2.27"; print("Engine API verified")'
 
-for file_name in start-ai-aligner.sh start-ai-aligner.command README.md README-zh.md; do
+for file_name in start-ai-aligner.sh start-ai-aligner.command README.md README-zh.md INSTALL.txt; do
     if [[ -f "$script_root/$file_name" && "$script_root/$file_name" != "$install_root/$file_name" ]]; then
         cp "$script_root/$file_name" "$install_root/$file_name"
     fi
@@ -352,6 +375,8 @@ export LRC_STATE_GPU_NAME="$gpu_name"
 export LRC_STATE_GPU_MEMORY="$gpu_memory_mb"
 export LRC_STATE_INSTALL_ROOT="$install_root"
 export LRC_STATE_MODEL_ROOT="$model_root"
+export LRC_STATE_PYTHON_ROOT="$python_root"
+export LRC_STATE_MANAGED_PYTHON="$managed_python"
 export LRC_STATE_MODEL_BYTES="$model_bytes"
 export LRC_STATE_MODELS_DOWNLOADED="$((1 - skip_models))"
 export LRC_STATE_EXPECTED_DOWNLOAD="$expected_download"
@@ -372,6 +397,8 @@ state = {
     "gpuMemoryMb": int(os.environ["LRC_STATE_GPU_MEMORY"] or 0),
     "installRoot": os.environ["LRC_STATE_INSTALL_ROOT"],
     "modelRoot": os.environ["LRC_STATE_MODEL_ROOT"],
+    "pythonRoot": os.environ["LRC_STATE_PYTHON_ROOT"],
+    "managedPython": os.environ["LRC_STATE_MANAGED_PYTHON"],
     "modelBytes": int(os.environ["LRC_STATE_MODEL_BYTES"]),
     "modelsDownloaded": os.environ["LRC_STATE_MODELS_DOWNLOADED"] == "1",
     "expectedDownload": os.environ["LRC_STATE_EXPECTED_DOWNLOAD"],

@@ -1,0 +1,21 @@
+LRC Editor Media Bridge v0.4.1
+
+This is the browser extension package.
+这是浏览器扩展安装包。
+
+Windows:
+1. Extract the complete ZIP. / 完整解压 ZIP。
+2. Double-click INSTALL-EXTENSION.cmd.
+3. Enable Developer mode in the browser extension page.
+   在浏览器扩展管理页开启“开发者模式”。
+4. Select Load unpacked and choose this extracted directory.
+   点击“加载已解压的扩展程序”，选择当前解压目录。
+
+Browser security does not allow a CMD file to silently install an unpacked extension.
+受浏览器安全机制限制，CMD 不能静默完成最后的扩展安装确认。
+
+The optional local AI engine is a different package:
+lrc-editor-ai-aligner-windows-v0.4.1.zip
+
+可选的本机 AI 引擎是另一个安装包：
+lrc-editor-ai-aligner-windows-v0.4.1.zip

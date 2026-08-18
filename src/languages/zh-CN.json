@@ -56,6 +56,7 @@
         "downloadText": "下载",
         "utils": "实用工具",
         "aiAlign": "AI 对轴",
+        "aiEnableAndAlign": "启用并运行本机 AI 对轴",
         "aiTitle": "本机 AI 对轴",
         "aiConnecting": "正在连接本机对齐服务…",
         "aiUploading": "正在把已载入音频交给本机服务…",
