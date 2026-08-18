@@ -115,6 +115,8 @@ pnpm exec wrangler pages deploy build --project-name lrc-editor
 
 The offline Service Worker runs in the visitor's browser and does not add a Pages Function or Cloudflare Worker. Cloudflare documents static asset requests on Pages as free and unlimited on both free and paid plans: [Pages pricing](https://developers.cloudflare.com/pages/functions/pricing/#static-asset-requests).
 
+Cloudflare deployment remains manual. Every successful push to `main` is also checked, tested, built, and automatically published by [the GitHub Pages workflow](./.github/workflows/pages.yml) to the independent backup site at [samgum.github.io/lrc-editor](https://samgum.github.io/lrc-editor/).
+
 The extension is packaged separately. Build it with `pnpm build:extension`, then distribute the resulting `extension-dist/` directory or submit the same packaged code to a Chromium extension store. After committing a release version, `./scripts/package-release.ps1` creates the extension archive, both companion archives with the bundled engine, and `SHA256SUMS.txt`.
 
 ## Project structure

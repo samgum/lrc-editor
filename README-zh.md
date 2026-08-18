@@ -115,6 +115,8 @@ pnpm exec wrangler pages deploy build --project-name lrc-editor
 
 离线 Service Worker 运行在访问者浏览器中，不会新增 Pages Function 或 Cloudflare Worker。Cloudflare 官方说明 Pages 静态资源请求在免费与付费计划中均免费且不限量：[Pages 计费说明](https://developers.cloudflare.com/pages/functions/pricing/#static-asset-requests)。
 
+Cloudflare 继续手动部署。每次成功推送到 `main` 后，[GitHub Pages 工作流](./.github/workflows/pages.yml)还会自动完成检查、测试、构建，并把同一站点发布到独立备用地址 [samgum.github.io/lrc-editor](https://samgum.github.io/lrc-editor/)。
+
 扩展单独打包。运行 `pnpm build:extension` 后，可分发 `extension-dist/`，或用同一份打包代码提交至 Chromium 扩展商店。提交 Release 版本号后，运行 `./scripts/package-release.ps1` 会同时生成扩展压缩包、两套含内置引擎的本机组件包和 `SHA256SUMS.txt`。
 
 ## 目录结构
