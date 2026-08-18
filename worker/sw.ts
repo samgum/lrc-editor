@@ -46,7 +46,7 @@ swWorker.addEventListener("fetch", (event) => {
             }
             if (match) await cache.delete(event.request);
 
-            const response = await fetch(event.request);
+            const response = await fetch(event.request, { cache: "no-store" });
             if (response.type === "basic" && isExpectedAssetResponse(url, response)) {
                 event.waitUntil(cache.put(event.request, response.clone()));
             }
