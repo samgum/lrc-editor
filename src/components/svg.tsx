@@ -17,10 +17,9 @@ const LineIcon: React.FC<{ children: ReactNode; viewBox?: string }> = ({ childre
 
 export const BrandSVG: React.FC = () => (
     <LineIcon viewBox="0 0 32 32">
-        <path className="brand-brackets" d="M10 5H6v22h4M22 5h4v22h-4" />
-        <path className="brand-lines" d="M11 11h4M18 11h3M11 16h3M19 16h2M11 21h5M19 21h2" />
-        <path className="brand-playhead" d="M16 8v16" />
-        <path className="brand-node" d="m16 13 3 3-3 3-3-3z" fill="currentColor" stroke="none" />
+        <path className="brand-lines" d="M6 10c4-2 7 2 11 0s6-1 9 0M6 22c4-2 7 2 11 0s5-1 8 0" />
+        <path className="brand-active-line" d="M10 16c4-2.5 7 2.5 11 0s4-1 5 0" />
+        <circle className="brand-cue" cx="6" cy="16" r="2" fill="currentColor" stroke="none" />
     </LineIcon>
 );
 

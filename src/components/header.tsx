@@ -63,7 +63,6 @@ export const Header: React.FC = () => {
                 </span>
                 <span className="app-title-copy">
                     <strong>{BRAND.name}</strong>
-                    <small>lrc.sgmy.org</small>
                 </span>
             </a>
             <nav className="app-nav" aria-label={BRAND.name}>

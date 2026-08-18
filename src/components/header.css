@@ -39,11 +39,11 @@
     place-items: center;
     width: 40px;
     height: 40px;
-    color: #fffdf9;
-    background: #191a1f;
-    border: 1px solid #ffffff14;
+    color: #b65f79;
+    background: #fff3f6;
+    border: 1px solid #f1b4c5;
     border-radius: 9px;
-    box-shadow: inset 0 0 0 1px #0000001f, 0 3px 10px #00000018;
+    box-shadow: inset 0 0 0 1px #ffffffb8, 0 3px 10px #9c49601f;
 }
 
 .app-brand-mark svg {
@@ -52,35 +52,26 @@
 }
 
 .app-brand-mark .brand-lines {
-    opacity: 0.48;
+    opacity: 0.65;
 }
 
-.app-brand-mark .brand-playhead {
-    stroke: var(--theme-color);
+.app-brand-mark .brand-active-line {
+    stroke: #e85f86;
 }
 
-.app-brand-mark .brand-node {
-    color: var(--theme-color);
+.app-brand-mark .brand-cue {
+    color: #e85f86;
 }
 
 .app-title-copy {
-    display: flex;
     min-width: 0;
-    flex-direction: column;
-    line-height: 1.1;
+    line-height: 1;
 }
 
 .app-title-copy strong {
     font-family: Bahnschrift, "Segoe UI Variable Display", "Noto Sans", sans-serif;
     font-size: 1rem;
     letter-spacing: 0.01em;
-}
-
-.app-title-copy small {
-    margin-top: 4px;
-    color: #888888;
-    font-size: 0.66rem;
-    letter-spacing: 0.05em;
 }
 
 .app-nav {
@@ -157,10 +148,6 @@
     .app-header {
         grid-template-columns: auto minmax(0, 1fr) auto;
         gap: 7px;
-    }
-
-    .app-title-copy small {
-        display: none;
     }
 
     .app-tab {
