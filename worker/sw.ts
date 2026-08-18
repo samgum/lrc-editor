@@ -41,15 +41,29 @@ swWorker.addEventListener("fetch", (event) => {
     event.respondWith(
         caches.open(CACHENAME).then(async (cache) => {
             const match = await cache.match(event.request);
-            if (match) {
+            if (match && isExpectedAssetResponse(url, match)) {
                 return match;
             }
+            if (match) await cache.delete(event.request);
 
             const response = await fetch(event.request);
-            if (response.ok && response.type === "basic") {
+            if (response.type === "basic" && isExpectedAssetResponse(url, response)) {
                 event.waitUntil(cache.put(event.request, response.clone()));
             }
             return response;
         }),
     );
 });
+
+const isExpectedAssetResponse = (url: URL, response: Response): boolean => {
+    if (!response.ok) return false;
+    const contentType = (response.headers.get("Content-Type") || "").toLowerCase();
+    if (url.pathname.endsWith(".css")) return contentType.includes("text/css");
+    if (url.pathname.endsWith(".js")) return contentType.includes("javascript");
+    if (url.pathname.endsWith(".png")) return contentType.includes("image/png");
+    if (url.pathname.endsWith(".svg")) return contentType.includes("image/svg+xml");
+    if (url.pathname.endsWith(".webmanifest")) {
+        return contentType.includes("manifest+json") || contentType.includes("application/json");
+    }
+    return false;
+};
