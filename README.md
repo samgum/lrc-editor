@@ -46,7 +46,7 @@ Chrome installation:
 
 1. Open `chrome://extensions`.
 2. Enable **Developer mode**.
-3. Select **Load unpacked** and choose the extracted `lrc-editor-media-bridge-v0.4.3` directory.
+3. Select **Load unpacked** and choose the extracted `lrc-editor-media-bridge-v0.4.4` directory.
 4. Reload LRC Editor after installing or replacing the extension.
 
 Microsoft Edge uses `edge://extensions` with the same **Developer mode** and **Load unpacked** steps. On Windows, `INSTALL-EXTENSION.cmd` opens the management page and extracted directory but cannot perform the final confirmation.
@@ -64,7 +64,7 @@ The YouTube resolver uses the private InnerTube interface through `youtubei.js`;
 
 AI alignment is disabled by default. The labeled **AI** button remains visible in the editor; clicking it enables the feature and starts the requested alignment. Before that click, the page does not probe local ports, transfer media, or create a model task. Repeated clicks reopen the same progress card, while the extension and local service reject concurrent duplicate jobs.
 
-Media Bridge v0.4.3 is the only browser extension: media resolution and local AI bridging are combined in the same package. The AI installer below is an optional local model engine, not a second browser extension.
+Media Bridge v0.4.4 is the only browser extension: media resolution and local AI bridging are combined in the same package. The AI installer below is an optional local model engine, not a second browser extension.
 
 Windows, macOS, and Linux companion installers keep the managed runtime, verified engine revision, and models in one user-selected directory. They install an isolated uv-managed Python runtime internally, so users do not need a system Python installation or Python commands. NVIDIA CUDA is private to the companion on Windows/Linux; macOS and unsupported GPUs use the complete CPU path. Per-task audio, outputs, and analysis work are deleted after the selected LRC has reached the editor unless **Keep and reuse AI task cache** is explicitly enabled in Settings. Model weights and the private runtime are never removed by task cleanup. See the [local AI alignment guide](./companion/README.md).
 

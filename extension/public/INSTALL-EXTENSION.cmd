@@ -1,7 +1,7 @@
 @echo off
 setlocal
 title LRC Editor Media Bridge Installation
-echo LRC Editor Media Bridge v0.4.3
+echo LRC Editor Media Bridge v0.4.4
 echo.
 echo This helper opens the browser extension page and this extracted directory.
 echo 此工具会打开浏览器扩展管理页和当前解压目录。

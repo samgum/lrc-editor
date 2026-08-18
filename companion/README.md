@@ -9,7 +9,7 @@ This optional companion runs the verified `lyrics-forced-aligner` engine entirel
 1. Download and extract the `lrc-editor-ai-aligner` package from the latest [LRC Editor release](https://github.com/samgum/lrc-editor/releases/latest).
 2. Double-click `install-ai-aligner.cmd`, choose 1 for the C drive default, 2 for `D:\LRC Editor AI`, or 3 for a custom directory, then allow the downloads to finish.
 3. Double-click `start-ai-aligner.cmd` only when AI alignment is needed. Keep its terminal open.
-4. Install or update LRC Editor Media Bridge to v0.4.3 or later.
+4. Install or update LRC Editor Media Bridge to v0.4.4 or later.
 5. In LRC Editor, turn on **Settings → Enable local AI alignment**, load media, open the editor, and select **AI align**.
 
 The installer uses WinGet when Git, FFmpeg, or uv is missing. It always downloads a uv-managed Python 3.11 runtime into the chosen `python` directory and creates `environment` from that exact executable. It does not reuse, register, or add a system Python to `PATH`; no preinstalled Python or Python command is required. Removing the selected AI directory removes this private Python as well.

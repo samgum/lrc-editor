@@ -44,6 +44,8 @@ describe("local AI companion package", () => {
         const installer = readFileSync(resolve(companionRoot, "install-ai-aligner.sh"), "utf8");
         expect(installer).toContain("uv_version=\"0.12.5\"");
         expect(installer).toContain("uv_command=\"$uv_tools/uv\"");
+        expect(installer).toContain("installed_uv_version=\"$(\"$uv_command\" --version");
+        expect(installer).not.toContain("installed_uv_version=\"$($uv_command --version");
         expect(installer).toContain("UV_PYTHON_INSTALL_BIN=0");
         expect(installer).not.toContain("--no-bin");
         expect(installer).toContain("python install 3.11 --install-dir \"$python_root\" --managed-python");

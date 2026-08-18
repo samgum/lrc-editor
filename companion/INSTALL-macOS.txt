@@ -10,8 +10,8 @@ Before installation / 安装前：
   请预留至少 15 GB 空间，预计下载约 4-6 GB。
 
 Install / 安装：
-1. Fully extract lrc-editor-ai-aligner-macos-linux-v0.4.3.tar.gz in Finder.
-   在 Finder 中完整解压 lrc-editor-ai-aligner-macos-linux-v0.4.3.tar.gz。
+1. Fully extract lrc-editor-ai-aligner-macos-linux-v0.4.4.tar.gz in Finder.
+   在 Finder 中完整解压 lrc-editor-ai-aligner-macos-linux-v0.4.4.tar.gz。
 2. Right-click install-ai-aligner.command and choose Open. Confirm Open if macOS asks.
    右键 install-ai-aligner.command，选择“打开”；如 macOS 再次询问，请确认“打开”。
 3. Press Enter for the default directory, or enter an absolute path on another disk.
@@ -28,8 +28,8 @@ Use / 使用：
   卸载：双击 uninstall-ai-aligner.command；必须先输入 UNINSTALL，再完整输入安装路径。
 
 Chrome extension / Chrome 扩展：
-1. Download and fully extract lrc-editor-media-bridge-v0.4.3.zip.
-   下载并完整解压 lrc-editor-media-bridge-v0.4.3.zip。
+1. Download and fully extract lrc-editor-media-bridge-v0.4.4.zip.
+   下载并完整解压 lrc-editor-media-bridge-v0.4.4.zip。
 2. Open chrome://extensions and enable Developer mode.
    打开 chrome://extensions，开启“开发者模式”。
 3. Select Load unpacked and choose the extracted extension folder.

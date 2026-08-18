@@ -138,10 +138,6 @@
     user-select: none;
 }
 
-.follow-playback .lyric-list {
-    padding-top: max(0px, calc(var(--timing-follow-end-space, 28svh) - 25px));
-}
-
 .lyric-list.on-screen-button {
     margin-bottom: 96px;
 }

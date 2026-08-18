@@ -1,6 +1,6 @@
 {
     "name": "lrc-editor",
-    "version": "0.4.3",
+    "version": "0.4.4",
     "description": "面向 lrc.sgmy.org 的跨平台 LRC 编辑与打轴工具",
     "license": "MIT",
     "keywords": [
@@ -29,7 +29,8 @@
         "test": "vitest run",
         "fix:fmt": "dprint fmt",
         "check:fmt": "dprint check",
-        "check:lint": "oxlint src extension/src worker plugins -D correctness"
+        "check:lint": "oxlint src extension/src worker plugins -D correctness",
+        "check:companion": "bash scripts/test-companion-shell.sh"
     },
     "imports": {
         "#const/*": "./src/const/*"

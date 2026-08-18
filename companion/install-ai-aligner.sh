@@ -207,7 +207,7 @@ uv_command="$uv_tools/uv"
 mkdir -p "$uv_tools"
 installed_uv_version=""
 if [[ -x "$uv_command" ]]; then
-    installed_uv_version="$($uv_command --version | awk '{ print $2 }')"
+    installed_uv_version="$("$uv_command" --version | awk '{ print $2 }')"
 fi
 if [[ "$installed_uv_version" != "$uv_version" ]]; then
     echo "Installing private uv $uv_version from https://astral.sh/uv/$uv_version/install.sh"
@@ -218,7 +218,7 @@ if [[ ! -x "$uv_command" ]]; then
     echo "uv is unavailable after installation." >&2
     exit 1
 fi
-installed_uv_version="$($uv_command --version | awk '{ print $2 }')"
+installed_uv_version="$("$uv_command" --version | awk '{ print $2 }')"
 if [[ "$installed_uv_version" != "$uv_version" ]]; then
     echo "Private uv version verification failed: expected $uv_version, found $installed_uv_version" >&2
     exit 1

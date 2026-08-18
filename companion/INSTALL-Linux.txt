@@ -3,8 +3,8 @@ LRC Editor local AI engine for Linux / LRC Editor Linux 本机 AI 引擎
 This archive is not a browser extension. / 这个压缩包不是浏览器扩展。
 
 Install / 安装：
-1. Fully extract lrc-editor-ai-aligner-macos-linux-v0.4.3.tar.gz.
-   完整解压 lrc-editor-ai-aligner-macos-linux-v0.4.3.tar.gz。
+1. Fully extract lrc-editor-ai-aligner-macos-linux-v0.4.4.tar.gz.
+   完整解压 lrc-editor-ai-aligner-macos-linux-v0.4.4.tar.gz。
 2. Open a terminal in the extracted directory and run: ./install-ai-aligner.sh
    在解压目录打开终端，运行：./install-ai-aligner.sh
 3. Press Enter for the default directory, or enter an absolute path on another disk.
@@ -19,7 +19,7 @@ Use / 使用：
   卸载需要先输入 UNINSTALL，再完整输入安装路径，完成两次确认。
 
 Chrome extension / Chrome 扩展：
-1. Download and fully extract lrc-editor-media-bridge-v0.4.3.zip.
+1. Download and fully extract lrc-editor-media-bridge-v0.4.4.zip.
 2. Open chrome://extensions and enable Developer mode.
 3. Select Load unpacked and choose the extracted extension folder.
 4. Reload https://lrc.sgmy.org after installing or updating.
