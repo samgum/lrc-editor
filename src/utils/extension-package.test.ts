@@ -80,6 +80,8 @@ describe("extension package", () => {
             "https://163cn.tv/*",
             "https://music.163.com/*",
             "https://*.music.163.com/*",
+            "http://*.music.126.net/*",
+            "https://*.music.126.net/*",
             "https://lrc.sgmy.org/*",
             "http://localhost/*",
             "http://127.0.0.1/*",

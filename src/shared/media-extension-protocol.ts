@@ -19,7 +19,8 @@ export interface BilibiliExtensionRequest {
 export interface NeteaseExtensionRequest {
     type: typeof neteaseExtensionRequestType;
     requestId: string;
-    url: string;
+    url?: string;
+    songId?: string;
 }
 
 export type MediaExtensionRequest = YouTubeExtensionRequest | BilibiliExtensionRequest | NeteaseExtensionRequest;
@@ -41,6 +42,8 @@ export type MediaExtensionResponse =
         ok: true;
         provider: "netease";
         songId: string;
+        audioUrl: string;
+        mimeType: string;
     }
     | {
         type: typeof mediaExtensionResponseType;

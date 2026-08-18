@@ -4,9 +4,9 @@ import { extractMediaUrl, extractSharedMediaUrl, materializeExtensionMedia, pars
 describe("parseMediaInput", () => {
     it("converts NetEase song links to the public media endpoint", () => {
         expect(parseMediaInput("https://music.163.com/#/song?id=123456789")).toEqual({
-            kind: "direct",
-            url: "https://music.163.com/song/media/outer/url?id=123456789.mp3",
-            persist: true,
+            kind: "netease",
+            originalUrl: "https://music.163.com/#/song?id=123456789",
+            songId: "123456789",
         });
     });
 

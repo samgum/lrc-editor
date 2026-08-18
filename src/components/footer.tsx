@@ -80,8 +80,11 @@ export const Footer: React.FC = () => {
             let provider: "bilibili" | "netease" | "youtube" | null = null;
             try {
                 const parsed = parseMediaInput(value);
-                if (parsed.kind === "youtube" || parsed.kind === "bilibili" || parsed.kind === "netease-short") {
-                    provider = parsed.kind === "netease-short" ? "netease" : parsed.kind;
+                if (
+                    parsed.kind === "youtube" || parsed.kind === "bilibili" || parsed.kind === "netease-short"
+                    || parsed.kind === "netease"
+                ) {
+                    provider = parsed.kind === "netease-short" || parsed.kind === "netease" ? "netease" : parsed.kind;
                     toastPubSub.pub({
                         type: "info",
                         text: provider === "youtube"

@@ -2,7 +2,7 @@ import { extractNeteaseSongId, isNeteaseShortUrl } from "../shared/media-extensi
 import {
     MediaExtensionError,
     requestBilibiliAudio,
-    requestNeteaseSongId,
+    requestNeteaseAudio,
     requestYouTubeAudio,
 } from "./media-extension-bridge.js";
 
@@ -10,14 +10,15 @@ export type ParsedMediaInput =
     | { kind: "direct"; url: string; persist: boolean }
     | { kind: "youtube"; originalUrl: string; videoId: string }
     | { kind: "bilibili"; originalUrl: string }
-    | { kind: "netease-short"; originalUrl: string };
+    | { kind: "netease-short"; originalUrl: string }
+    | { kind: "netease"; originalUrl: string; songId: string };
 
 export interface ResolvedMediaSource {
     data?: string;
     mimeType?: string;
     src: string;
     persist: boolean;
-    provider: "bilibili-extension" | "direct" | "netease" | "youtube-extension";
+    provider: "bilibili-extension" | "direct" | "netease" | "netease-extension" | "youtube-extension";
 }
 
 export const parseMediaInput = (value: string): ParsedMediaInput => {
@@ -48,9 +49,9 @@ export const parseMediaInput = (value: string): ParsedMediaInput => {
     const neteaseId = extractNeteaseSongId(url);
     if (neteaseId !== null) {
         return {
-            kind: "direct",
-            url: `https://music.163.com/song/media/outer/url?id=${neteaseId}.mp3`,
-            persist: true,
+            kind: "netease",
+            originalUrl: url.href,
+            songId: neteaseId,
         };
     }
 
@@ -73,13 +74,30 @@ export const resolveMediaInput = async (value: string): Promise<ResolvedMediaSou
         const audio = await requestBilibiliAudio(parsed.originalUrl);
         return { src: audio.url, mimeType: audio.mimeType, persist: false, provider: "bilibili-extension" };
     }
-    if (parsed.kind === "netease-short") {
-        const songId = await requestNeteaseSongId(parsed.originalUrl);
-        return {
-            src: `https://music.163.com/song/media/outer/url?id=${songId}.mp3`,
-            persist: true,
-            provider: "netease",
-        };
+    if (parsed.kind === "netease-short" || parsed.kind === "netease") {
+        try {
+            const audio = await requestNeteaseAudio(
+                parsed.kind === "netease-short" ? { url: parsed.originalUrl } : { songId: parsed.songId },
+            );
+            return {
+                src: audio.url,
+                mimeType: audio.mimeType,
+                persist: false,
+                provider: "netease-extension",
+            };
+        } catch (error) {
+            if (
+                parsed.kind === "netease" && error instanceof MediaExtensionError
+                && (error.code === "missing" || error.code === "outdated")
+            ) {
+                return {
+                    src: `https://music.163.com/song/media/outer/url?id=${parsed.songId}.mp3`,
+                    persist: true,
+                    provider: "netease",
+                };
+            }
+            throw error;
+        }
     }
 
     return {
@@ -90,7 +108,10 @@ export const resolveMediaInput = async (value: string): Promise<ResolvedMediaSou
 };
 
 export const materializeExtensionMedia = async (source: ResolvedMediaSource): Promise<string> => {
-    if (source.provider !== "youtube-extension" && source.provider !== "bilibili-extension") {
+    if (
+        source.provider !== "youtube-extension" && source.provider !== "bilibili-extension"
+        && source.provider !== "netease-extension"
+    ) {
         return source.src;
     }
     try {
@@ -170,7 +191,11 @@ export const extractMediaUrl = (value: string): string => {
 
 export const toDirectMediaUrl = (value: string): string => {
     const parsed = parseMediaInput(value);
-    return parsed.kind === "direct" ? parsed.url : parsed.originalUrl;
+    return parsed.kind === "direct"
+        ? parsed.url
+        : parsed.kind === "netease"
+        ? `https://music.163.com/song/media/outer/url?id=${parsed.songId}.mp3`
+        : parsed.originalUrl;
 };
 
 const isYouTubeHost = (hostname: string): boolean => {

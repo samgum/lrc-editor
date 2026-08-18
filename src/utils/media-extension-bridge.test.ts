@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { requestNeteaseSongId, requestYouTubeAudio } from "./media-extension-bridge.js";
+import { requestNeteaseAudio, requestYouTubeAudio } from "./media-extension-bridge.js";
 
 describe("YouTube extension bridge", () => {
     afterEach(() => {
@@ -64,7 +64,7 @@ describe("YouTube extension bridge", () => {
         vi.stubGlobal("location", { origin: "https://lrc.sgmy.org" });
         vi.stubGlobal("window", windowStub);
 
-        const pending = requestNeteaseSongId("https://163cn.tv/bdlP6XHD");
+        const pending = requestNeteaseAudio({ url: "https://163cn.tv/bdlP6XHD" });
         const request = postMessage.mock.calls[0][0] as { requestId: string };
         const dispatch = (data: unknown): void => {
             const event = new Event("message");
@@ -82,8 +82,14 @@ describe("YouTube extension bridge", () => {
             ok: true,
             provider: "netease",
             songId: "3421081743",
+            audioUrl: "https://m701.music.126.net/path/song.mp3?token=test",
+            mimeType: "audio/mpeg",
         });
 
-        await expect(pending).resolves.toBe("3421081743");
+        await expect(pending).resolves.toEqual({
+            songId: "3421081743",
+            url: "https://m701.music.126.net/path/song.mp3?token=test",
+            mimeType: "audio/mpeg",
+        });
     });
 });

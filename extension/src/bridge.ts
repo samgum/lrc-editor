@@ -50,7 +50,7 @@ const postFailure = (requestId: string, type: string): void => {
 
 const isRequest = (
     value: unknown,
-): value is { type: string; requestId: string; videoId?: string; url?: string } => {
+): value is { type: string; requestId: string; videoId?: string; url?: string; songId?: string } => {
     if (typeof value !== "object" || value === null) {
         return false;
     }
@@ -64,7 +64,9 @@ const isRequest = (
     }
     return request.type === bilibiliRequestType
         ? isBilibiliUrl(request.url)
-        : request.type === neteaseRequestType && isNeteaseShortUrl(request.url);
+        : request.type === neteaseRequestType
+            && (isNeteaseShortUrl(request.url)
+                || typeof request.songId === "string" && /^\d{4,}$/.test(request.songId));
 };
 
 const isLocalAlignerRequest = (value: unknown): value is LocalAlignerRequest => {

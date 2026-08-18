@@ -19,7 +19,7 @@ import {
     youtubeExtensionRequestType,
 } from "../../src/shared/media-extension-protocol.js";
 import { LocalAlignerClient, LocalAlignerClientError } from "./local-aligner-client.js";
-import { resolveNeteaseShortLink } from "./netease-link.js";
+import { resolveNeteaseAudioUrl, resolveNeteaseShortLink } from "./netease-link.js";
 
 interface YouTubeClientSession {
     client: Innertube;
@@ -269,12 +269,16 @@ const resolveBilibili = async (request: BilibiliExtensionRequest): Promise<Media
 
 const resolveNetease = async (request: NeteaseExtensionRequest): Promise<MediaExtensionResponse> => {
     try {
+        const songId = request.songId || await resolveNeteaseShortLink(request.url || "");
+        const audio = await resolveNeteaseAudioUrl(songId);
         return {
             type: mediaExtensionResponseType,
             requestId: request.requestId,
             ok: true,
             provider: "netease",
-            songId: await resolveNeteaseShortLink(request.url),
+            songId,
+            audioUrl: audio.url,
+            mimeType: audio.mimeType,
         };
     } catch {
         return failure(request.requestId, "RESOLVE_FAILED");
@@ -356,7 +360,9 @@ const isResolveRequest = (value: unknown): value is MediaExtensionRequest => {
         ? isYouTubeVideoId(request.videoId)
         : request.type === bilibiliExtensionRequestType
         ? isBilibiliUrl(request.url)
-        : request.type === neteaseExtensionRequestType && isNeteaseShortUrl(request.url);
+        : request.type === neteaseExtensionRequestType
+            && (isNeteaseShortUrl(request.url)
+                || typeof request.songId === "string" && /^\d{4,}$/.test(request.songId));
 };
 
 const isGoogleVideoHost = (hostname: string): boolean =>

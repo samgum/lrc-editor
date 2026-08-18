@@ -29,6 +29,10 @@ export interface ResolvedExtensionAudio {
     bitrate?: number;
 }
 
+export interface ResolvedNeteaseAudio extends ResolvedExtensionAudio {
+    songId: string;
+}
+
 export const requestYouTubeAudio = (videoId: string, timeoutMs = 90_000): Promise<ResolvedExtensionAudio> => {
     if (!isYouTubeVideoId(videoId)) {
         return Promise.reject(new MediaExtensionError("failed", "Invalid YouTube video id"));
@@ -52,21 +56,35 @@ export const requestBilibiliAudio = (url: string, timeoutMs = 20_000): Promise<R
     );
 };
 
-export const requestNeteaseSongId = (url: string, timeoutMs = 20_000): Promise<string> => {
-    if (!isNeteaseShortUrl(url)) {
-        return Promise.reject(new MediaExtensionError("failed", "Invalid NetEase short URL"));
+export const requestNeteaseAudio = (
+    input: { songId: string } | { url: string },
+    timeoutMs = 20_000,
+): Promise<ResolvedNeteaseAudio> => {
+    if ("url" in input ? !isNeteaseShortUrl(input.url) : !/^\d{4,}$/.test(input.songId)) {
+        return Promise.reject(new MediaExtensionError("failed", "Invalid NetEase media request"));
     }
     const request: NeteaseExtensionRequest = {
         type: neteaseExtensionRequestType,
         requestId: crypto.randomUUID(),
-        url,
+        ...input,
     };
     return requestExtension(request, timeoutMs).then((response) => {
         if (!response.ok) throw new MediaExtensionError("failed", response.error);
-        if (response.provider !== "netease" || !/^\d{4,}$/.test(response.songId)) {
+        if (
+            response.provider !== "netease" || !/^\d{4,}$/.test(response.songId)
+            || !response.mimeType.startsWith("audio/")
+        ) {
             throw new MediaExtensionError("failed", "Invalid NetEase link response");
         }
-        return response.songId;
+        const url = new URL(response.audioUrl);
+        if (url.protocol !== "https:" || !isProviderMediaHost("netease", url.hostname)) {
+            throw new MediaExtensionError("failed", "Invalid NetEase audio response");
+        }
+        return {
+            songId: response.songId,
+            url: url.href,
+            mimeType: response.mimeType,
+        };
     });
 };
 
@@ -174,9 +192,12 @@ const isExtensionResponse = (value: unknown, requestId: string): value is MediaE
         && typeof response.ok === "boolean";
 };
 
-const isProviderMediaHost = (provider: "youtube" | "bilibili", hostname: string): boolean => {
+const isProviderMediaHost = (provider: "youtube" | "bilibili" | "netease", hostname: string): boolean => {
     if (provider === "youtube") {
         return hostname === "googlevideo.com" || hostname.endsWith(".googlevideo.com");
     }
-    return hostname === "bilivideo.com" || hostname.endsWith(".bilivideo.com");
+    if (provider === "bilibili") {
+        return hostname === "bilivideo.com" || hostname.endsWith(".bilivideo.com");
+    }
+    return hostname === "music.126.net" || hostname.endsWith(".music.126.net");
 };
