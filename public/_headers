@@ -1,21 +1,21 @@
 /*
   X-Content-Type-Options: nosniff
-  X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
   Strict-Transport-Security: max-age=31536000
 
+/
+  X-Frame-Options: DENY
+
 /index.html
   Cache-Control: no-cache
+  X-Frame-Options: DENY
 
 /sw.js
   Cache-Control: public, max-age=0, must-revalidate
 
 /site.webmanifest
   Cache-Control: public, max-age=3600
-
-/youtube-token.html
-  ! X-Frame-Options
 
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
