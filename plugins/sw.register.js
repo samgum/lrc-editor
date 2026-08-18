@@ -1,7 +1,8 @@
 if ("serviceWorker" in navigator) {
+    const controlledAtStartup = navigator.serviceWorker.controller !== null;
     let reloading = false;
     navigator.serviceWorker.addEventListener("controllerchange", () => {
-        if (reloading) return;
+        if (!controlledAtStartup || reloading) return;
         reloading = true;
         location.reload();
     });
