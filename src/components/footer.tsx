@@ -1,6 +1,7 @@
 import SSK from "#const/session_key.json" assert { type: "json" };
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useKeyBindings } from "../hooks/useKeyBindings.js";
+import { alignmentMediaName, clearAlignmentMediaSource, setAlignmentMediaSource } from "../utils/alignment-media.js";
 import { AudioActionType, audioRef, audioStatePubSub, currentTimePubSub } from "../utils/audiomodule.js";
 import { InputAction } from "../utils/input-action.js";
 import { isKeyboardElement } from "../utils/is-keyboard-element.js";
@@ -71,6 +72,7 @@ export const Footer: React.FC = () => {
         async (value: string): Promise<void> => {
             localFileRef.current = null;
             fallbackAttemptedRef.current = false;
+            clearAlignmentMediaSource();
             let provider: "bilibili" | "youtube" | null = null;
             try {
                 const parsed = parseMediaInput(value);
@@ -92,6 +94,18 @@ export const Footer: React.FC = () => {
                     sessionStorage.setItem(SSK.audioSrc, source.src);
                 } else {
                     sessionStorage.removeItem(SSK.audioSrc);
+                }
+                if (playableSrc.startsWith("blob:")) {
+                    const blob = await fetch(playableSrc).then((response) => response.blob());
+                    setAlignmentMediaSource({
+                        blob,
+                        name: alignmentMediaName(source.provider, source.mimeType || blob.type),
+                    });
+                } else {
+                    setAlignmentMediaSource({
+                        name: alignmentMediaName(source.provider, source.mimeType),
+                        url: playableSrc,
+                    });
                 }
                 setAudioSrc(playableSrc);
             } catch (error) {
@@ -128,6 +142,11 @@ export const Footer: React.FC = () => {
         const rememberedInput = sessionStorage.getItem(SSK.mediaInput);
         if (rememberedInput) {
             void loadMediaUrl(rememberedInput).catch(() => undefined);
+            return;
+        }
+        const rememberedAudio = sessionStorage.getItem(SSK.audioSrc);
+        if (rememberedAudio) {
+            setAlignmentMediaSource({ name: alignmentMediaName("remote"), url: rememberedAudio });
         }
     }, [loadMediaUrl]);
 
@@ -186,6 +205,7 @@ export const Footer: React.FC = () => {
         fallbackAttemptedRef.current = false;
 
         if (localFileRef.current) {
+            setAlignmentMediaSource({ blob: file, name: file.name });
             void (async () => {
                 try {
                     if (await needsCodecFallback(file)) {
@@ -199,7 +219,10 @@ export const Footer: React.FC = () => {
                 }
             })();
         } else {
-            receiveEncryptedFile(file, setAudioSrc);
+            clearAlignmentMediaSource();
+            receiveEncryptedFile(file, setAudioSrc, (media, name) => {
+                setAlignmentMediaSource({ blob: media, name });
+            });
         }
     }, [lang]);
 
@@ -309,8 +332,13 @@ export const Footer: React.FC = () => {
 };
 
 type SetAudioSrc = (src: string) => void;
+type SetAlignmentMedia = (media: Blob, name: string) => void;
 
-const receiveEncryptedFile = (file: File, setAudioSrc: SetAudioSrc): void => {
+const receiveEncryptedFile = (
+    file: File,
+    setAudioSrc: SetAudioSrc,
+    setAlignmentMedia: SetAlignmentMedia,
+): void => {
     if (file.name.toLowerCase().endsWith(".ncm")) {
         const worker = new Worker(new URL("/worker/ncmc-worker.js", import.meta.url));
         worker.addEventListener(
@@ -322,6 +350,7 @@ const receiveEncryptedFile = (file: File, setAudioSrc: SetAudioSrc): void => {
                         type: detectMimeType(dataArray),
                     });
 
+                    setAlignmentMedia(musicFile, file.name.replace(/\.ncm$/i, ".m4a"));
                     setAudioSrc(URL.createObjectURL(musicFile));
                 }
                 if (ev.data.type === "error") {
@@ -361,6 +390,7 @@ const receiveEncryptedFile = (file: File, setAudioSrc: SetAudioSrc): void => {
                         type: detectMimeType(dataArray),
                     });
 
+                    setAlignmentMedia(musicFile, file.name.replace(/\.qmc(?:flac|ogg|0|1|2|3)$/i, ".flac"));
                     setAudioSrc(URL.createObjectURL(musicFile));
                 }
             },

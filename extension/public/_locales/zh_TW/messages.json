@@ -2,5 +2,6 @@
     "extensionName": { "message": "LRC Editor Media Bridge" },
     "extensionDescription": { "message": "在本機為 LRC Editor 解析 YouTube 和嗶哩嗶哩音訊。" },
     "supportedSources": { "message": "支援的來源" },
+    "localAiAlignment": { "message": "本機 AI 對軸" },
     "openEditor": { "message": "開啟 LRC Editor" }
 }

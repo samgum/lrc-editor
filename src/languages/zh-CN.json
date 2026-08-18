@@ -41,7 +41,10 @@
         "followSelection": "保持选中行居中",
         "followPlayback": "跟随播放位置",
         "moveAllEarlier": "所有时间戳前移",
-        "moveAllLater": "所有时间戳后移"
+        "moveAllLater": "所有时间戳后移",
+        "invalidTimestamp": "时间戳无效",
+        "duplicateTimestamp": "时间戳重复",
+        "timestampBackwards": "时间戳倒退"
     },
     "editor": {
         "metaInfo": "作品信息",
@@ -51,7 +54,23 @@
         "uploadText": "加载文本",
         "copyText": "全选复制",
         "downloadText": "下载",
-        "utils": "实用工具"
+        "utils": "实用工具",
+        "aiAlign": "AI 对轴",
+        "aiTitle": "本机 AI 对轴",
+        "aiConnecting": "正在连接本机对齐服务…",
+        "aiUploading": "正在把已载入音频交给本机服务…",
+        "aiQueued": "正在等待本机 GPU 队列…",
+        "aiRunning": "正在把编辑器歌词对齐到当前音频…",
+        "aiComplete": "AI 时间轴已应用到编辑器。",
+        "aiClose": "关闭",
+        "aiInstall": "安装本机 AI 对齐器",
+        "aiNoMedia": "请先载入音频或视频，再运行 AI 对轴。",
+        "aiNoLyrics": "编辑器中没有可对齐的歌词行。",
+        "aiExtensionMissing": "请安装 Media Bridge v0.4.0 或更高版本，然后刷新页面。",
+        "aiExtensionOutdated": "请更新并重新加载 Media Bridge v0.4.0 或更高版本，然后刷新页面。",
+        "aiServiceMissing": "请先安装并启动本机 Lyrics Forced Aligner。",
+        "aiFailed": "本机 AI 对轴失败。",
+        "aiDuplicate": "已有 AI 对轴任务正在运行。"
     },
     "preferences": {
         "language": "语言(language)",
@@ -67,6 +86,7 @@
         "fineTuneMs": "时间戳微调量（毫秒）",
         "interactiveSeek": "选中已有时间戳的歌词时跳转音频",
         "allowBackgroundAudio": "允许音频后台播放",
+        "aiAlignment": "启用本机 AI 对轴",
         "clearCache": "清除缓存",
         "themeMode": {
             "label": "主题模式",

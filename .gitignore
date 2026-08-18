@@ -68,4 +68,8 @@ extension-dist/
 *.tsbuildinfo
 .wrangler/
 
+# Local browser integration-test artifacts
+.e2e-edge-profile*/
+.tmp-ai-test.wav
+
 .DS_Store

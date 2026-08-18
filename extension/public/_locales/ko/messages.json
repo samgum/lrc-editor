@@ -2,5 +2,6 @@
     "extensionName": { "message": "LRC Editor Media Bridge" },
     "extensionDescription": { "message": "YouTube와 Bilibili 오디오를 기기에서 LRC Editor용으로 분석합니다." },
     "supportedSources": { "message": "지원 소스" },
+    "localAiAlignment": { "message": "로컬 AI 가사 싱크" },
     "openEditor": { "message": "LRC Editor 열기" }
 }

@@ -1,5 +1,10 @@
 import { Innertube } from "youtubei.js/cf-worker";
 import {
+    alignerResponseType,
+    isLocalAlignerRequest,
+    type LocalAlignerResponse,
+} from "../../src/shared/local-aligner-protocol.js";
+import {
     type BilibiliExtensionRequest,
     bilibiliExtensionRequestType,
     isBilibiliUrl,
@@ -10,6 +15,7 @@ import {
     type YouTubeExtensionRequest,
     youtubeExtensionRequestType,
 } from "../../src/shared/media-extension-protocol.js";
+import { LocalAlignerClient, LocalAlignerClientError } from "./local-aligner-client.js";
 
 interface YouTubeClientSession {
     client: Innertube;
@@ -20,16 +26,43 @@ let youtubeClientPromise: Promise<YouTubeClientSession> | undefined;
 
 const loadTokenFrameType = "LRC_EDITOR_LOAD_TOKEN_FRAME";
 const tokenVideoId = "jNQXAC9IVRw";
+const localAligner = new LocalAlignerClient();
 
 chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
-    if (sender.id !== chrome.runtime.id || !isResolveRequest(message)) {
-        return false;
-    }
-
+    if (sender.id !== chrome.runtime.id) return false;
     const siteOrigin = sender.url ? getSiteOrigin(sender.url) : null;
     if (!siteOrigin) return false;
-    void resolveAudio(message, siteOrigin).then(sendResponse);
-    return true;
+    if (isResolveRequest(message)) {
+        void resolveAudio(message, siteOrigin).then(sendResponse);
+        return true;
+    }
+    if (isLocalAlignerRequest(message)) {
+        void localAligner.handle(message).then(
+            (payload) =>
+                sendResponse(
+                    {
+                        type: alignerResponseType,
+                        requestId: message.requestId,
+                        ok: true,
+                        payload,
+                    } satisfies LocalAlignerResponse,
+                ),
+            (error: unknown) => {
+                const known = error instanceof LocalAlignerClientError ? error : undefined;
+                sendResponse(
+                    {
+                        type: alignerResponseType,
+                        requestId: message.requestId,
+                        ok: false,
+                        error: known?.code || "ALIGNER_FAILED",
+                        message: known?.message,
+                    } satisfies LocalAlignerResponse,
+                );
+            },
+        );
+        return true;
+    }
+    return false;
 });
 
 const resolveAudio = (request: MediaExtensionRequest, siteOrigin: string): Promise<MediaExtensionResponse> =>

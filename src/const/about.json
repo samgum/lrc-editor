@@ -24,6 +24,11 @@
             "name": "lyrics-tools",
             "author": "samgum",
             "url": "https://github.com/samgum/lyrics-tools"
+        },
+        {
+            "name": "lyrics-forced-aligner",
+            "author": "samgum",
+            "url": "https://github.com/samgum/lyrics-forced-aligner"
         }
     ]
 }

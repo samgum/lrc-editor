@@ -10,7 +10,7 @@
 
 LRC Editor 是用于编辑 LRC 歌词并配合音频或视频制作时间轴的浏览器工作台，生产站点计划使用 `lrc.sgmy.org`。
 
-主站是纯静态 Web 应用。歌词、设置和本地媒体处理都留在浏览器中。YouTube 与哔哩哔哩链接由可选的 Manifest V3 配套扩展在本机解析，因此项目不需要媒体解析后端，也不需要 Python 运行环境。
+主站是纯静态 Web 应用。歌词、设置和本地媒体处理都留在浏览器中。YouTube 与哔哩哔哩链接由可选的 Manifest V3 配套扩展在本机解析，因此站点不需要媒体解析后端。可选的 AI 对轴只会在用户开启并启动独立本机引擎后运行。
 
 ## 功能
 
@@ -20,10 +20,12 @@ LRC Editor 是用于编辑 LRC 歌词并配合音频或视频制作时间轴的�
 - 在浏览器支持时原生播放 FLAC；遇到不支持的本地 ALAC/FLAC 时，使用 FFmpeg WebAssembly 转为浏览器可播放的无损格式。
 - 为本地媒体和扩展解析媒体显示波形，支持精确跳转、播放速度调节以及可选的后台播放。
 - 使用键盘或指针添加、覆盖、删除、微调时间标签，也可整体平移全部时间标签。默认微调量为 100 ms；键盘操作配合 `Shift` 可减半，配合 `Alt` 可缩小至五分之一。
+- 对所有重复时间戳行和发生倒退的具体行显示整行警示底色、左侧警示条、矢量警示图标及可访问的问题名称。
 - 选中行自动居中，通过常驻打轴工具栏记录时间，并可撤销或重做时间修改。
 - 在键位设置页修改全部打轴与播放快捷键。
 - 在浏览器本地保存歌词状态和设置。
-- 工具页默认首先打开翻译时间轴，可把无时间翻译完整套用到原时间轴；其他工具可移除标签或空行、线性变换时间并拆分翻译。
+- 可使用本机 `lyrics-forced-aligner` 模型，把当前已载入媒体与编辑器歌词自动对齐。处理前会移除旧时间戳，输出精度跟随编辑器设置；应用前严格拒绝重复或倒序时间轴，最终作为一次可撤销操作写入。
+- 工具页默认首先打开翻译时间轴，并严格按行套用无时间翻译：开头空行、内部空行和定时空行占位均会保留，全部原时间戳保持不变，多余译文也不能改变网易云兼容轴；其他工具可移除标签或空行、线性变换时间并拆分翻译。
 - 合并 Lyrics Tools 功能：清理 Genius 段落标签、清理复制的曲目列表、批量普通／正则替换，以及不破坏时间戳的歌词大小写转换。
 - 支持跟随系统、亮色和暗色模式，以及自定义强调色。
 - 支持英语、日语、韩语、波兰语、巴西葡萄牙语、斯洛伐克语、简体中文、繁体中文（香港）和繁体中文（台湾）。
@@ -41,10 +43,18 @@ LRC Editor Media Bridge 只接收主站验证过的 YouTube 或哔哩哔哩视�
 - 扩展不读取站点 Cookie、标签页、浏览历史或账号信息。
 - YouTube 播放完整性数据通过不可见的静音嵌入页获取，使用后立即关闭，不会打开标签页或窗口。
 - 多语言扩展弹窗可打开 LRC Editor，并显示当前支持的平台。
-- 域名权限仅覆盖解析器使用的 YouTube、哔哩哔哩及媒体 CDN 端点。
+- 域名权限仅覆盖解析器使用的 YouTube、哔哩哔哩及媒体 CDN 端点、LRC Editor 站点，以及可选本机对齐器所需的回环地址。
 - 媒体资源直链仍可作为手动备用方案。
 
 YouTube 解析器通过 `youtubei.js` 使用非公开 InnerTube 接口；哔哩哔哩解析器使用网页播放器接口。平台客户端或播放要求变化时，对应功能可能失效。使用者需遵守平台条款和媒体所在地区的适用法律。
+
+## 可选本机 AI 对轴
+
+AI 对轴默认关闭。关闭时页面不会探测本机端口、传输媒体或创建模型任务；开启后也只有点击编辑器内的“AI 对轴”才会开始工作。重复点击只会重新显示同一个进度卡，扩展和本机服务还会拒绝并行的重复任务。
+
+Media Bridge v0.4.0 是唯一需要安装的浏览器扩展：媒体解析和本机 AI 桥接已经合并在同一个包里。下方 AI 安装器是可选的本机模型引擎，不是第二个浏览器扩展。
+
+Windows、macOS 和 Linux 安装器会把隔离运行环境、固定版本的引擎、模型、任务和可复用分析缓存统一放在用户选择的一个目录中。安装器会在内部准备 uv 管理的 Python 运行环境，用户无需安装系统 Python，也不需要使用 Python 命令。Windows/Linux 的 NVIDIA CUDA 只在组件目录内生效；macOS 和不受支持的显卡使用功能完整的 CPU 路径。具体步骤见[本机 AI 对轴指南](./companion/README-zh.md)。
 
 ## 本地开发
 
@@ -89,6 +99,7 @@ pnpm build:all
 src/                 React 应用、LRC 逻辑、多语言和测试
 worker/              本地 NCM/QMC 媒体 Worker
 extension/           Manifest V3 扩展源码与清单
+companion/           按需运行的本机 AI 安装器、启动器和说明
 public/              PWA 元数据与品牌资源
 build/               Web 构建产物
 extension-dist/      扩展构建产物
@@ -104,6 +115,7 @@ LRC Editor 由[伤感咩吖](https://github.com/samgum)开发和维护。
 - [lrc-maker-cdgz](https://github.com/CDGZ-ofc/lrc-maker-cdgz)，作者 重叠广州 / CDGZ-ofc
 - [lrc-utils](https://github.com/magic-akari/lrc-utils)，作者 magic-akari
 - [lyrics-tools](https://github.com/samgum/lyrics-tools)，作者 samgum
+- [lyrics-forced-aligner](https://github.com/samgum/lyrics-forced-aligner)，作者 samgum
 
 媒体配套扩展内置 MIT 许可的 [YouTube.js](https://github.com/LuanRT/YouTube.js)，作者 LuanRT 及贡献者。本地编码兜底使用同为 MIT 许可的 [ffmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm)。
 

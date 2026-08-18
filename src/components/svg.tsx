@@ -44,6 +44,14 @@ export const UtilitySVG: React.FC = () => (
     </LineIcon>
 );
 
+export const AiAlignSVG: React.FC = () => (
+    <LineIcon>
+        <path d="M3.5 13h2l1.5-4 3 8 2.5-7 2 5 1.5-3h4.5" />
+        <circle cx="17.5" cy="6.5" r="2.5" />
+        <path d="M17.5 3v1M17.5 9v1M14 6.5h1M20 6.5h1" />
+    </LineIcon>
+);
+
 export const PreferencesSVG: React.FC = () => (
     <LineIcon>
         <path d="M4 7h3M11 7h9M4 17h9M17 17h3" />

@@ -55,32 +55,18 @@ export const splitTranslation = (state: State, expression: RegExp, options: IFor
 };
 
 export const overwriteLyrics = (state: State, replacement: string, options: IFormatOptions): string => {
-    const lines = normalizeTranslationLines(replacement);
-    const directMapping = lines.length === state.lyric.length;
-    const translations = directMapping ? lines.slice() : lines.filter((line) => line.trim().length > 0);
-    let translationIndex = 0;
-    const lyric = state.lyric.map((line, index) => {
-        if (!directMapping && line.text.trim().length === 0) {
-            return { ...line, text: "" };
-        }
-        const text = directMapping ? translations[index] ?? "" : translations[translationIndex++] ?? "";
-        return { ...line, text };
-    });
-    if (!directMapping) {
-        lyric.push(...translations.slice(translationIndex).map((text) => ({ text })));
-    }
+    const translations = normalizeTranslationLines(replacement);
+    const lyric = state.lyric.map((line, index) => ({ ...line, text: translations[index] ?? "" }));
     return stringify({ info: state.info, lyric }, options);
 };
 
 const normalizeTranslationLines = (text: string): string[] => {
     const lines = text.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n").split("\n");
-    while (lines[0]?.trim() === "") lines.shift();
-    while (lines.at(-1)?.trim() === "") lines.pop();
     return lines
+        .map((line) => line.replace(/^(?:\[(?:\d{1,3}:)?\d{1,2}:\d{2}(?:[.:]\d{1,3})?\])+/, ""))
         .filter((line) =>
             !/^\[(?:ti|title|ar|artist|al|album|au|author|by|offset|length|re|ve|tool):/i.test(line.trim())
-        )
-        .map((line) => line.replace(/^(?:\[(?:\d{1,3}:)?\d{1,2}:\d{2}(?:[.:]\d{1,3})?\])+/, ""));
+        );
 };
 
 const sectionAliases = [

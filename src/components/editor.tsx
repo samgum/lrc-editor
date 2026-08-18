@@ -4,10 +4,18 @@ import { type State as LrcState, stringify } from "@lrc-maker/lrc-parser";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { Action as LrcAction } from "../hooks/useLrc.js";
 import { ActionType as LrcActionType } from "../hooks/useLrc.js";
+import { createUntimedTranscript, validateAlignedLyrics } from "../utils/ai-alignment-result.js";
+import { getAlignmentMediaSource } from "../utils/alignment-media.js";
+import {
+    LocalAiAlignmentError,
+    type LocalAlignmentProgress,
+    runLocalAiAlignment,
+} from "../utils/local-ai-alignment.js";
 import { lrcFileName } from "../utils/lrc-file-name.js";
 import { prependHash } from "../utils/router.js";
 import { appContext } from "./app.context.js";
-import { CopySVG, DownloadSVG, OpenFileSVG, UtilitySVG } from "./svg.js";
+import { AiAlignSVG, CopySVG, DownloadSVG, OpenFileSVG, UtilitySVG } from "./svg.js";
+import { toastPubSub } from "./toast.js";
 
 const disableCheck = {
     autoCapitalize: "none",
@@ -17,6 +25,12 @@ const disableCheck = {
 };
 
 type HTMLInputLikeElement = HTMLInputElement & HTMLTextAreaElement;
+
+interface AiAlignmentState extends LocalAlignmentProgress {
+    visible: boolean;
+    error?: string;
+    showInstall?: boolean;
+}
 
 type UseDefaultValue<T = React.RefObject<HTMLInputLikeElement>> = (
     defaultValue: string,
@@ -77,6 +91,8 @@ export const Editor: React.FC<{
 
     const textarea = useRef<HTMLInputLikeElement>(null);
     const [href, setHref] = useState<string | undefined>(undefined);
+    const activeAlignment = useRef<Promise<void> | null>(null);
+    const [aiState, setAiState] = useState<AiAlignmentState | null>(null);
 
     const onDownloadClick = useCallback(() => {
         setHref((url) => {
@@ -117,9 +133,91 @@ export const Editor: React.FC<{
 
     const downloadName = useMemo(() => lrcFileName(lrcState.info), [lrcState.info]);
 
+    const statusText = useCallback((progress: LocalAlignmentProgress): string => {
+        switch (progress.phase) {
+            case "connecting":
+                return lang.editor.aiConnecting;
+            case "uploading":
+                return lang.editor.aiUploading;
+            case "queued":
+                return lang.editor.aiQueued;
+            case "running":
+                return lang.editor.aiRunning;
+            case "complete":
+                return lang.editor.aiComplete;
+        }
+    }, [lang.editor]);
+
+    const alignmentErrorText = useCallback((error: unknown): string => {
+        if (error instanceof LocalAiAlignmentError) {
+            if (error.code === "missing") return lang.editor.aiExtensionMissing;
+            if (error.code === "outdated") return lang.editor.aiExtensionOutdated;
+            if (error.code === "not-running") return lang.editor.aiServiceMissing;
+            if (error.code === "busy") return lang.editor.aiDuplicate;
+        }
+        return lang.editor.aiFailed;
+    }, [lang.editor]);
+
+    const onAiAlign = useCallback(() => {
+        if (activeAlignment.current) {
+            setAiState((state) => state ? { ...state, visible: true } : state);
+            toastPubSub.pub({ type: "info", text: lang.editor.aiDuplicate });
+            return;
+        }
+        const operation = (async (): Promise<void> => {
+            const currentText = textarea.current ? textarea.current.value : text;
+            const transcript = createUntimedTranscript(currentText, trimOptions);
+            if (!transcript.split(/\r\n|\n|\r/).some((line) => line.trim())) {
+                toastPubSub.pub({ type: "warning", text: lang.editor.aiNoLyrics });
+                return;
+            }
+            const initial: LocalAlignmentProgress = { phase: "connecting", progress: 0.01 };
+            setAiState({ ...initial, visible: true });
+            let media: { blob: Blob; name: string };
+            try {
+                media = await getAlignmentMediaSource();
+            } catch {
+                setAiState(null);
+                toastPubSub.pub({ type: "warning", text: lang.editor.aiNoMedia });
+                return;
+            }
+
+            try {
+                const alignedLrc = await runLocalAiAlignment({
+                    audio: media.blob,
+                    audioName: media.name,
+                    transcript,
+                    precision: prefState.fixed === 2 ? 2 : 3,
+                    onProgress: (progress) => setAiState({ ...progress, visible: true }),
+                });
+                const lyric = validateAlignedLyrics(transcript, alignedLrc, trimOptions);
+                lrcDispatch({ type: LrcActionType.replaceLyrics, payload: lyric });
+                setAiState({ phase: "complete", progress: 1, visible: true });
+                toastPubSub.pub({ type: "success", text: lang.editor.aiComplete });
+            } catch (error) {
+                const message = alignmentErrorText(error);
+                const showInstall = error instanceof LocalAiAlignmentError
+                    && ["missing", "outdated", "not-running"].includes(error.code);
+                setAiState((state) => ({
+                    phase: state?.phase || "connecting",
+                    progress: state?.progress || 0,
+                    visible: true,
+                    error: message,
+                    showInstall,
+                }));
+                toastPubSub.pub({ type: "warning", text: message });
+            }
+        })().finally(() => {
+            activeAlignment.current = null;
+        });
+        activeAlignment.current = operation;
+    }, [alignmentErrorText, lang.editor, lrcDispatch, prefState.fixed, text, trimOptions]);
+
+    const aiStatus = aiState && !aiState.error ? statusText(aiState) : aiState?.error;
+
     return (
         <div className="app-editor">
-            <header className="editor-commandbar">
+            <header className={`editor-commandbar${prefState.aiAlignmentEnabled ? " ai-enabled" : ""}`}>
                 <details ref={details} open={detailsOpened} onToggle={onDetailsToggle}>
                     <summary>{lang.editor.metaInfo}</summary>
                     <section className="app-editor-infobox" onBlur={setInfo}>
@@ -154,6 +252,16 @@ export const Editor: React.FC<{
                 </details>
 
                 <section className="editor-tools">
+                    {prefState.aiAlignmentEnabled && (
+                        <button
+                            className="editor-tools-item ripple ai-align-button"
+                            title={lang.editor.aiAlign}
+                            aria-label={lang.editor.aiAlign}
+                            onClick={onAiAlign}
+                        >
+                            <AiAlignSVG />
+                        </button>
+                    )}
                     <label className="editor-tools-item ripple" title={lang.editor.uploadText}>
                         <input hidden={true} type="file" accept="text/*, .txt, .lrc" onChange={onTextFileUpload} />
                         <OpenFileSVG />
@@ -184,6 +292,38 @@ export const Editor: React.FC<{
                 {...disableCheck}
                 {...useDefaultValue(text, textarea)}
             />
+            {aiState?.visible && (
+                <dialog className="ai-align-dialog" open={true} aria-labelledby="ai-align-title">
+                    <article>
+                        <header>
+                            <h2 id="ai-align-title">{lang.editor.aiTitle}</h2>
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setAiState((state) =>
+                                        state && {
+                                            ...state,
+                                            visible: false,
+                                        }
+                                    )}
+                            >
+                                {lang.editor.aiClose}
+                            </button>
+                        </header>
+                        <progress max={1} value={aiState.progress} />
+                        <p>{aiStatus}</p>
+                        {aiState.showInstall && (
+                            <a
+                                href="https://github.com/samgum/lrc-editor/tree/main/companion"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                {lang.editor.aiInstall}
+                            </a>
+                        )}
+                    </article>
+                </dialog>
+            )}
         </div>
     );
 };

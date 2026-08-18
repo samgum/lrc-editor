@@ -2,5 +2,6 @@
     "extensionName": { "message": "LRC Editor Media Bridge" },
     "extensionDescription": { "message": "Lokalnie rozpoznaje dźwięk YouTube i Bilibili dla LRC Editor." },
     "supportedSources": { "message": "Obsługiwane źródła" },
+    "localAiAlignment": { "message": "Lokalne wyrównanie AI" },
     "openEditor": { "message": "Otwórz LRC Editor" }
 }

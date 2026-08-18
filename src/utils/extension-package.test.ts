@@ -13,6 +13,11 @@ const manifest = JSON.parse(readFileSync(resolve(extensionRoot, "manifest.json")
 };
 
 describe("extension package", () => {
+    it("keeps the classic content script free of runtime imports", () => {
+        const bridgeSource = readFileSync(resolve("extension/src/bridge.ts"), "utf8");
+        expect(bridgeSource).not.toMatch(/^import\s+(?!type\b)/m);
+    });
+
     it("contains every manifest asset and rule resource", () => {
         for (const path of Object.values(manifest.icons)) {
             expect(existsSync(resolve(extensionRoot, path))).toBe(true);
@@ -28,7 +33,7 @@ describe("extension package", () => {
             action: { responseHeaders?: Array<{ header: string }> };
             condition: { resourceTypes: string[] };
         }>;
-        expect(manifest.version).toBe("0.3.2");
+        expect(manifest.version).toBe("0.4.0");
         expect(rules[0].condition.resourceTypes).toEqual(expect.arrayContaining(["media", "xmlhttprequest"]));
         expect(rules[1].condition.resourceTypes).toEqual(expect.arrayContaining(["media", "xmlhttprequest"]));
         expect(rules[1].action.responseHeaders?.map((header) => header.header)).toContain(
@@ -37,7 +42,13 @@ describe("extension package", () => {
     });
 
     it("ships complete popup localization for every locale", () => {
-        const required = ["extensionDescription", "extensionName", "openEditor", "supportedSources"];
+        const required = [
+            "extensionDescription",
+            "extensionName",
+            "localAiAlignment",
+            "openEditor",
+            "supportedSources",
+        ];
         const localeRoot = resolve(extensionRoot, "_locales");
         const locales = readdirSync(localeRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory());
         expect(locales.map((entry) => entry.name)).toContain(manifest.default_locale);

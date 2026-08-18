@@ -35,6 +35,7 @@ const initState = {
     fineTuneMs: 100,
     interactiveSeek: false,
     allowBackgroundAudio: false,
+    aiAlignmentEnabled: false,
     keyBindings: defaultKeyBindings,
 };
 

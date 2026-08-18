@@ -1,6 +1,6 @@
 {
     "name": "lrc-editor",
-    "version": "0.3.2",
+    "version": "0.4.0",
     "description": "面向 lrc.sgmy.org 的跨平台 LRC 编辑与打轴工具",
     "license": "MIT",
     "keywords": [

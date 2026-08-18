@@ -47,7 +47,10 @@
         "followSelection": "Keep the selected line centered",
         "followPlayback": "Follow the playback position",
         "moveAllEarlier": "Move all timestamps earlier",
-        "moveAllLater": "Move all timestamps later"
+        "moveAllLater": "Move all timestamps later",
+        "invalidTimestamp": "Invalid timestamp",
+        "duplicateTimestamp": "Duplicate timestamp",
+        "timestampBackwards": "Timestamp moves backwards"
     },
     "editor": {
         "metaInfo": "meta info",
@@ -57,7 +60,23 @@
         "uploadText": "upload text",
         "copyText": "select all and copy",
         "downloadText": "download",
-        "utils": "lrc utils"
+        "utils": "lrc utils",
+        "aiAlign": "AI align",
+        "aiTitle": "Local AI alignment",
+        "aiConnecting": "Connecting to the local aligner…",
+        "aiUploading": "Sending the loaded media to the local aligner…",
+        "aiQueued": "Waiting for the local GPU queue…",
+        "aiRunning": "Aligning the editor lyrics to the loaded media…",
+        "aiComplete": "AI alignment was applied to the editor.",
+        "aiClose": "Close",
+        "aiInstall": "Install local AI aligner",
+        "aiNoMedia": "Load audio or video before running AI alignment.",
+        "aiNoLyrics": "There are no lyric lines to align.",
+        "aiExtensionMissing": "Install Media Bridge v0.4.0 or later, then refresh this page.",
+        "aiExtensionOutdated": "Update Media Bridge to v0.4.0 or later, reload it, then refresh this page.",
+        "aiServiceMissing": "Install and start Lyrics Forced Aligner on this computer.",
+        "aiFailed": "Local AI alignment failed.",
+        "aiDuplicate": "An AI alignment task is already running."
     },
     "preferences": {
         "language": "Language",
@@ -73,6 +92,7 @@
         "fineTuneMs": "Timestamp fine-tune step (ms)",
         "interactiveSeek": "Seek when selecting a timestamped line",
         "allowBackgroundAudio": "Allow background playback",
+        "aiAlignment": "Enable local AI alignment",
         "clearCache": "Clear caches",
         "themeMode": {
             "label": "Theme Mode",

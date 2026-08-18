@@ -230,11 +230,48 @@
 }
 
 .error {
-    box-shadow: inset 3px 0 #c64255;
+    padding-right: 48px;
+    border-left-color: #c64255;
+    background: linear-gradient(90deg, #c6425528, #c6425509 68%, transparent);
+    box-shadow: inset 5px 0 #c64255, inset 0 1px #c6425540, inset 0 -1px #c6425540;
 }
 
-.error .line-time {
+.error .line-index, .error .line-time {
     color: #c64255;
+    font-weight: 750;
+}
+
+.line.highlight.error {
+    border-left-color: #c64255;
+    background:
+        linear-gradient(90deg, #c6425535, rgba(var(--theme-rgb), 0.2) 62%, #c642550b),
+        var(--surface-color);
+    box-shadow: inset 5px 0 #c64255, inset 0 0 0 1px #c6425580, 0 2px 10px rgba(var(--theme-rgb), 0.14);
+}
+
+.line.highlight.error .line-index {
+    color: #ffffff;
+    background: #c64255;
+    box-shadow: 0 2px 8px #c6425548;
+}
+
+.line-warning {
+    position: absolute;
+    right: 11px;
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    color: #b72f47;
+    background: color-mix(in srgb, var(--surface-color) 84%, #c64255 16%);
+    border: 1px solid #c6425570;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px #c6425524;
+}
+
+.line-warning svg {
+    width: 17px;
+    height: 17px;
 }
 
 .space-button {

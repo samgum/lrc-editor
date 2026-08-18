@@ -10,6 +10,7 @@ type InitArgs = Readonly<{
 
 export const enum ActionType {
     parse,
+    replaceLyrics,
     refresh,
     next,
     time,
@@ -41,6 +42,7 @@ type Map$Type$Payload<T, U> = { [key in keyof T]: U extends key ? { type: key; p
 export type Action = Map$Type$Payload<
     {
         [ActionType.parse]: { text: string; options: TrimOptios };
+        [ActionType.replaceLyrics]: LrcState["lyric"];
         [ActionType.refresh]: number;
         [ActionType.next]: number;
         [ActionType.time]: number;
@@ -67,6 +69,20 @@ export const lrcReducer = (state: IState, action: Action): IState => {
             const lrc = parser(action.payload.text, action.payload.options);
             const selectIndex = guard(state.selectIndex, 0, Math.max(0, lrc.lyric.length - 1));
             return { ...state, ...lrc, selectIndex, historyPast: [], historyFuture: [] };
+        }
+
+        case ActionType.replaceLyrics: {
+            const lyric = action.payload.slice();
+            const selectIndex = guard(state.selectIndex, 0, Math.max(0, lyric.length - 1));
+            return commit(state, {
+                ...state,
+                lyric,
+                selectIndex,
+                currentTime: Infinity,
+                currentIndex: -1,
+                nextTime: -Infinity,
+                nextIndex: -1,
+            });
         }
 
         case ActionType.refresh: {

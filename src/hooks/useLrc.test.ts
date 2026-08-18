@@ -32,4 +32,16 @@ describe("LRC timing history", () => {
         expect(undone.lyric[0].time).toBeUndefined();
         expect(undone.selectIndex).toBe(0);
     });
+
+    it("replaces an AI-generated axis without losing undo history", () => {
+        const initial = initLrcState(() => ({ text: "[ti: Demo]\nOne\nTwo", options: {}, select: 0 }));
+        const aligned = lrcReducer(initial, {
+            type: ActionType.replaceLyrics,
+            payload: [{ time: 1, text: "One" }, { time: 2, text: "Two" }],
+        });
+        expect(aligned.info.get("ti")).toBe("Demo");
+        expect(aligned.lyric.map((line) => line.time)).toEqual([1, 2]);
+        expect(lrcReducer(aligned, { type: ActionType.undo, payload: undefined }).lyric)
+            .toEqual(initial.lyric);
+    });
 });

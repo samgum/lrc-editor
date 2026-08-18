@@ -10,9 +10,11 @@ import { AudioActionType, audioRef, audioStatePubSub, currentTimePubSub } from "
 import { InputAction } from "../utils/input-action.js";
 import { isKeyboardElement } from "../utils/is-keyboard-element.js";
 import { formatKeyBinding, getMatchedAction } from "../utils/keybindings.js";
+import { type TimingIssue, timingIssueAt } from "../utils/timing-issues.js";
 import { appContext } from "./app.context.js";
 import { AsidePanel } from "./asidepanel.js";
 import { Curser } from "./curser.js";
+import { ProblemSVG } from "./svg.js";
 
 const SpaceButton: React.FC<{ sync: () => void }> = ({ sync }) => {
     return (
@@ -263,15 +265,15 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({ state, dispatch }) 
         (line: Readonly<ILyric>, index: number, lines: readonly ILyric[]) => {
             const select = index === selectIndex;
             const highlight = index === highlightIndex;
-            const previousTime = lines[index - 1]?.time;
-            const error = index > 0 && line.time !== undefined && previousTime !== undefined
-                && line.time <= previousTime;
+            const issue = timingIssueAt(lines, index);
+            const error = issue !== null;
 
             const className = Object.entries({
                 line: true,
                 select,
                 highlight,
                 error,
+                [`error-${issue}`]: error,
             })
                 .reduce<string[]>((p, [name, value]) => {
                     if (value) {
@@ -289,10 +291,12 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({ state, dispatch }) 
                     line={line}
                     select={select}
                     prefState={prefState}
+                    issue={issue}
+                    issueLabel={issue ? lang.timing[issue] : undefined}
                 />
             );
         },
-        [selectIndex, highlightIndex, prefState],
+        [lang.timing, selectIndex, highlightIndex, prefState],
     );
 
     const ulClassName = prefState.screenButton ? "lyric-list on-screen-button" : "lyric-list";
@@ -377,20 +381,41 @@ interface ILyricLineProps {
     select: boolean;
     className: string;
     prefState: PrefState;
+    issue: TimingIssue | null;
+    issueLabel?: string;
 }
 
-const LyricLine: React.FC<ILyricLineProps> = ({ line, index, select, className, prefState }) => {
+const LyricLine: React.FC<ILyricLineProps> = ({
+    line,
+    index,
+    select,
+    className,
+    prefState,
+    issue,
+    issueLabel,
+}) => {
     const lineTime = line.time === undefined ? "—" : convertTimeToTag(line.time, prefState.fixed).slice(1, -1);
 
     const lineText = formatText(line.text, prefState.spaceStart, prefState.spaceEnd);
 
     return (
-        <li key={index} data-key={index} className={className}>
+        <li
+            key={index}
+            data-key={index}
+            className={className}
+            title={issueLabel}
+            aria-invalid={issue ? "true" : undefined}
+        >
             <span className="line-index">{index + 1}</span>
             {select && line.time === undefined
                 ? <Curser fixed={prefState.fixed} />
                 : <time className="line-time">{lineTime}</time>}
             <span className="line-text">{lineText}</span>
+            {issue && (
+                <span className="line-warning" role="img" aria-label={issueLabel}>
+                    <ProblemSVG />
+                </span>
+            )}
         </li>
     );
 };

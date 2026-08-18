@@ -1,13 +1,24 @@
+import type { LocalAlignerRequest } from "../../src/shared/local-aligner-protocol.js";
+
 const youtubeRequestType = "LRC_EDITOR_RESOLVE_YOUTUBE";
 const bilibiliRequestType = "LRC_EDITOR_RESOLVE_BILIBILI";
 const ackType = "LRC_EDITOR_MEDIA_ACK";
 const responseType = "LRC_EDITOR_MEDIA_RESULT";
+const alignerResponseType = "LRC_EDITOR_ALIGNER_RESULT";
+const alignerRequestTypes = new Set([
+    "LRC_EDITOR_ALIGNER_START",
+    "LRC_EDITOR_ALIGNER_CHUNK",
+    "LRC_EDITOR_ALIGNER_COMMIT",
+    "LRC_EDITOR_ALIGNER_STATUS",
+    "LRC_EDITOR_ALIGNER_RESULT_REQUEST",
+]);
 
 window.addEventListener("message", (event: MessageEvent<unknown>) => {
     if (event.source !== window || event.origin !== location.origin || !isRequest(event.data)) {
         return;
     }
     const request = event.data;
+    const expectedResponseType = isLocalAlignerRequest(request) ? alignerResponseType : responseType;
     window.postMessage(
         { type: ackType, requestId: request.requestId, version: chrome.runtime.getManifest().version },
         location.origin,
@@ -15,19 +26,19 @@ window.addEventListener("message", (event: MessageEvent<unknown>) => {
 
     void chrome.runtime.sendMessage(request).then(
         (response: unknown) => {
-            if (isResponse(response, request.requestId)) {
+            if (isResponse(response, request.requestId, expectedResponseType)) {
                 window.postMessage(response, location.origin);
             } else {
-                postFailure(request.requestId);
+                postFailure(request.requestId, expectedResponseType);
             }
         },
-        () => postFailure(request.requestId),
+        () => postFailure(request.requestId, expectedResponseType),
     );
 });
 
-const postFailure = (requestId: string): void => {
+const postFailure = (requestId: string, type: string): void => {
     window.postMessage(
-        { type: responseType, requestId, ok: false, error: "RESOLVE_FAILED" },
+        { type, requestId, ok: false, error: type === alignerResponseType ? "ALIGNER_FAILED" : "RESOLVE_FAILED" },
         location.origin,
     );
 };
@@ -38,6 +49,7 @@ const isRequest = (
     if (typeof value !== "object" || value === null) {
         return false;
     }
+    if (isLocalAlignerRequest(value)) return true;
     const request = value as Record<string, unknown>;
     if (typeof request.requestId !== "string") {
         return false;
@@ -46,6 +58,13 @@ const isRequest = (
         return typeof request.videoId === "string" && /^[A-Za-z0-9_-]{11}$/.test(request.videoId);
     }
     return request.type === bilibiliRequestType && isBilibiliUrl(request.url);
+};
+
+const isLocalAlignerRequest = (value: unknown): value is LocalAlignerRequest => {
+    if (typeof value !== "object" || value === null) return false;
+    const request = value as Record<string, unknown>;
+    return typeof request.requestId === "string" && request.requestId.length >= 8
+        && typeof request.type === "string" && alignerRequestTypes.has(request.type);
 };
 
 const isBilibiliUrl = (value: unknown): boolean => {
@@ -64,10 +83,10 @@ const isBilibiliUrl = (value: unknown): boolean => {
     }
 };
 
-const isResponse = (value: unknown, requestId: string): value is Record<string, unknown> => {
+const isResponse = (value: unknown, requestId: string, type: string): value is Record<string, unknown> => {
     if (typeof value !== "object" || value === null) {
         return false;
     }
     const response = value as Record<string, unknown>;
-    return response.type === responseType && response.requestId === requestId && typeof response.ok === "boolean";
+    return response.type === type && response.requestId === requestId && typeof response.ok === "boolean";
 };

@@ -174,6 +174,11 @@ export const Preferences: React.FC = () => {
         [prefDispatch],
     );
 
+    const onAiAlignmentToggle = useCallback(
+        () => prefDispatch({ type: "aiAlignmentEnabled", payload: (state) => !state.aiAlignmentEnabled }),
+        [prefDispatch],
+    );
+
     const onScreenButtonToggle = useCallback(
         () =>
             prefDispatch({
@@ -338,6 +343,20 @@ export const Preferences: React.FC = () => {
                                 checked={prefState.allowBackgroundAudio}
                                 onChange={onAllowBackgroundAudioToggle}
                                 aria-label={lang.preferences.allowBackgroundAudio}
+                            />
+                            <span className="toggle-switch-label" />
+                        </label>
+                    </label>
+                </li>
+                <li>
+                    <label className="list-item">
+                        <span>{lang.preferences.aiAlignment}</span>
+                        <label className="toggle-switch">
+                            <input
+                                type="checkbox"
+                                checked={prefState.aiAlignmentEnabled}
+                                onChange={onAiAlignmentToggle}
+                                aria-label={lang.preferences.aiAlignment}
                             />
                             <span className="toggle-switch-label" />
                         </label>
