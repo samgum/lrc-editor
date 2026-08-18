@@ -1,6 +1,8 @@
 import {
     type AlignerChunkRequest,
     alignerChunkRequestType,
+    type AlignerCleanupRequest,
+    alignerCleanupRequestType,
     type AlignerCommitRequest,
     alignerCommitRequestType,
     alignerResponseType,
@@ -26,9 +28,10 @@ export class LocalAiAlignmentError extends Error {
 }
 
 export interface LocalAlignmentProgress {
-    phase: "connecting" | "uploading" | "queued" | "running" | "complete";
+    phase: "connecting" | "uploading" | "queued" | "running" | "cleaning" | "complete";
     progress: number;
     detail?: string;
+    remainingSeconds?: number;
 }
 
 export interface LocalAlignmentOptions {
@@ -36,12 +39,19 @@ export interface LocalAlignmentOptions {
     audioName: string;
     transcript: string;
     precision: 2 | 3;
+    keepTaskCache: boolean;
     onProgress?: (progress: LocalAlignmentProgress) => void;
 }
 
-const minimumAlignerExtensionVersion = [0, 4, 0] as const;
+export interface LocalAlignmentResult {
+    lrc: string;
+    cacheCleanup: "kept" | "deleted" | "failed";
+    reclaimedBytes?: number;
+}
 
-export const runLocalAiAlignment = async (options: LocalAlignmentOptions): Promise<string> => {
+const minimumAlignerExtensionVersion = [0, 4, 2] as const;
+
+export const runLocalAiAlignment = async (options: LocalAlignmentOptions): Promise<LocalAlignmentResult> => {
     if (options.audio.size <= 0 || options.audio.size > localAlignerMaxAudioBytes) {
         throw new LocalAiAlignmentError("failed", "The loaded media size is not supported for local alignment");
     }
@@ -55,7 +65,7 @@ export const runLocalAiAlignment = async (options: LocalAlignmentOptions): Promi
             audioSize: options.audio.size,
             transcript: options.transcript,
             separate: true,
-            bypassCache: false,
+            bypassCache: !options.keepTaskCache,
             preserveBlankLines: true,
             wordTimingBeta: false,
         } satisfies AlignerStartRequest,
@@ -95,8 +105,9 @@ export const runLocalAiAlignment = async (options: LocalAlignmentOptions): Promi
     if (commitPayload.kind !== "job") throw new LocalAiAlignmentError("failed", "Invalid aligner job response");
 
     let job = commitPayload.job;
+    const etaEstimator = new ProgressEtaEstimator();
     while (job.status === "queued" || job.status === "running") {
-        reportJob(job, options.onProgress);
+        reportJob(job, etaEstimator, options.onProgress);
         await new Promise((resolve) => setTimeout(resolve, 900));
         const statusPayload = await requestAligner(
             {
@@ -128,20 +139,90 @@ export const runLocalAiAlignment = async (options: LocalAlignmentOptions): Promi
     if (resultPayload.kind !== "result" || !resultPayload.lrc.trim()) {
         throw new LocalAiAlignmentError("failed", "Aligned LRC was empty");
     }
-    options.onProgress?.({ phase: "complete", progress: 1, detail: job.detail });
-    return resultPayload.lrc;
+
+    if (options.keepTaskCache) {
+        options.onProgress?.({ phase: "complete", progress: 1, detail: job.detail });
+        return { lrc: resultPayload.lrc, cacheCleanup: "kept" };
+    }
+
+    options.onProgress?.({ phase: "cleaning", progress: 0.995 });
+    try {
+        const cleanupPayload = await requestAligner(
+            {
+                type: alignerCleanupRequestType,
+                requestId: crypto.randomUUID(),
+                baseUrl: commitPayload.baseUrl,
+                jobId: job.id,
+            } satisfies AlignerCleanupRequest,
+            30_000,
+        );
+        if (cleanupPayload.kind !== "cleanup") {
+            throw new LocalAiAlignmentError("failed", "Invalid aligner cleanup response");
+        }
+        options.onProgress?.({ phase: "complete", progress: 1, detail: job.detail });
+        return {
+            lrc: resultPayload.lrc,
+            cacheCleanup: "deleted",
+            reclaimedBytes: cleanupPayload.reclaimedBytes,
+        };
+    } catch {
+        options.onProgress?.({ phase: "complete", progress: 1, detail: job.detail });
+        return { lrc: resultPayload.lrc, cacheCleanup: "failed" };
+    }
 };
 
 const reportJob = (
     job: LocalAlignerJob,
+    etaEstimator: ProgressEtaEstimator,
     callback?: (progress: LocalAlignmentProgress) => void,
 ): void => {
+    const engineProgress = Math.max(0, Math.min(1, job.progress || 0));
     callback?.({
         phase: job.status === "queued" ? "queued" : "running",
-        progress: 0.15 + 0.83 * Math.max(0, Math.min(1, job.progress || 0)),
+        progress: 0.15 + 0.83 * engineProgress,
         detail: job.detail,
+        remainingSeconds: job.status === "running" ? etaEstimator.update(engineProgress) : undefined,
     });
 };
+
+export class ProgressEtaEstimator {
+    private readonly samples: { progress: number; time: number }[] = [];
+    private smoothedSeconds: number | undefined;
+
+    constructor(private readonly now: () => number = () => performance.now()) {}
+
+    update(progress: number): number | undefined {
+        const normalized = Math.max(0, Math.min(1, progress));
+        if (normalized <= 0 || normalized >= 1) return undefined;
+
+        const time = this.now();
+        const last = this.samples.at(-1);
+        if (!last || normalized > last.progress) {
+            this.samples.push({ progress: normalized, time });
+        } else if (normalized === last.progress) {
+            last.time = time;
+        }
+
+        while (this.samples.length > 2 && time - this.samples[0].time > 30_000) {
+            this.samples.shift();
+        }
+        if (this.samples.length < 2) return undefined;
+
+        const first = this.samples[0];
+        const current = this.samples.at(-1)!;
+        const elapsedSeconds = (current.time - first.time) / 1000;
+        const completed = current.progress - first.progress;
+        if (elapsedSeconds < 4 || completed < 0.01) return this.smoothedSeconds && Math.ceil(this.smoothedSeconds);
+
+        const rawSeconds = (1 - normalized) / (completed / elapsedSeconds);
+        if (!Number.isFinite(rawSeconds) || rawSeconds <= 0) return undefined;
+        const bounded = Math.max(1, Math.min(7_200, rawSeconds));
+        this.smoothedSeconds = this.smoothedSeconds === undefined
+            ? bounded
+            : this.smoothedSeconds * 0.7 + bounded * 0.3;
+        return Math.ceil(this.smoothedSeconds);
+    }
+}
 
 const requestAligner = (request: LocalAlignerRequest, timeoutMs: number): Promise<LocalAlignerPayload> =>
     new Promise((resolve, reject) => {

@@ -9,10 +9,11 @@ engine_root="$install_root/engine"
 environment_root="$install_root/environment"
 model_root="$install_root/models"
 venv_python="$environment_root/bin/python"
+companion_server="$install_root/lrc_editor_companion_server.py"
 state_path="$install_root/install-state.json"
 ports=(8765 {8876..8895})
 
-if [[ ! -x "$venv_python" || ! -f "$engine_root/src/lyrics_aligner/server.py" ]]; then
+if [[ ! -x "$venv_python" || ! -f "$engine_root/src/lyrics_aligner/server.py" || ! -f "$companion_server" ]]; then
     echo "The AI aligner is not installed. Run install-ai-aligner.sh first." >&2
     exit 1
 fi
@@ -68,7 +69,7 @@ else
     echo "Acceleration: CPU compatibility mode"
 fi
 
-export PYTHONPATH="$engine_root/src"
+export PYTHONPATH="$install_root:$engine_root/src"
 export TORCH_HOME="$model_root/torch"
 export HF_HOME="$model_root/huggingface"
 export HF_HUB_DISABLE_SYMLINKS_WARNING=1
@@ -78,4 +79,4 @@ export PYTHONWARNINGS="ignore:pkg_resources is deprecated as an API:UserWarning$
 echo "Lyrics Forced Aligner is starting at http://127.0.0.1:$selected_port"
 echo "Keep this terminal open while AI alignment is in use. Press Ctrl+C to stop."
 cd "$engine_root"
-exec "$venv_python" -m lyrics_aligner.server
+exec "$venv_python" -m lrc_editor_companion_server

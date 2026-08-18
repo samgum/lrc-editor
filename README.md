@@ -17,14 +17,14 @@ The web application is static and keeps lyric text, preferences, and local media
 - Import plain text, `.txt`, and `.lrc` files; edit title, artist, and album metadata.
 - Copy or download LRC output with configurable timestamp precision and whitespace.
 - Load audio and video files, direct media URLs, NetEase Music song links, standard or Music YouTube links (including extra playlist parameters), and Bilibili or `b23.tv` links.
-- Play FLAC natively where supported and convert unsupported local ALAC/FLAC media to a browser-compatible lossless format with FFmpeg WebAssembly.
+- Convert imported local FLAC/ALAC/AIFF/CAF media once to 256 kbps AAC with FFmpeg WebAssembly. Playback and AI alignment share only the current in-memory AAC Blob, so the AI bridge never reopens or transfers the much larger lossless source. The virtual input/output files and FFmpeg Worker are destroyed after every conversion; replacing the media revokes the previous Blob URL, and no converted audio is written to persistent browser storage.
 - Display a waveform for local or extension-resolved media, seek precisely, change playback speed, and continue playback in the background when enabled.
 - Add, replace, delete, fine-tune, or batch-shift timestamps with keyboard or pointer controls. The default correction step is 100 ms; `Shift` halves it and `Alt` reduces it to one fifth for keyboard adjustments.
 - Mark every duplicated timestamp row and each row that moves backwards with a full-width warning background, left rail, warning icon, and accessible issue label.
 - Keep the selected line centered, record from a persistent timing toolbar, and undo or redo timestamp edits.
 - Configure every timing and playback shortcut from the key-binding screen.
 - Keep editing state and preferences locally between sessions.
-- Optionally align the loaded media to the current editor lyrics with the local `lyrics-forced-aligner` models. Old timestamps are removed before processing, output precision follows the editor setting, and strict validation rejects duplicate or decreasing axes before one undoable replacement is applied.
+- Optionally align the loaded media to the current editor lyrics with the local `lyrics-forced-aligner` models. Old timestamps are removed before processing, output precision follows the editor setting, and strict validation rejects duplicate or decreasing axes before one undoable replacement is applied. The progress card estimates remaining time without entering the inference path.
 - Open the translation-axis workspace first to build a translated LRC from untimed lyrics. Replacement is strictly positional: leading, internal, and timed blank placeholders are preserved, every source timestamp remains unchanged, and extra translated lines cannot alter the NetEase-compatible axis. Additional tools remove tags or empty lines, transform timestamps, and split translations.
 - Use the integrated Lyrics Tools functions to remove Genius section labels, clean copied tracklists, replace plain text or regular expressions in bulk, and convert lyric case without changing timestamps.
 - Switch between system, light, and dark themes; choose an accent color.
@@ -54,9 +54,9 @@ The YouTube resolver uses the private InnerTube interface through `youtubei.js`;
 
 AI alignment is disabled by default. The labeled **AI** button remains visible in the editor; clicking it enables the feature and starts the requested alignment. Before that click, the page does not probe local ports, transfer media, or create a model task. Repeated clicks reopen the same progress card, while the extension and local service reject concurrent duplicate jobs.
 
-Media Bridge v0.4.1 is the only browser extension: media resolution and local AI bridging are combined in the same package. The AI installer below is an optional local model engine, not a second browser extension.
+Media Bridge v0.4.2 is the only browser extension: media resolution and local AI bridging are combined in the same package. The AI installer below is an optional local model engine, not a second browser extension.
 
-Windows, macOS, and Linux companion installers keep the managed runtime, verified engine revision, models, jobs, and reusable analysis cache in one user-selected directory. They install an isolated uv-managed Python runtime internally, so users do not need a system Python installation or Python commands. NVIDIA CUDA is private to the companion on Windows/Linux; macOS and unsupported GPUs use the complete CPU path. See the [local AI alignment guide](./companion/README.md).
+Windows, macOS, and Linux companion installers keep the managed runtime, verified engine revision, and models in one user-selected directory. They install an isolated uv-managed Python runtime internally, so users do not need a system Python installation or Python commands. NVIDIA CUDA is private to the companion on Windows/Linux; macOS and unsupported GPUs use the complete CPU path. Per-task audio, outputs, and analysis work are deleted after the selected LRC has reached the editor unless **Keep and reuse AI task cache** is explicitly enabled in Settings. Model weights and the private runtime are never removed by task cleanup. See the [local AI alignment guide](./companion/README.md).
 
 ## Development
 

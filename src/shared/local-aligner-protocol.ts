@@ -3,6 +3,7 @@ export const alignerChunkRequestType = "LRC_EDITOR_ALIGNER_CHUNK";
 export const alignerCommitRequestType = "LRC_EDITOR_ALIGNER_COMMIT";
 export const alignerStatusRequestType = "LRC_EDITOR_ALIGNER_STATUS";
 export const alignerResultRequestType = "LRC_EDITOR_ALIGNER_RESULT_REQUEST";
+export const alignerCleanupRequestType = "LRC_EDITOR_ALIGNER_CLEANUP";
 export const alignerResponseType = "LRC_EDITOR_ALIGNER_RESULT";
 
 export const localAlignerPorts = [8765, ...Array.from({ length: 20 }, (_, index) => 8876 + index)] as const;
@@ -50,12 +51,19 @@ export interface AlignerResultRequest extends AlignerRequestBase {
     precision: 2 | 3;
 }
 
+export interface AlignerCleanupRequest extends AlignerRequestBase {
+    type: typeof alignerCleanupRequestType;
+    baseUrl: string;
+    jobId: string;
+}
+
 export type LocalAlignerRequest =
     | AlignerStartRequest
     | AlignerChunkRequest
     | AlignerCommitRequest
     | AlignerStatusRequest
-    | AlignerResultRequest;
+    | AlignerResultRequest
+    | AlignerCleanupRequest;
 
 export interface LocalAlignerJob {
     id: string;
@@ -72,7 +80,8 @@ export type LocalAlignerPayload =
     | { kind: "start"; uploadId: string; baseUrl: string; chunkSize: number; serviceVersion: string }
     | { kind: "chunk"; received: number }
     | { kind: "job"; baseUrl: string; job: LocalAlignerJob }
-    | { kind: "result"; lrc: string };
+    | { kind: "result"; lrc: string }
+    | { kind: "cleanup"; reclaimedBytes: number };
 
 export type LocalAlignerResponse =
     | {
@@ -113,6 +122,8 @@ export const isLocalAlignerRequest = (value: unknown): value is LocalAlignerRequ
         case alignerResultRequestType:
             return isLocalAlignerBaseUrl(value.baseUrl) && isJobId(value.jobId)
                 && (value.precision === 2 || value.precision === 3);
+        case alignerCleanupRequestType:
+            return isLocalAlignerBaseUrl(value.baseUrl) && isJobId(value.jobId);
         default:
             return false;
     }

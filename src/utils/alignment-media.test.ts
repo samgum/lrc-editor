@@ -7,10 +7,10 @@ describe("alignment media registry", () => {
         vi.unstubAllGlobals();
     });
 
-    it("reuses the exact local media blob", async () => {
-        const blob = new Blob([new Uint8Array([1, 2, 3])], { type: "audio/flac" });
-        setAlignmentMediaSource({ blob, name: "demo.flac" });
-        await expect(getAlignmentMediaSource()).resolves.toEqual({ blob, name: "demo.flac" });
+    it("reuses the already prepared media blob without finding the original source", async () => {
+        const blob = new Blob([new Uint8Array([1, 2, 3])], { type: "audio/mp4" });
+        setAlignmentMediaSource({ blob, name: "demo.m4a" });
+        await expect(getAlignmentMediaSource()).resolves.toEqual({ blob, name: "demo.m4a" });
     });
 
     it("materializes a remembered remote URL only once", async () => {

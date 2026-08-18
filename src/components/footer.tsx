@@ -6,7 +6,7 @@ import { AudioActionType, audioRef, audioStatePubSub, currentTimePubSub } from "
 import { InputAction } from "../utils/input-action.js";
 import { isKeyboardElement } from "../utils/is-keyboard-element.js";
 import { getMatchedAction } from "../utils/keybindings.js";
-import { isLocalMediaFile, needsCodecFallback } from "../utils/local-media.js";
+import { isLocalMediaFile, needsCodecFallback, shouldCreateCompressedAlignmentMedia } from "../utils/local-media.js";
 import { MediaExtensionError } from "../utils/media-extension-bridge.js";
 import {
     extractSharedMediaUrl,
@@ -203,15 +203,28 @@ export const Footer: React.FC = () => {
         sessionStorage.removeItem(SSK.mediaInput);
         localFileRef.current = isLocalMediaFile(file) ? file : null;
         fallbackAttemptedRef.current = false;
+        clearAlignmentMediaSource();
 
         if (localFileRef.current) {
-            setAlignmentMediaSource({ blob: file, name: file.name });
             void (async () => {
                 try {
-                    if (await needsCodecFallback(file)) {
+                    const [compressForAlignment, browserFallback] = await Promise.all([
+                        shouldCreateCompressedAlignmentMedia(file),
+                        needsCodecFallback(file),
+                    ]);
+                    if (compressForAlignment || browserFallback) {
                         fallbackAttemptedRef.current = true;
-                        await convertLocalFile(file, setAudioSrc, lang);
+                        const converted = await convertLocalFile(file, lang);
+                        if (localFileRef.current !== file) return;
+                        if (converted) {
+                            setAlignmentMediaSource({ blob: converted, name: compressedMediaName(file.name) });
+                            setAudioSrc(URL.createObjectURL(converted));
+                            localFileRef.current = null;
+                        } else if (compressForAlignment && !browserFallback) {
+                            setAudioSrc(URL.createObjectURL(file));
+                        }
                     } else {
+                        setAlignmentMediaSource({ blob: file, name: file.name });
                         setAudioSrc(URL.createObjectURL(file));
                     }
                 } catch {
@@ -219,9 +232,24 @@ export const Footer: React.FC = () => {
                 }
             })();
         } else {
-            clearAlignmentMediaSource();
-            receiveEncryptedFile(file, setAudioSrc, (media, name) => {
-                setAlignmentMediaSource({ blob: media, name });
+            receiveEncryptedFile(file, (media, name) => {
+                void (async () => {
+                    const decoded = new File([media], name, { type: media.type });
+                    if (await shouldCreateCompressedAlignmentMedia(decoded)) {
+                        const converted = await convertLocalFile(decoded, lang);
+                        if (converted) {
+                            setAlignmentMediaSource({ blob: converted, name: compressedMediaName(name) });
+                            setAudioSrc(URL.createObjectURL(converted));
+                        } else {
+                            setAudioSrc(URL.createObjectURL(media));
+                        }
+                        return;
+                    }
+                    setAlignmentMediaSource({ blob: media, name });
+                    setAudioSrc(URL.createObjectURL(media));
+                })().catch(() => {
+                    toastPubSub.pub({ type: "warning", text: lang.notify.mediaConversionFailed });
+                });
             });
         }
     }, [lang]);
@@ -296,7 +324,12 @@ export const Footer: React.FC = () => {
             const localFile = localFileRef.current;
             if (localFile && !fallbackAttemptedRef.current) {
                 fallbackAttemptedRef.current = true;
-                void convertLocalFile(localFile, setAudioSrc, lang);
+                void convertLocalFile(localFile, lang).then((converted) => {
+                    if (!converted || localFileRef.current !== localFile) return;
+                    setAlignmentMediaSource({ blob: converted, name: compressedMediaName(localFile.name) });
+                    setAudioSrc(URL.createObjectURL(converted));
+                    localFileRef.current = null;
+                });
                 return;
             }
             const audio = ev.target as HTMLAudioElement;
@@ -331,12 +364,10 @@ export const Footer: React.FC = () => {
     );
 };
 
-type SetAudioSrc = (src: string) => void;
 type SetAlignmentMedia = (media: Blob, name: string) => void;
 
 const receiveEncryptedFile = (
     file: File,
-    setAudioSrc: SetAudioSrc,
     setAlignmentMedia: SetAlignmentMedia,
 ): void => {
     if (file.name.toLowerCase().endsWith(".ncm")) {
@@ -346,12 +377,10 @@ const receiveEncryptedFile = (
             (ev: IMessageEvent<IMessage>) => {
                 if (ev.data.type === "success") {
                     const dataArray = ev.data.payload;
-                    const musicFile = new Blob([dataArray as Uint8Array<ArrayBuffer>], {
-                        type: detectMimeType(dataArray),
-                    });
+                    const mimeType = detectMimeType(dataArray);
+                    const musicFile = new Blob([dataArray as Uint8Array<ArrayBuffer>], { type: mimeType });
 
-                    setAlignmentMedia(musicFile, file.name.replace(/\.ncm$/i, ".m4a"));
-                    setAudioSrc(URL.createObjectURL(musicFile));
+                    setAlignmentMedia(musicFile, decodedMediaName(file.name, mimeType));
                 }
                 if (ev.data.type === "error") {
                     toastPubSub.pub({
@@ -386,12 +415,10 @@ const receiveEncryptedFile = (
             (ev: IMessageEvent<IMessage>) => {
                 if (ev.data.type === "success") {
                     const dataArray = ev.data.payload;
-                    const musicFile = new Blob([dataArray as Uint8Array<ArrayBuffer>], {
-                        type: detectMimeType(dataArray),
-                    });
+                    const mimeType = detectMimeType(dataArray);
+                    const musicFile = new Blob([dataArray as Uint8Array<ArrayBuffer>], { type: mimeType });
 
-                    setAlignmentMedia(musicFile, file.name.replace(/\.qmc(?:flac|ogg|0|1|2|3)$/i, ".flac"));
-                    setAudioSrc(URL.createObjectURL(musicFile));
+                    setAlignmentMedia(musicFile, decodedMediaName(file.name, mimeType));
                 }
             },
             { once: true },
@@ -401,17 +428,33 @@ const receiveEncryptedFile = (
     }
 };
 
-const convertLocalFile = async (file: File, setAudioSrc: SetAudioSrc, lang: Language): Promise<void> => {
+const convertLocalFile = async (file: File, lang: Language): Promise<Blob | null> => {
     toastPubSub.pub({ type: "info", text: lang.notify.transcodingMedia });
     try {
         const { transcodeAudioForBrowser } = await import("../utils/audio-transcoder.js");
         const converted = await transcodeAudioForBrowser(file);
-        setAudioSrc(URL.createObjectURL(converted));
         toastPubSub.pub({ type: "success", text: lang.notify.mediaConverted });
+        return converted;
     } catch (error) {
         console.error("Local audio conversion failed", error);
         toastPubSub.pub({ type: "warning", text: lang.notify.mediaConversionFailed });
+        return null;
     }
+};
+
+const compressedMediaName = (name: string): string => `${name.replace(/\.[^.]*$/, "") || "audio"}.m4a`;
+
+const decodedMediaName = (name: string, mimeType: string): string => {
+    const extension = mimeType === "audio/flac"
+        ? "flac"
+        : mimeType === "audio/mp4"
+        ? "m4a"
+        : mimeType === "audio/ogg"
+        ? "ogg"
+        : mimeType === "audio/wav"
+        ? "wav"
+        : "mp3";
+    return `${name.replace(/\.[^.]*$/, "") || "audio"}.${extension}`;
 };
 
 const MimeType = {

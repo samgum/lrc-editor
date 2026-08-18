@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
     alignerChunkRequestType,
+    alignerCleanupRequestType,
     alignerCommitRequestType,
     alignerResponseType,
     alignerResultRequestType,
@@ -8,7 +9,7 @@ import {
     type LocalAlignerRequest,
 } from "../shared/local-aligner-protocol.js";
 import { mediaExtensionAckType } from "../shared/media-extension-protocol.js";
-import { runLocalAiAlignment } from "./local-ai-alignment.js";
+import { ProgressEtaEstimator, runLocalAiAlignment } from "./local-ai-alignment.js";
 
 describe("local AI alignment page bridge", () => {
     afterEach(() => {
@@ -33,12 +34,13 @@ describe("local AI alignment page bridge", () => {
                 dispatch({
                     type: mediaExtensionAckType,
                     requestId: request.requestId,
-                    version: "0.4.0",
+                    version: "0.4.2",
                 });
 
                 if (request.type === alignerStartRequestType) {
                     expect(request.audioName).toBe("demo.flac");
                     expect(request.transcript).toBe("One\nTwo");
+                    expect(request.bypassCache).toBe(true);
                     dispatchSuccess(request.requestId, {
                         kind: "start",
                         uploadId,
@@ -61,6 +63,8 @@ describe("local AI alignment page bridge", () => {
                 } else if (request.type === alignerResultRequestType) {
                     precision = request.precision;
                     dispatchSuccess(request.requestId, { kind: "result", lrc: "[00:01.234]One\n[00:02.345]Two" });
+                } else if (request.type === alignerCleanupRequestType) {
+                    dispatchSuccess(request.requestId, { kind: "cleanup", reclaimedBytes: 4096 });
                 }
             },
         };
@@ -86,9 +90,14 @@ describe("local AI alignment page bridge", () => {
             audioName: "demo.flac",
             transcript: "One\nTwo",
             precision: 3,
+            keepTaskCache: false,
         });
 
-        expect(result).toBe("[00:01.234]One\n[00:02.345]Two");
+        expect(result).toEqual({
+            lrc: "[00:01.234]One\n[00:02.345]Two",
+            cacheCleanup: "deleted",
+            reclaimedBytes: 4096,
+        });
         expect(received).toEqual([1, 2, 3, 4, 5]);
         expect(precision).toBe(3);
         expect(requestTypes).toEqual([
@@ -98,6 +107,17 @@ describe("local AI alignment page bridge", () => {
             alignerChunkRequestType,
             alignerCommitRequestType,
             alignerResultRequestType,
+            alignerCleanupRequestType,
         ]);
+    });
+
+    it("estimates remaining time from lightweight progress samples", () => {
+        let now = 0;
+        const estimator = new ProgressEtaEstimator(() => now);
+        expect(estimator.update(0.1)).toBeUndefined();
+        now = 5_000;
+        expect(estimator.update(0.2)).toBe(40);
+        now = 10_000;
+        expect(estimator.update(0.3)).toBe(39);
     });
 });

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { detectLosslessCodec, isLocalMediaFile, needsCodecFallback } from "./local-media.js";
+import {
+    detectLosslessCodec,
+    isLocalMediaFile,
+    needsCodecFallback,
+    shouldCreateCompressedAlignmentMedia,
+} from "./local-media.js";
 
 describe("local media codec handling", () => {
     it("accepts known lossless extensions even when Windows provides no MIME type", () => {
@@ -20,5 +25,11 @@ describe("local media codec handling", () => {
         const supported = { canPlayType: () => "probably" } as unknown as HTMLAudioElement;
         await expect(needsCodecFallback(file, unsupported)).resolves.toBe(true);
         await expect(needsCodecFallback(file, supported)).resolves.toBe(false);
+    });
+
+    it("uses a compressed alignment copy for large lossless sources even when playback supports them", async () => {
+        await expect(shouldCreateCompressedAlignmentMedia(new File(["data"], "track.flac"))).resolves.toBe(true);
+        await expect(shouldCreateCompressedAlignmentMedia(new File(["data"], "track.alac"))).resolves.toBe(true);
+        await expect(shouldCreateCompressedAlignmentMedia(new File(["data"], "track.mp3"))).resolves.toBe(false);
     });
 });

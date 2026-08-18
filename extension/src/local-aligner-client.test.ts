@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
     alignerChunkRequestType,
+    alignerCleanupRequestType,
     alignerCommitRequestType,
     alignerResultRequestType,
     alignerStartRequestType,
@@ -48,6 +49,9 @@ describe("LocalAlignerClient", () => {
             if (url.pathname === `/api/jobs/${jobId}/download/lrc2`) {
                 return new Response("[00:01.23]One\n[00:02.34]Two", { status: 200 });
             }
+            if (url.pathname === `/api/jobs/${jobId}/cache` && init?.method === "DELETE") {
+                return Response.json({ deleted: true, reclaimed_bytes: 8192 });
+            }
             return new Response(null, { status: 404 });
         });
         const client = new LocalAlignerClient(fetchMock as unknown as typeof fetch);
@@ -92,6 +96,13 @@ describe("LocalAlignerClient", () => {
             precision: 2,
         });
         expect(result).toEqual({ kind: "result", lrc: "[00:01.23]One\n[00:02.34]Two" });
+        const cleanup = await client.handle({
+            type: alignerCleanupRequestType,
+            requestId: "request-cleanup",
+            baseUrl: "http://127.0.0.1:8765/",
+            jobId,
+        });
+        expect(cleanup).toEqual({ kind: "cleanup", reclaimedBytes: 8192 });
     });
 
     it("rejects out-of-order chunks and concurrent starts", async () => {

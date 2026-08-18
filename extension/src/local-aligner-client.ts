@@ -1,6 +1,8 @@
 import {
     type AlignerChunkRequest,
     alignerChunkRequestType,
+    type AlignerCleanupRequest,
+    alignerCleanupRequestType,
     type AlignerCommitRequest,
     alignerCommitRequestType,
     type AlignerResultRequest,
@@ -62,6 +64,8 @@ export class LocalAlignerClient {
                 return await this.status(request);
             case alignerResultRequestType:
                 return await this.result(request);
+            case alignerCleanupRequestType:
+                return await this.cleanup(request);
         }
     }
 
@@ -168,6 +172,21 @@ export class LocalAlignerClient {
             throw new LocalAlignerClientError("ALIGNER_FAILED", "Aligned LRC is not available");
         }
         return { kind: "result", lrc: await response.text() };
+    }
+
+    private async cleanup(request: AlignerCleanupRequest): Promise<LocalAlignerPayload> {
+        const response = await this.fetchFn(
+            new URL(`/api/jobs/${request.jobId}/cache`, request.baseUrl),
+            { method: "DELETE", cache: "no-store" },
+        );
+        const payload = await response.json() as { reclaimed_bytes?: unknown; detail?: string };
+        if (!response.ok || typeof payload.reclaimed_bytes !== "number" || payload.reclaimed_bytes < 0) {
+            throw new LocalAlignerClientError(
+                "ALIGNER_FAILED",
+                payload.detail || "Local alignment task cache could not be deleted",
+            );
+        }
+        return { kind: "cleanup", reclaimedBytes: payload.reclaimed_bytes };
     }
 
     private async findService(): Promise<{ baseUrl: string; version: string }> {

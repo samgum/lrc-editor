@@ -35,13 +35,16 @@
             "aiUploading": "読み込んだ音声をローカルサービスへ転送中…",
             "aiQueued": "ローカル GPU キューで待機中…",
             "aiRunning": "エディターの歌詞を現在の音声に同期中…",
+            "aiCleaning": "このタスクの一時ファイルを削除中…",
+            "aiRemaining": "推定残り時間：%s",
             "aiComplete": "AI タイミングをエディターに適用しました。",
+            "aiCacheCleanupFailed": "タイミングは適用されましたが、このタスクの一時ファイルを削除できませんでした。",
             "aiClose": "閉じる",
             "aiInstall": "ローカル AI をインストール",
             "aiNoMedia": "先に音声または動画を読み込んでください。",
             "aiNoLyrics": "同期する歌詞行がありません。",
-            "aiExtensionMissing": "Media Bridge v0.4.0 以降をインストールしてページを再読み込みしてください。",
-            "aiExtensionOutdated": "Media Bridge を v0.4.0 以降に更新して再読み込みしてください。",
+            "aiExtensionMissing": "Media Bridge v0.4.2 以降をインストールしてページを再読み込みしてください。",
+            "aiExtensionOutdated": "Media Bridge を v0.4.2 以降に更新して再読み込みしてください。",
             "aiServiceMissing": "Lyrics Forced Aligner をインストールして起動してください。",
             "aiFailed": "ローカル AI タイミング調整に失敗しました。",
             "aiDuplicate": "AI タイミング調整はすでに実行中です。"
@@ -51,7 +54,8 @@
             "fineTuneMs": "タイムスタンプ微調整（ミリ秒）",
             "interactiveSeek": "時刻付き行を選択したときにシーク",
             "allowBackgroundAudio": "バックグラウンド再生を許可",
-            "aiAlignment": "ローカル AI タイミング調整を有効にする"
+            "aiAlignment": "ローカル AI タイミング調整を有効にする",
+            "keepAiTaskCache": "AI タスクキャッシュを保存して再利用"
         },
         "notify": {
             "youtubeResolving": "拡張機能で YouTube 音声を解析しています…",
@@ -61,8 +65,8 @@
             "mediaExtensionOutdated": "メディア拡張機能が古すぎます。最新版に置き換え、拡張機能を再読み込みしてからページを更新してください。",
             "youtubeResolveFailed": "YouTube 音声を解析できませんでした。",
             "invalidMediaUrl": "有効なメディア、NetEase、YouTube、または Bilibili の URL を入力してください。",
-            "transcodingMedia": "ブラウザ再生用にロスレス音声を端末上で変換しています…",
-            "mediaConverted": "ロスレス音声の準備ができました。",
+            "transcodingMedia": "再生と AI 同期用の AAC を端末上で作成中…",
+            "mediaConverted": "AAC の準備ができました。",
             "mediaConversionFailed": "この音声コーデックをブラウザで変換できませんでした。",
             "resultApplied": "結果をエディターに適用しました。",
             "copied": "コピーしました。"
@@ -155,13 +159,16 @@
             "aiUploading": "불러온 오디오를 로컬 서비스로 전송 중…",
             "aiQueued": "로컬 GPU 대기열에서 기다리는 중…",
             "aiRunning": "편집기 가사를 현재 오디오에 맞추는 중…",
+            "aiCleaning": "이 작업의 임시 파일을 삭제하는 중…",
+            "aiRemaining": "예상 남은 시간: %s",
             "aiComplete": "AI 타임라인을 편집기에 적용했습니다.",
+            "aiCacheCleanupFailed": "싱크는 적용되었지만 이 작업의 임시 파일을 삭제하지 못했습니다.",
             "aiClose": "닫기",
             "aiInstall": "로컬 AI 설치",
             "aiNoMedia": "먼저 오디오나 비디오를 불러오세요.",
             "aiNoLyrics": "맞출 가사 줄이 없습니다.",
-            "aiExtensionMissing": "Media Bridge v0.4.0 이상을 설치하고 페이지를 새로고침하세요.",
-            "aiExtensionOutdated": "Media Bridge를 v0.4.0 이상으로 업데이트하고 다시 로드하세요.",
+            "aiExtensionMissing": "Media Bridge v0.4.2 이상을 설치하고 페이지를 새로고침하세요.",
+            "aiExtensionOutdated": "Media Bridge를 v0.4.2 이상으로 업데이트하고 다시 로드하세요.",
             "aiServiceMissing": "Lyrics Forced Aligner를 설치하고 실행하세요.",
             "aiFailed": "로컬 AI 가사 싱크에 실패했습니다.",
             "aiDuplicate": "AI 싱크 작업이 이미 실행 중입니다."
@@ -171,7 +178,8 @@
             "fineTuneMs": "타임스탬프 미세 조정(밀리초)",
             "interactiveSeek": "시간이 있는 줄을 선택할 때 이동",
             "allowBackgroundAudio": "백그라운드 재생 허용",
-            "aiAlignment": "로컬 AI 가사 싱크 사용"
+            "aiAlignment": "로컬 AI 가사 싱크 사용",
+            "keepAiTaskCache": "AI 작업 캐시 보관 및 재사용"
         },
         "notify": {
             "youtubeResolving": "확장 프로그램에서 YouTube 오디오를 분석하는 중…",
@@ -181,8 +189,8 @@
             "mediaExtensionOutdated": "미디어 확장 프로그램이 오래되었습니다. 최신 버전으로 교체하고 확장 프로그램을 다시 로드한 뒤 페이지를 새로고침하세요.",
             "youtubeResolveFailed": "YouTube 오디오를 분석할 수 없습니다.",
             "invalidMediaUrl": "올바른 미디어, NetEase, YouTube 또는 Bilibili URL을 입력하세요.",
-            "transcodingMedia": "브라우저 재생을 위해 무손실 오디오를 기기에서 변환하는 중…",
-            "mediaConverted": "무손실 오디오가 준비되었습니다.",
+            "transcodingMedia": "재생 및 AI 싱크용 AAC 사본을 기기에서 만드는 중…",
+            "mediaConverted": "AAC 오디오가 준비되었습니다.",
             "mediaConversionFailed": "브라우저에서 이 오디오 코덱을 변환할 수 없습니다.",
             "resultApplied": "결과를 편집기에 적용했습니다.",
             "copied": "복사했습니다."
@@ -275,13 +283,16 @@
             "aiUploading": "Przesyłanie wczytanego dźwięku do usługi lokalnej…",
             "aiQueued": "Oczekiwanie w lokalnej kolejce GPU…",
             "aiRunning": "Dopasowywanie tekstu do bieżącego dźwięku…",
+            "aiCleaning": "Usuwanie plików tymczasowych tego zadania…",
+            "aiRemaining": "Szacowany pozostały czas: %s",
             "aiComplete": "Oś AI została zastosowana w edytorze.",
+            "aiCacheCleanupFailed": "Wyrównanie zastosowano, ale nie udało się usunąć plików tymczasowych zadania.",
             "aiClose": "Zamknij",
             "aiInstall": "Zainstaluj lokalne AI",
             "aiNoMedia": "Najpierw wczytaj dźwięk lub wideo.",
             "aiNoLyrics": "Brak wersów do wyrównania.",
-            "aiExtensionMissing": "Zainstaluj Media Bridge v0.4.0 lub nowszy i odśwież stronę.",
-            "aiExtensionOutdated": "Zaktualizuj Media Bridge do v0.4.0 lub nowszej wersji.",
+            "aiExtensionMissing": "Zainstaluj Media Bridge v0.4.2 lub nowszy i odśwież stronę.",
+            "aiExtensionOutdated": "Zaktualizuj Media Bridge do v0.4.2 lub nowszej wersji.",
             "aiServiceMissing": "Zainstaluj i uruchom Lyrics Forced Aligner.",
             "aiFailed": "Lokalne wyrównanie AI nie powiodło się.",
             "aiDuplicate": "Zadanie wyrównania AI jest już uruchomione."
@@ -291,7 +302,8 @@
             "fineTuneMs": "Krok korekty czasu (ms)",
             "interactiveSeek": "Przewiń po wybraniu wiersza ze znacznikiem",
             "allowBackgroundAudio": "Zezwól na odtwarzanie w tle",
-            "aiAlignment": "Włącz lokalne wyrównanie AI"
+            "aiAlignment": "Włącz lokalne wyrównanie AI",
+            "keepAiTaskCache": "Zachowuj i wykorzystuj ponownie pamięć podręczną zadań AI"
         },
         "notify": {
             "youtubeResolving": "Rozpoznawanie dźwięku YouTube przez rozszerzenie…",
@@ -301,8 +313,8 @@
             "mediaExtensionOutdated": "Rozszerzenie multimediów jest nieaktualne. Zastąp je najnowszą wersją, przeładuj rozszerzenie i odśwież stronę.",
             "youtubeResolveFailed": "Nie udało się rozpoznać dźwięku YouTube.",
             "invalidMediaUrl": "Wpisz prawidłowy adres multimediów, NetEase, YouTube lub Bilibili.",
-            "transcodingMedia": "Lokalna konwersja bezstratnego dźwięku do odtwarzania…",
-            "mediaConverted": "Dźwięk bezstratny jest gotowy.",
+            "transcodingMedia": "Tworzenie lokalnej kopii AAC do odtwarzania i wyrównania AI…",
+            "mediaConverted": "Kopia AAC jest gotowa.",
             "mediaConversionFailed": "Nie udało się przekonwertować tego kodeka w przeglądarce.",
             "resultApplied": "Wynik zastosowano w edytorze.",
             "copied": "Skopiowano."
@@ -395,13 +407,16 @@
             "aiUploading": "Enviando o áudio carregado ao serviço local…",
             "aiQueued": "Aguardando na fila da GPU local…",
             "aiRunning": "Alinhando a letra do editor ao áudio atual…",
+            "aiCleaning": "Removendo os arquivos temporários desta tarefa…",
+            "aiRemaining": "Tempo restante estimado: %s",
             "aiComplete": "O alinhamento da IA foi aplicado ao editor.",
+            "aiCacheCleanupFailed": "O alinhamento foi aplicado, mas os arquivos temporários desta tarefa não puderam ser excluídos.",
             "aiClose": "Fechar",
             "aiInstall": "Instalar IA local",
             "aiNoMedia": "Carregue um áudio ou vídeo primeiro.",
             "aiNoLyrics": "Não há linhas de letra para alinhar.",
-            "aiExtensionMissing": "Instale o Media Bridge v0.4.0 ou posterior e atualize a página.",
-            "aiExtensionOutdated": "Atualize o Media Bridge para v0.4.0 ou posterior.",
+            "aiExtensionMissing": "Instale o Media Bridge v0.4.2 ou posterior e atualize a página.",
+            "aiExtensionOutdated": "Atualize o Media Bridge para v0.4.2 ou posterior.",
             "aiServiceMissing": "Instale e inicie o Lyrics Forced Aligner.",
             "aiFailed": "O alinhamento local com IA falhou.",
             "aiDuplicate": "Já existe uma tarefa de alinhamento com IA em execução."
@@ -411,7 +426,8 @@
             "fineTuneMs": "Ajuste fino do tempo (ms)",
             "interactiveSeek": "Avançar ao selecionar uma linha com tempo",
             "allowBackgroundAudio": "Permitir reprodução em segundo plano",
-            "aiAlignment": "Ativar alinhamento local com IA"
+            "aiAlignment": "Ativar alinhamento local com IA",
+            "keepAiTaskCache": "Manter e reutilizar o cache de tarefas da IA"
         },
         "notify": {
             "youtubeResolving": "Resolvendo o áudio do YouTube pela extensão…",
@@ -421,8 +437,8 @@
             "mediaExtensionOutdated": "A extensão de mídia está desatualizada. Substitua pela versão mais recente, recarregue a extensão e atualize esta página.",
             "youtubeResolveFailed": "Não foi possível resolver o áudio do YouTube.",
             "invalidMediaUrl": "Informe uma URL válida de mídia, NetEase, YouTube ou Bilibili.",
-            "transcodingMedia": "Convertendo o áudio sem perdas localmente para reprodução…",
-            "mediaConverted": "O áudio sem perdas está pronto.",
+            "transcodingMedia": "Preparando uma cópia AAC local para reprodução e alinhamento por IA…",
+            "mediaConverted": "O áudio AAC está pronto.",
             "mediaConversionFailed": "Não foi possível converter este codec no navegador.",
             "resultApplied": "O resultado foi aplicado ao editor.",
             "copied": "Copiado."
@@ -515,13 +531,16 @@
             "aiUploading": "Odosielanie načítaného zvuku lokálnej službe…",
             "aiQueued": "Čakanie v lokálnom rade GPU…",
             "aiRunning": "Zarovnávanie textu editora s aktuálnym zvukom…",
+            "aiCleaning": "Odstraňovanie dočasných súborov tejto úlohy…",
+            "aiRemaining": "Odhadovaný zostávajúci čas: %s",
             "aiComplete": "Časovanie AI bolo použité v editore.",
+            "aiCacheCleanupFailed": "Zarovnanie bolo použité, ale dočasné súbory úlohy sa nepodarilo odstrániť.",
             "aiClose": "Zavrieť",
             "aiInstall": "Nainštalovať lokálnu AI",
             "aiNoMedia": "Najprv načítajte zvuk alebo video.",
             "aiNoLyrics": "Nie sú k dispozícii riadky na zarovnanie.",
-            "aiExtensionMissing": "Nainštalujte Media Bridge v0.4.0 alebo novší a obnovte stránku.",
-            "aiExtensionOutdated": "Aktualizujte Media Bridge na v0.4.0 alebo novší.",
+            "aiExtensionMissing": "Nainštalujte Media Bridge v0.4.2 alebo novší a obnovte stránku.",
+            "aiExtensionOutdated": "Aktualizujte Media Bridge na v0.4.2 alebo novší.",
             "aiServiceMissing": "Nainštalujte a spustite Lyrics Forced Aligner.",
             "aiFailed": "Lokálne zarovnanie AI zlyhalo.",
             "aiDuplicate": "Úloha zarovnania AI už beží."
@@ -531,7 +550,8 @@
             "fineTuneMs": "Jemný krok času (ms)",
             "interactiveSeek": "Posunúť pri výbere riadka s časom",
             "allowBackgroundAudio": "Povoliť prehrávanie na pozadí",
-            "aiAlignment": "Povoliť lokálne zarovnanie AI"
+            "aiAlignment": "Povoliť lokálne zarovnanie AI",
+            "keepAiTaskCache": "Uchovať a opätovne používať vyrovnávaciu pamäť úloh AI"
         },
         "notify": {
             "youtubeResolving": "Rozpoznáva sa zvuk YouTube pomocou rozšírenia…",
@@ -541,8 +561,8 @@
             "mediaExtensionOutdated": "Mediálne rozšírenie je zastarané. Nahraďte ho najnovšou verziou, znovu ho načítajte a obnovte stránku.",
             "youtubeResolveFailed": "Zvuk YouTube sa nepodarilo rozpoznať.",
             "invalidMediaUrl": "Zadajte platnú adresu média, NetEase, YouTube alebo Bilibili.",
-            "transcodingMedia": "Lokálne sa prevádza bezstratový zvuk na prehrávanie…",
-            "mediaConverted": "Bezstratový zvuk je pripravený.",
+            "transcodingMedia": "Lokálne sa pripravuje kópia AAC na prehrávanie a zarovnanie AI…",
+            "mediaConverted": "Zvuk AAC je pripravený.",
             "mediaConversionFailed": "Tento kodek sa nepodarilo previesť v prehliadači.",
             "resultApplied": "Výsledok bol použitý v editore.",
             "copied": "Skopírované."
@@ -635,13 +655,16 @@
             "aiUploading": "正在把已載入音訊交給本機服務…",
             "aiQueued": "正在等候本機 GPU 佇列…",
             "aiRunning": "正在把編輯器歌詞對齊目前音訊…",
+            "aiCleaning": "正在清理本次任務快取…",
+            "aiRemaining": "預計剩餘約 %s",
             "aiComplete": "AI 時間軸已套用到編輯器。",
+            "aiCacheCleanupFailed": "時間軸已套用，但本次任務快取未能自動清理。",
             "aiClose": "關閉",
             "aiInstall": "安裝本機 AI 對齊器",
             "aiNoMedia": "請先載入音訊或影片。",
             "aiNoLyrics": "編輯器內沒有可對齊的歌詞行。",
-            "aiExtensionMissing": "請安裝 Media Bridge v0.4.0 或更新版本並重新整理頁面。",
-            "aiExtensionOutdated": "請更新並重新載入 Media Bridge v0.4.0 或更新版本。",
+            "aiExtensionMissing": "請安裝 Media Bridge v0.4.2 或更新版本並重新整理頁面。",
+            "aiExtensionOutdated": "請更新並重新載入 Media Bridge v0.4.2 或更新版本。",
             "aiServiceMissing": "請先安裝並啟動 Lyrics Forced Aligner。",
             "aiFailed": "本機 AI 對軸失敗。",
             "aiDuplicate": "已有 AI 對軸工作正在執行。"
@@ -651,7 +674,8 @@
             "fineTuneMs": "時間標籤微調量（毫秒）",
             "interactiveSeek": "選取已有時間標籤的歌詞時跳轉音訊",
             "allowBackgroundAudio": "允許音訊在背景播放",
-            "aiAlignment": "啟用本機 AI 對軸"
+            "aiAlignment": "啟用本機 AI 對軸",
+            "keepAiTaskCache": "保留並重用 AI 對軸任務快取"
         },
         "notify": {
             "youtubeResolving": "正在透過擴充功能解析 YouTube 音訊…",
@@ -661,8 +685,8 @@
             "mediaExtensionOutdated": "媒體擴充功能版本過舊。請替換為最新版本，在擴充功能管理頁重新載入後再重新整理此頁面。",
             "youtubeResolveFailed": "無法解析 YouTube 音訊。",
             "invalidMediaUrl": "請輸入有效的媒體、網易雲、YouTube 或嗶哩嗶哩連結。",
-            "transcodingMedia": "正在本機轉換無損音訊以供瀏覽器播放…",
-            "mediaConverted": "無損音訊已準備好。",
+            "transcodingMedia": "正在本機建立供播放與 AI 對軸使用的 AAC 副本…",
+            "mediaConverted": "AAC 音訊已準備完成。",
             "mediaConversionFailed": "瀏覽器無法轉換這個音訊編碼。",
             "resultApplied": "結果已套用至編輯器。",
             "copied": "已複製。"
@@ -755,13 +779,16 @@
             "aiUploading": "正在把已載入音訊交給本機服務…",
             "aiQueued": "正在等待本機 GPU 佇列…",
             "aiRunning": "正在把編輯器歌詞對齊目前音訊…",
+            "aiCleaning": "正在清理本次任務快取…",
+            "aiRemaining": "預計剩餘約 %s",
             "aiComplete": "AI 時間軸已套用到編輯器。",
+            "aiCacheCleanupFailed": "時間軸已套用，但本次任務快取未能自動清理。",
             "aiClose": "關閉",
             "aiInstall": "安裝本機 AI 對齊器",
             "aiNoMedia": "請先載入音訊或影片。",
             "aiNoLyrics": "編輯器中沒有可對齊的歌詞行。",
-            "aiExtensionMissing": "請安裝 Media Bridge v0.4.0 或更新版本並重新整理頁面。",
-            "aiExtensionOutdated": "請更新並重新載入 Media Bridge v0.4.0 或更新版本。",
+            "aiExtensionMissing": "請安裝 Media Bridge v0.4.2 或更新版本並重新整理頁面。",
+            "aiExtensionOutdated": "請更新並重新載入 Media Bridge v0.4.2 或更新版本。",
             "aiServiceMissing": "請先安裝並啟動 Lyrics Forced Aligner。",
             "aiFailed": "本機 AI 對軸失敗。",
             "aiDuplicate": "已有 AI 對軸工作正在執行。"
@@ -771,7 +798,8 @@
             "fineTuneMs": "時間標籤微調量（毫秒）",
             "interactiveSeek": "選取已有時間標籤的歌詞時跳轉音訊",
             "allowBackgroundAudio": "允許音訊在背景播放",
-            "aiAlignment": "啟用本機 AI 對軸"
+            "aiAlignment": "啟用本機 AI 對軸",
+            "keepAiTaskCache": "保留並重用 AI 對軸任務快取"
         },
         "notify": {
             "youtubeResolving": "正在透過擴充功能解析 YouTube 音訊…",
@@ -781,8 +809,8 @@
             "mediaExtensionOutdated": "媒體擴充功能版本過舊。請替換為最新版本，在擴充功能管理頁重新載入後再重新整理此頁面。",
             "youtubeResolveFailed": "無法解析 YouTube 音訊。",
             "invalidMediaUrl": "請輸入有效的媒體、網易雲、YouTube 或嗶哩嗶哩連結。",
-            "transcodingMedia": "正在本機轉換無損音訊以供瀏覽器播放…",
-            "mediaConverted": "無損音訊已準備好。",
+            "transcodingMedia": "正在本機建立供播放與 AI 對軸使用的 AAC 副本…",
+            "mediaConverted": "AAC 音訊已準備完成。",
             "mediaConversionFailed": "瀏覽器無法轉換這個音訊編碼。",
             "resultApplied": "結果已套用至編輯器。",
             "copied": "已複製。"

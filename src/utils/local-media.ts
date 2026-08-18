@@ -22,6 +22,9 @@ export const needsCodecFallback = async (file: File, audio = document.createElem
     return contentType ? audio.canPlayType(contentType) === "" : false;
 };
 
+export const shouldCreateCompressedAlignmentMedia = async (file: File): Promise<boolean> =>
+    ["aiff", "alac", "caf", "flac"].includes(await detectLosslessCodec(file) || "");
+
 export const detectLosslessCodec = async (
     file: File,
 ): Promise<"aiff" | "alac" | "caf" | "flac" | "matroska" | "ogg" | "opus" | "quicktime" | null> => {

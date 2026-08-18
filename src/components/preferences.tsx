@@ -179,6 +179,11 @@ export const Preferences: React.FC = () => {
         [prefDispatch],
     );
 
+    const onKeepAiTaskCacheToggle = useCallback(
+        () => prefDispatch({ type: "keepAiTaskCache", payload: (state) => !state.keepAiTaskCache }),
+        [prefDispatch],
+    );
+
     const onScreenButtonToggle = useCallback(
         () =>
             prefDispatch({
@@ -357,6 +362,20 @@ export const Preferences: React.FC = () => {
                                 checked={prefState.aiAlignmentEnabled}
                                 onChange={onAiAlignmentToggle}
                                 aria-label={lang.preferences.aiAlignment}
+                            />
+                            <span className="toggle-switch-label" />
+                        </label>
+                    </label>
+                </li>
+                <li>
+                    <label className="list-item">
+                        <span>{lang.preferences.keepAiTaskCache}</span>
+                        <label className="toggle-switch">
+                            <input
+                                type="checkbox"
+                                checked={prefState.keepAiTaskCache}
+                                onChange={onKeepAiTaskCacheToggle}
+                                aria-label={lang.preferences.keepAiTaskCache}
                             />
                             <span className="toggle-switch-label" />
                         </label>

@@ -199,6 +199,13 @@
     font-size: 0.82rem;
 }
 
+.ai-align-dialog .ai-align-remaining {
+    margin-top: -0.35rem;
+    color: #77737b;
+    font-size: 0.88rem;
+    font-variant-numeric: tabular-nums;
+}
+
 .ai-align-dialog a {
     display: inline-block;
     margin-top: 10px;

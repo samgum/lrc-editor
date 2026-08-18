@@ -80,6 +80,11 @@ python_root="$install_root/python"
 download_cache_root="$install_root/download-cache"
 venv_python="$environment_root/bin/python"
 script_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+constraints_path="$script_root/ai-constraints.txt"
+if [[ ! -f "$constraints_path" ]]; then
+    echo "ai-constraints.txt is missing from the installer package." >&2
+    exit 1
+fi
 
 use_cuda=0
 cuda_device=""
@@ -290,7 +295,7 @@ fi
 reinstall_cpu=0
 if [[ "$use_cuda" -eq 1 ]]; then
     if "$uv_command" pip install --upgrade --python "$venv_python" \
-        torch torchaudio --index-url "https://download.pytorch.org/whl/cu128" && \
+        "torch==2.11.0" "torchaudio==2.11.0" --index-url "https://download.pytorch.org/whl/cu128" && \
         "$uv_command" pip install --upgrade --python "$venv_python" \
         "nvidia-cublas-cu12==12.8.4.1" "nvidia-cudnn-cu12==9.8.0.87"; then
         export CUDA_VISIBLE_DEVICES="$cuda_device"
@@ -303,9 +308,9 @@ if [[ "$use_cuda" -eq 1 ]]; then
 fi
 if [[ "$use_cuda" -eq 0 ]]; then
     export CUDA_VISIBLE_DEVICES=-1
-    cpu_arguments=(pip install --upgrade --python "$venv_python" torch torchaudio)
+    cpu_arguments=(pip install --upgrade --python "$venv_python" "torch==2.11.0" "torchaudio==2.11.0")
     if [[ "$reinstall_cpu" -eq 1 ]]; then
-        cpu_arguments=(pip install --upgrade --reinstall --python "$venv_python" torch torchaudio)
+        cpu_arguments=(pip install --upgrade --reinstall --python "$venv_python" "torch==2.11.0" "torchaudio==2.11.0")
     fi
     if [[ "$os_name" == "Linux" ]]; then
         cpu_arguments+=(--index-url "https://download.pytorch.org/whl/cpu")
@@ -313,7 +318,8 @@ if [[ "$use_cuda" -eq 0 ]]; then
     "$uv_command" "${cpu_arguments[@]}"
 fi
 
-"$uv_command" pip install --upgrade --python "$venv_python" -e "$engine_root"
+"$uv_command" pip install --upgrade --python "$venv_python" --constraints "$constraints_path" -e "$engine_root"
+"$venv_python" -c 'from importlib.metadata import version; import torch; assert version("demucs") == "4.0.1", version("demucs"); assert torch.__version__.startswith("2.11.0"), torch.__version__; print("Pinned dependencies verified:", "demucs", version("demucs"), "torch", torch.__version__)'
 site_packages="$("$venv_python" -c 'import site; print(site.getsitepackages()[0])')"
 if [[ "$use_cuda" -eq 1 ]]; then
     private_cuda_paths="$site_packages/nvidia/cublas/lib:$site_packages/nvidia/cudnn/lib"
@@ -354,7 +360,7 @@ if [[ "$use_cuda" -eq 0 && "$skip_models" -eq 0 ]]; then
 fi
 "$venv_python" -c 'from lyrics_aligner.server import app; assert app.title == "Lyrics Forced Aligner"; assert app.version == "0.2.27"; print("Engine API verified")'
 
-for file_name in start-ai-aligner.sh start-ai-aligner.command README.md README-zh.md INSTALL.txt; do
+for file_name in install-ai-aligner.sh install-ai-aligner.command ai-constraints.txt lrc_editor_companion_server.py start-ai-aligner.sh start-ai-aligner.command README.md README-zh.md INSTALL.txt; do
     if [[ -f "$script_root/$file_name" && "$script_root/$file_name" != "$install_root/$file_name" ]]; then
         cp "$script_root/$file_name" "$install_root/$file_name"
     fi
@@ -408,6 +414,12 @@ with open(os.environ["LRC_STATE_PATH"], "w", encoding="utf-8") as handle:
     json.dump(state, handle, ensure_ascii=False, indent=2)
     handle.write("\n")
 PY
+
+echo "Cleaning rebuildable package download cache..."
+"$uv_command" cache clean
+if [[ -d "$download_cache_root" && -z "$(ls -A "$download_cache_root" 2>/dev/null)" ]]; then
+    rmdir "$download_cache_root"
+fi
 
 echo
 echo "Installation complete."

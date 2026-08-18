@@ -4,7 +4,7 @@ This package is not a browser extension.
 这个安装包不是浏览器扩展，不能在 Chrome/Edge 的“扩展程序”页面加载。
 
 Browser extension / 浏览器扩展：
-lrc-editor-media-bridge-v0.4.1.zip
+lrc-editor-media-bridge-v0.4.2.zip
 
 Windows installation / Windows 安装：
 1. Extract the complete ZIP. / 完整解压 ZIP。

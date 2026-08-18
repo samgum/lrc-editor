@@ -3,7 +3,6 @@ import ffmpegWorkerURL from "@ffmpeg/ffmpeg/worker?worker&url";
 
 const maximumInputBytes = 512 * 1024 * 1024;
 const maximumWasmBytes = 64 * 1024 * 1024;
-let ffmpegPromise: Promise<FFmpeg> | undefined;
 
 interface WasmManifest {
     size: number;
@@ -18,30 +17,18 @@ export const transcodeAudioForBrowser = async (
         throw new RangeError("The media file is too large for in-browser conversion");
     }
 
-    const ffmpeg = await getFFmpeg();
+    const ffmpeg = await createFFmpeg();
     const id = crypto.randomUUID();
     const extension = /\.([A-Za-z0-9]{1,8})$/.exec(file.name)?.[1].toLowerCase() || "bin";
     const inputName = `input-${id}.${extension}`;
-    const flacSupported = document.createElement("audio").canPlayType("audio/flac") !== "";
-    const outputName = `output-${id}.${flacSupported ? "flac" : "wav"}`;
+    const outputName = `output-${id}.m4a`;
     const progressListener = ({ progress }: { progress: number }): void =>
         onProgress?.(Math.max(0, Math.min(1, progress)));
 
     ffmpeg.on("progress", progressListener);
     try {
         await ffmpeg.writeFile(inputName, new Uint8Array(await file.arrayBuffer()));
-        const codecArgs = flacSupported ? ["-c:a", "flac"] : ["-c:a", "pcm_s16le"];
-        const exitCode = await ffmpeg.exec([
-            "-i",
-            inputName,
-            "-map",
-            "0:a:0",
-            "-vn",
-            "-map_metadata",
-            "-1",
-            ...codecArgs,
-            outputName,
-        ], 60_000);
+        const exitCode = await ffmpeg.exec(createAacTranscodeArguments(inputName, outputName), 60_000);
         if (exitCode !== 0) {
             throw new Error(`Audio conversion failed with exit code ${exitCode}`);
         }
@@ -50,37 +37,67 @@ export const transcodeAudioForBrowser = async (
             throw new TypeError("Audio conversion returned unexpected data");
         }
         return new Blob([data as Uint8Array<ArrayBuffer>], {
-            type: flacSupported ? "audio/flac" : "audio/wav",
+            type: "audio/mp4",
         });
     } finally {
         ffmpeg.off("progress", progressListener);
-        await Promise.allSettled([ffmpeg.deleteFile(inputName), ffmpeg.deleteFile(outputName)]);
+        await disposeAudioTranscoder(ffmpeg, [inputName, outputName]);
     }
 };
 
-const getFFmpeg = (): Promise<FFmpeg> => {
-    ffmpegPromise ??= (async () => {
-        const ffmpeg = new FFmpeg();
-        const base = new URL("ffmpeg/", document.baseURI);
-        const wasmURL = await loadWasmURL(base);
-        try {
-            await withTimeout(
-                ffmpeg.load({
-                    classWorkerURL: ffmpegWorkerURL,
-                    coreURL: new URL("ffmpeg-core.js", base).href,
-                    wasmURL,
-                }),
-                30_000,
-            );
-        } finally {
-            URL.revokeObjectURL(wasmURL);
-        }
-        return ffmpeg;
-    })().catch((error: unknown) => {
-        ffmpegPromise = undefined;
+export const createAacTranscodeArguments = (inputName: string, outputName: string): string[] => [
+    "-i",
+    inputName,
+    "-map",
+    "0:a:0",
+    "-vn",
+    "-map_metadata",
+    "-1",
+    "-c:a",
+    "aac",
+    "-b:a",
+    "256k",
+    "-movflags",
+    "+faststart",
+    outputName,
+];
+
+interface DisposableAudioTranscoder {
+    deleteFile(path: string): Promise<boolean>;
+    terminate(): void;
+}
+
+export const disposeAudioTranscoder = async (
+    ffmpeg: DisposableAudioTranscoder,
+    temporaryFiles: readonly string[],
+): Promise<void> => {
+    try {
+        await Promise.allSettled(temporaryFiles.map((path) => ffmpeg.deleteFile(path)));
+    } finally {
+        ffmpeg.terminate();
+    }
+};
+
+const createFFmpeg = async (): Promise<FFmpeg> => {
+    const ffmpeg = new FFmpeg();
+    const base = new URL("ffmpeg/", document.baseURI);
+    const wasmURL = await loadWasmURL(base);
+    try {
+        await withTimeout(
+            ffmpeg.load({
+                classWorkerURL: ffmpegWorkerURL,
+                coreURL: new URL("ffmpeg-core.js", base).href,
+                wasmURL,
+            }),
+            30_000,
+        );
+    } catch (error) {
+        ffmpeg.terminate();
         throw error;
-    });
-    return ffmpegPromise;
+    } finally {
+        URL.revokeObjectURL(wasmURL);
+    }
+    return ffmpeg;
 };
 
 const loadWasmURL = async (base: URL): Promise<string> => {

@@ -64,6 +64,10 @@ $runtimeRoot = Join-Path $resolvedInstallRoot "runtime"
 $pythonRoot = Join-Path $resolvedInstallRoot "python"
 $downloadCacheRoot = Join-Path $resolvedInstallRoot "download-cache"
 $venvPython = Join-Path $environmentRoot "Scripts\python.exe"
+$constraintsPath = Join-Path $PSScriptRoot "ai-constraints.txt"
+if (-not (Test-Path -LiteralPath $constraintsPath)) {
+    throw "ai-constraints.txt is missing from the installer package."
+}
 
 function Refresh-ProcessPath {
     $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
@@ -350,7 +354,7 @@ if ($useCuda) {
     try {
         Invoke-Checked -FilePath $uv -Arguments @(
             "pip", "install", "--upgrade", "--python", $venvPython,
-            "torch", "torchaudio", "--index-url", "https://download.pytorch.org/whl/cu128"
+            "torch==2.11.0", "torchaudio==2.11.0", "--index-url", "https://download.pytorch.org/whl/cu128"
         ) -FailureMessage "Unable to install CUDA PyTorch"
         Write-Host "Installing private NVIDIA runtime libraries..." -ForegroundColor Cyan
         Write-Host "Source: NVIDIA packages on PyPI"
@@ -375,14 +379,25 @@ if (-not $useCuda) {
         $cpuTorchArguments += "--reinstall"
     }
     $cpuTorchArguments += @(
-        "--python", $venvPython, "torch", "torchaudio",
+        "--python", $venvPython, "torch==2.11.0", "torchaudio==2.11.0",
         "--index-url", "https://download.pytorch.org/whl/cpu"
     )
     Invoke-Checked -FilePath $uv -Arguments $cpuTorchArguments -FailureMessage "Unable to install CPU PyTorch"
 }
 Invoke-Checked -FilePath $uv -Arguments @(
-    "pip", "install", "--upgrade", "--python", $venvPython, "-e", $engineRoot
+    "pip", "install", "--upgrade", "--python", $venvPython,
+    "--constraints", $constraintsPath, "-e", $engineRoot
 ) -FailureMessage "Unable to install Lyrics Forced Aligner"
+
+$dependencyVerification = @"
+from importlib.metadata import version
+import torch
+assert version('demucs') == '4.0.1', version('demucs')
+assert torch.__version__.startswith('2.11.0'), torch.__version__
+print('Pinned dependencies verified:', 'demucs', version('demucs'), 'torch', torch.__version__)
+"@
+Invoke-Checked -FilePath $venvPython -Arguments @("-c", $dependencyVerification) `
+    -FailureMessage "Pinned dependency verification failed"
 
 $env:PYTHONPATH = Join-Path $engineRoot "src"
 $env:TORCH_HOME = Join-Path $modelRoot "torch"
@@ -404,10 +419,10 @@ if (-not $SkipModelDownload) {
 import os
 from faster_whisper import download_model
 download_model(
-    "large-v3-turbo",
-    cache_dir=os.path.join(os.environ["LRC_EDITOR_MODEL_ROOT"], "faster-whisper"),
+    'large-v3-turbo',
+    cache_dir=os.path.join(os.environ['LRC_EDITOR_MODEL_ROOT'], 'faster-whisper'),
 )
-print("large-v3-turbo ready")
+print('large-v3-turbo ready')
 "@
     Invoke-Checked -FilePath $venvPython -Arguments @("-c", $whisperDownload) `
         -FailureMessage "Unable to download large-v3-turbo"
@@ -420,7 +435,7 @@ import ctranslate2
 import torch
 assert torch.cuda.is_available()
 assert ctranslate2.get_cuda_device_count() > 0
-print("CUDA libraries verified")
+print('CUDA libraries verified')
 "@
     } else {
         @"
@@ -431,12 +446,12 @@ from faster_whisper import WhisperModel
 assert torch.cuda.is_available()
 assert ctranslate2.get_cuda_device_count() > 0
 model = WhisperModel(
-    "large-v3-turbo",
-    device="cuda",
-    compute_type="float16",
-    download_root=os.path.join(os.environ["LRC_EDITOR_MODEL_ROOT"], "faster-whisper"),
+    'large-v3-turbo',
+    device='cuda',
+    compute_type='float16',
+    download_root=os.path.join(os.environ['LRC_EDITOR_MODEL_ROOT'], 'faster-whisper'),
 )
-print("CUDA model load verified")
+print('CUDA model load verified')
 "@
     }
     try {
@@ -456,12 +471,12 @@ if (-not $useCuda -and -not $SkipModelDownload) {
     $cpuModelCheck = @"
 from faster_whisper import WhisperModel
 model = WhisperModel(
-    "large-v3-turbo",
-    device="cpu",
-    compute_type="int8",
-    download_root=os.path.join(os.environ["LRC_EDITOR_MODEL_ROOT"], "faster-whisper"),
+    'large-v3-turbo',
+    device='cpu',
+    compute_type='int8',
+    download_root=os.path.join(os.environ['LRC_EDITOR_MODEL_ROOT'], 'faster-whisper'),
 )
-print("CPU model load verified")
+print('CPU model load verified')
 "@
 }
 $backendName = if ($useCuda) { "cuda" } else { "cpu" }
@@ -469,17 +484,20 @@ $verificationCode = @"
 import os
 from lyrics_aligner.server import app
 import torch
-assert app.title == "Lyrics Forced Aligner"
-assert app.version == "0.2.27"
+assert app.title == 'Lyrics Forced Aligner'
+assert app.version == '0.2.27'
 $cpuModelCheck
-print("Engine API verified")
-print("Selected backend: $backendName")
+print('Engine API verified')
+print('Selected backend: $backendName')
 "@
 Invoke-Checked -FilePath $venvPython -Arguments @("-c", $verificationCode) `
     -FailureMessage "The local alignment engine failed verification"
 
 foreach ($fileName in @(
     "install-ai-aligner.cmd",
+    "install-ai-aligner.ps1",
+    "ai-constraints.txt",
+    "lrc_editor_companion_server.py",
     "start-ai-aligner.ps1",
     "start-ai-aligner.cmd",
     "README.md",
@@ -517,6 +535,14 @@ $state = [ordered]@{
     expectedInstalledSize = $expectedInstalled
 }
 $state | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $resolvedInstallRoot "install-state.json") -Encoding UTF8
+
+Write-Host "Cleaning rebuildable package download cache..." -ForegroundColor Cyan
+Invoke-Checked -FilePath $uv -Arguments @("cache", "clean") -FailureMessage "Unable to clean the package cache"
+$cacheIsEmpty = (Test-Path -LiteralPath $downloadCacheRoot) -and `
+    @(Get-ChildItem -LiteralPath $downloadCacheRoot -Force -ErrorAction SilentlyContinue).Count -eq 0
+if ($cacheIsEmpty) {
+    Remove-Item -LiteralPath $downloadCacheRoot
+}
 
 Write-Host ""
 Write-Host "Installation complete." -ForegroundColor Green

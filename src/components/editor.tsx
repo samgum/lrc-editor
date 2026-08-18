@@ -143,6 +143,8 @@ export const Editor: React.FC<{
                 return lang.editor.aiQueued;
             case "running":
                 return lang.editor.aiRunning;
+            case "cleaning":
+                return lang.editor.aiCleaning;
             case "complete":
                 return lang.editor.aiComplete;
         }
@@ -183,17 +185,21 @@ export const Editor: React.FC<{
             }
 
             try {
-                const alignedLrc = await runLocalAiAlignment({
+                const result = await runLocalAiAlignment({
                     audio: media.blob,
                     audioName: media.name,
                     transcript,
                     precision: prefState.fixed === 2 ? 2 : 3,
+                    keepTaskCache: prefState.keepAiTaskCache,
                     onProgress: (progress) => setAiState({ ...progress, visible: true }),
                 });
-                const lyric = validateAlignedLyrics(transcript, alignedLrc, trimOptions);
+                const lyric = validateAlignedLyrics(transcript, result.lrc, trimOptions);
                 lrcDispatch({ type: LrcActionType.replaceLyrics, payload: lyric });
                 setAiState({ phase: "complete", progress: 1, visible: true });
                 toastPubSub.pub({ type: "success", text: lang.editor.aiComplete });
+                if (result.cacheCleanup === "failed") {
+                    toastPubSub.pub({ type: "warning", text: lang.editor.aiCacheCleanupFailed });
+                }
             } catch (error) {
                 const message = alignmentErrorText(error);
                 const showInstall = error instanceof LocalAiAlignmentError
@@ -211,7 +217,7 @@ export const Editor: React.FC<{
             activeAlignment.current = null;
         });
         activeAlignment.current = operation;
-    }, [alignmentErrorText, lang.editor, lrcDispatch, prefState.fixed, text, trimOptions]);
+    }, [alignmentErrorText, lang.editor, lrcDispatch, prefState.fixed, prefState.keepAiTaskCache, text, trimOptions]);
 
     const onAiAlignClick = useCallback(() => {
         if (!prefState.aiAlignmentEnabled) {
@@ -221,6 +227,9 @@ export const Editor: React.FC<{
     }, [onAiAlign, prefDispatch, prefState.aiAlignmentEnabled]);
 
     const aiStatus = aiState && !aiState.error ? statusText(aiState) : aiState?.error;
+    const aiRemaining = aiState?.phase === "running" && aiState.remainingSeconds
+        ? lang.editor.aiRemaining.replace("%s", formatRemainingTime(aiState.remainingSeconds))
+        : undefined;
 
     return (
         <div className="app-editor">
@@ -321,6 +330,7 @@ export const Editor: React.FC<{
                         </header>
                         <progress max={1} value={aiState.progress} />
                         <p>{aiStatus}</p>
+                        {aiRemaining && <p className="ai-align-remaining">{aiRemaining}</p>}
                         {aiState.showInstall && (
                             <a
                                 href="https://github.com/samgum/lrc-editor/tree/main/companion"
@@ -335,4 +345,14 @@ export const Editor: React.FC<{
             )}
         </div>
     );
+};
+
+const formatRemainingTime = (seconds: number): string => {
+    const rounded = Math.max(1, Math.round(seconds));
+    const hours = Math.floor(rounded / 3600);
+    const minutes = Math.floor(rounded % 3600 / 60);
+    const remainder = rounded % 60;
+    return hours > 0
+        ? `${hours}:${minutes.toString().padStart(2, "0")}:${remainder.toString().padStart(2, "0")}`
+        : `${minutes}:${remainder.toString().padStart(2, "0")}`;
 };

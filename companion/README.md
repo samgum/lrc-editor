@@ -9,7 +9,7 @@ This optional companion runs the verified `lyrics-forced-aligner` engine entirel
 1. Download and extract the `lrc-editor-ai-aligner` package from the latest [LRC Editor release](https://github.com/samgum/lrc-editor/releases/latest).
 2. Double-click `install-ai-aligner.cmd`, choose 1 for the C drive default, 2 for `D:\LRC Editor AI`, or 3 for a custom directory, then allow the downloads to finish.
 3. Double-click `start-ai-aligner.cmd` only when AI alignment is needed. Keep its terminal open.
-4. Install or update LRC Editor Media Bridge to v0.4.1 or later.
+4. Install or update LRC Editor Media Bridge to v0.4.2 or later.
 5. In LRC Editor, turn on **Settings → Enable local AI alignment**, load media, open the editor, and select **AI align**.
 
 The installer uses WinGet when Git, FFmpeg, or uv is missing. It always downloads a uv-managed Python 3.11 runtime into the chosen `python` directory and creates `environment` from that exact executable. It does not reuse, register, or add a system Python to `PATH`; no preinstalled Python or Python command is required. Removing the selected AI directory removes this private Python as well.
@@ -42,6 +42,8 @@ Before downloading, the installer shows the detected GPU, VRAM, driver, selected
 CUDA acceleration is isolated from other machine-learning installations. NVIDIA runtime packages live under this companion's `environment` directory, and their library directories are added only to the local aligner process. The installer does not change the system CUDA path. PyTorch and CTranslate2 are both checked, and the full `large-v3-turbo` model is loaded once during installation; any CUDA, driver, VRAM, or library failure selects CPU mode automatically. CPU mode remains fully functional, though slower.
 
 Allow at least 15 GB of free space for CPU mode or 22 GB for CUDA mode. Interrupted downloads can be resumed by running the same installer again.
+
+After every successful installation and model verification, the installer removes the rebuildable uv package-download cache. Interrupted installations keep that cache for resume. Models and the private Python/CUDA runtime are never treated as download garbage.
 
 ## Model sources
 
@@ -86,7 +88,10 @@ Use the same path when starting:
 - Starting the launcher twice detects the existing service and exits without creating a second process.
 - The extension refuses a second upload or job while one is being prepared, queued, or processed.
 - Output precision follows the editor setting: two-digit timestamps request `lrc2`; every other setting requests `lrc3`.
+- Remaining time is estimated in the web page from already reported progress samples; it does not add model work or reduce inference speed.
+- By default, each job bypasses the reusable work cache. After the requested LRC is fully downloaded, the LRC Editor wrapper deletes that job's uploaded media, generated outputs, and analysis work. Abandoned default jobs are also removed after a grace period or on the next service start.
+- **Settings → Keep and reuse AI task cache** is off by default. Enabling it retains reusable analysis data for faster repeated alignment of the same media. Model weights and the isolated runtime are never part of per-task cleanup.
 - Results are accepted only when every lyric line remains in order and all timestamps are finite, non-negative, unique, and strictly increasing.
 - Applying an AI result is one undoable editor operation and preserves title, artist, and album metadata.
 
-The installer pins [`lyrics-forced-aligner`](https://github.com/samgum/lyrics-forced-aligner) revision `4898a3cbc569349c5db87bbc931c9d6fa124d64d`. It does not modify a separate checkout of that repository.
+The installer pins [`lyrics-forced-aligner`](https://github.com/samgum/lyrics-forced-aligner) revision `4898a3cbc569349c5db87bbc931c9d6fa124d64d`. The cleanup API is supplied by the LRC Editor companion wrapper; the pinned engine and any separate checkout of the aligner repository remain unmodified.

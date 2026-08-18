@@ -19,11 +19,15 @@ describe("local AI companion package", () => {
                 "README.md",
                 "README-zh.md",
                 "INSTALL.txt",
+                "ai-constraints.txt",
+                "lrc_editor_companion_server.py",
             ]
         ) {
             expect(existsSync(resolve(companionRoot, file))).toBe(true);
         }
-        expect(readdirSync(companionRoot).some((file) => file.endsWith(".py"))).toBe(false);
+        expect(readdirSync(companionRoot).filter((file) => file.endsWith(".py")).sort()).toEqual([
+            "lrc_editor_companion_server.py",
+        ]);
     });
 
     it("uses fixed local directories and the verified engine revision", () => {
@@ -36,6 +40,18 @@ describe("local AI companion package", () => {
         expect(installer).toContain("EstimateOnly");
         expect(installer).toContain("\"--managed-python\", \"--no-bin\", \"--no-registry\"");
         expect(installer).toContain("UV_MANAGED_PYTHON");
+        expect(installer).toContain("--constraints");
+        expect(installer).toContain("\"cache\", \"clean\"");
+    });
+
+    it("runs the LRC Editor wrapper and exposes task cache cleanup", () => {
+        const wrapper = readFileSync(resolve(companionRoot, "lrc_editor_companion_server.py"), "utf8");
+        const windowsLauncher = readFileSync(resolve(companionRoot, "start-ai-aligner.ps1"), "utf8");
+        const unixLauncher = readFileSync(resolve(companionRoot, "start-ai-aligner.sh"), "utf8");
+        expect(wrapper).toContain("@app.delete(\"/api/jobs/{job_id}/cache\")");
+        expect(wrapper).toContain("reclaimed_bytes");
+        expect(windowsLauncher).toContain("-m lrc_editor_companion_server");
+        expect(unixLauncher).toContain("-m lrc_editor_companion_server");
     });
 
     it("downloads models through the upstream model libraries", () => {
@@ -57,6 +73,8 @@ describe("local AI companion package", () => {
             expect(source).toContain("nvidia-cudnn-cu12==9.8.0.87");
             expect(source).toContain("CPU compatibility mode");
             expect(source).toContain("large-v3-turbo");
+            expect(source).toContain("torch==2.11.0");
+            expect(source).toContain("demucs");
         }
         expect(windowsLauncher).toContain("Join-Path $sitePackages \"cublas\\bin\"");
         expect(unixLauncher).toContain("nvidia/cublas/lib");

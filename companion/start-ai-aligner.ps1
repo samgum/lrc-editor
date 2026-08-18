@@ -12,6 +12,7 @@ $engineRoot = Join-Path $resolvedInstallRoot "engine"
 $environmentRoot = Join-Path $resolvedInstallRoot "environment"
 $modelRoot = Join-Path $resolvedInstallRoot "models"
 $venvPython = Join-Path $environmentRoot "Scripts\python.exe"
+$companionServer = Join-Path $resolvedInstallRoot "lrc_editor_companion_server.py"
 $ports = @(8765) + @(8876..8895)
 
 function Add-PrivateNvidiaRuntimePath {
@@ -31,6 +32,9 @@ if (-not (Test-Path -LiteralPath $venvPython)) {
 }
 if (-not (Test-Path -LiteralPath (Join-Path $engineRoot "src\lyrics_aligner\server.py"))) {
     throw "The installed alignment engine is incomplete. Run install-ai-aligner.cmd again."
+}
+if (-not (Test-Path -LiteralPath $companionServer)) {
+    throw "The LRC Editor companion service is missing. Run install-ai-aligner.cmd again."
 }
 if ($null -eq (Get-Command ffmpeg -ErrorAction SilentlyContinue) -or
     $null -eq (Get-Command ffprobe -ErrorAction SilentlyContinue)) {
@@ -100,7 +104,7 @@ if ($installState.acceleration -eq "cuda") {
     Write-Host "Acceleration: CPU compatibility mode" -ForegroundColor Cyan
 }
 
-$env:PYTHONPATH = Join-Path $engineRoot "src"
+$env:PYTHONPATH = "$resolvedInstallRoot;$((Join-Path $engineRoot 'src'))"
 $env:TORCH_HOME = Join-Path $modelRoot "torch"
 $env:HF_HOME = Join-Path $modelRoot "huggingface"
 $env:HF_HUB_DISABLE_SYMLINKS_WARNING = "1"
@@ -120,7 +124,7 @@ Push-Location -LiteralPath $engineRoot
 try {
     $savedPreference = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
-    & $venvPython -m lyrics_aligner.server
+    & $venvPython -m lrc_editor_companion_server
     $serverExitCode = $LASTEXITCODE
     $ErrorActionPreference = $savedPreference
 } finally {
