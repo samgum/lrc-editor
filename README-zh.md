@@ -100,7 +100,7 @@ pnpm build:all
 - `build/`：静态 Web 应用
 - `extension-dist/`：可解压安装的 Chrome/Edge 扩展
 
-本地测试扩展时，打开浏览器扩展管理页，启用开发者模式，选择“加载已解压的扩展程序”，然后选择 `extension-dist/`。开发清单只允许扩展桥接 `localhost`、`127.0.0.1` 和 `lrc.sgmy.org`。
+本地测试扩展时，打开浏览器扩展管理页，启用开发者模式，选择“加载已解压的扩展程序”，然后选择 `extension-dist/`。扩展清单只允许桥接 `localhost`、`127.0.0.1`、`lrc.sgmy.org` 和精确的 `samgum.github.io/lrc-editor/` 备用路径。
 
 ## 部署
 

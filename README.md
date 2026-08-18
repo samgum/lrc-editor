@@ -100,7 +100,7 @@ Outputs:
 - `build/`: static web application
 - `extension-dist/`: unpacked Chrome/Edge extension
 
-To test the extension locally, open the browser's extension management page, enable developer mode, choose **Load unpacked**, and select `extension-dist/`. The development manifest allows the bridge on `localhost`, `127.0.0.1`, and `lrc.sgmy.org` only.
+To test the extension locally, open the browser's extension management page, enable developer mode, choose **Load unpacked**, and select `extension-dist/`. The manifest allows the bridge only on `localhost`, `127.0.0.1`, `lrc.sgmy.org`, and the exact `samgum.github.io/lrc-editor/` backup path.
 
 ## Deployment
 

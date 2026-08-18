@@ -16,6 +16,7 @@
             "regexFilter": "^https://[^/]+\\.bilivideo\\.com/",
             "initiatorDomains": [
                 "lrc.sgmy.org",
+                "samgum.github.io",
                 "localhost",
                 "127.0.0.1"
             ],
@@ -47,6 +48,7 @@
             "regexFilter": "^https://[^/]+\\.googlevideo\\.com/",
             "initiatorDomains": [
                 "lrc.sgmy.org",
+                "samgum.github.io",
                 "localhost",
                 "127.0.0.1"
             ],

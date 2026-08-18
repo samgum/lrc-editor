@@ -32,9 +32,12 @@ const isLoadRequest = (value: unknown): value is { type: typeof loadTokenFrameTy
     if (message.type !== loadTokenFrameType || typeof message.tokenPageUrl !== "string") return false;
     try {
         const url = new URL(message.tokenPageUrl);
-        const allowedHost = url.hostname === "lrc.sgmy.org" || url.hostname === "localhost"
-            || url.hostname === "127.0.0.1";
-        return allowedHost && url.pathname === "/youtube-token.html"
+        const allowedPath = url.hostname === "samgum.github.io"
+            ? url.pathname === "/lrc-editor/youtube-token.html"
+            : (url.hostname === "lrc.sgmy.org" || url.hostname === "localhost"
+                || url.hostname === "127.0.0.1")
+                && url.pathname === "/youtube-token.html";
+        return allowedPath
             && /^[A-Za-z0-9_-]{11}$/.test(url.searchParams.get("video") || "");
     } catch {
         return false;

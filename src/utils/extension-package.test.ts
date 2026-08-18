@@ -94,6 +94,7 @@ describe("extension package", () => {
             "https://i2.y.qq.com/*",
             "https://aqqmusic.tc.qq.com/*",
             "https://lrc.sgmy.org/*",
+            "https://samgum.github.io/*",
             "http://localhost/*",
             "http://127.0.0.1/*",
         ]);

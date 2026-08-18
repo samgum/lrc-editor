@@ -60,10 +60,10 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
         }
         return false;
     }
-    const siteOrigin = sender.url ? getSiteOrigin(sender.url) : null;
-    if (!siteOrigin) return false;
+    const siteBaseUrl = sender.url ? getSiteBaseUrl(sender.url) : null;
+    if (!siteBaseUrl) return false;
     if (isResolveRequest(message)) {
-        void resolveAudio(message, siteOrigin).then(sendResponse);
+        void resolveAudio(message, siteBaseUrl).then(sendResponse);
         return true;
     }
     if (isLocalAlignerRequest(message)) {
@@ -95,9 +95,9 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
     return false;
 });
 
-const resolveAudio = (request: MediaExtensionRequest, siteOrigin: string): Promise<MediaExtensionResponse> =>
+const resolveAudio = (request: MediaExtensionRequest, siteBaseUrl: string): Promise<MediaExtensionResponse> =>
     request.type === youtubeExtensionRequestType
-        ? resolveYouTube(request, siteOrigin)
+        ? resolveYouTube(request, siteBaseUrl)
         : request.type === bilibiliExtensionRequestType
         ? resolveBilibili(request)
         : request.type === neteaseExtensionRequestType
@@ -106,10 +106,10 @@ const resolveAudio = (request: MediaExtensionRequest, siteOrigin: string): Promi
 
 const resolveYouTube = async (
     request: YouTubeExtensionRequest,
-    siteOrigin: string,
+    siteBaseUrl: string,
 ): Promise<MediaExtensionResponse> => {
     try {
-        youtubeClientPromise ??= createYouTubeClient(siteOrigin);
+        youtubeClientPromise ??= createYouTubeClient(siteBaseUrl);
         const { client, poToken } = await youtubeClientPromise;
         const strategies = [
             { client: "VISIONOS", format: "mp4" },
@@ -167,8 +167,8 @@ const resolveYouTube = async (
     }
 };
 
-const createYouTubeClient = async (siteOrigin: string): Promise<YouTubeClientSession> => {
-    const { poToken, visitorData } = await requestYouTubePlaybackToken(siteOrigin);
+const createYouTubeClient = async (siteBaseUrl: string): Promise<YouTubeClientSession> => {
+    const { poToken, visitorData } = await requestYouTubePlaybackToken(siteBaseUrl);
     const client = await Innertube.create({
         generate_session_locally: true,
         po_token: poToken,
@@ -178,7 +178,7 @@ const createYouTubeClient = async (siteOrigin: string): Promise<YouTubeClientSes
     return { client, poToken };
 };
 
-const requestYouTubePlaybackToken = (siteOrigin: string): Promise<{ poToken: string; visitorData: string }> =>
+const requestYouTubePlaybackToken = (siteBaseUrl: string): Promise<{ poToken: string; visitorData: string }> =>
     new Promise((resolve, reject) => {
         let settled = false;
         const finish = (result?: { poToken: string; visitorData: string }, error?: Error): void => {
@@ -229,7 +229,7 @@ const requestYouTubePlaybackToken = (siteOrigin: string): Promise<{ poToken: str
                     reasons: [chrome.offscreen.Reason.AUDIO_PLAYBACK, chrome.offscreen.Reason.DOM_SCRAPING],
                     justification: "Generate a YouTube playback token for the requested media",
                 });
-                const tokenPageUrl = new URL("/youtube-token.html", siteOrigin);
+                const tokenPageUrl = new URL("youtube-token.html", siteBaseUrl);
                 tokenPageUrl.searchParams.set("video", tokenVideoId);
                 await chrome.runtime.sendMessage({ type: loadTokenFrameType, tokenPageUrl: tokenPageUrl.href });
             } catch (error) {
@@ -238,12 +238,18 @@ const requestYouTubePlaybackToken = (siteOrigin: string): Promise<{ poToken: str
         })();
     });
 
-const getSiteOrigin = (value: string): string | null => {
+const getSiteBaseUrl = (value: string): string | null => {
     try {
         const url = new URL(value);
-        if (url.protocol === "https:" && url.hostname === "lrc.sgmy.org") return url.origin;
+        if (url.protocol === "https:" && url.hostname === "lrc.sgmy.org") return `${url.origin}/`;
+        if (
+            url.protocol === "https:" && url.hostname === "samgum.github.io"
+            && (url.pathname === "/lrc-editor" || url.pathname.startsWith("/lrc-editor/"))
+        ) {
+            return `${url.origin}/lrc-editor/`;
+        }
         if (url.protocol === "http:" && (url.hostname === "localhost" || url.hostname === "127.0.0.1")) {
-            return url.origin;
+            return `${url.origin}/`;
         }
         return null;
     } catch {
