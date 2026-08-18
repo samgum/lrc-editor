@@ -36,7 +36,7 @@ GitHub Gist integration from the upstream project is intentionally not included.
 
 ## Media companion extension
 
-LRC Editor Media Bridge accepts only validated YouTube or Bilibili video identifiers, constrained NetEase links, and validated QQ Music share or song-detail links from the LRC Editor page. It resolves streams locally. NetEase and QQ Music audio are materialized as temporary in-memory Blobs so playback, waveform rendering, and AI alignment use the same bytes without writing the audio to persistent browser storage. QQ Music playback metadata is read through a 1×1 offscreen frame restricted to the official share pages; the resolver requires the public `pay_play=0` and full-playback state and rejects trial resources. Scoped browser rules supply only the Bilibili referer and QQ Music mobile playback header required by those flows.
+LRC Editor Media Bridge accepts only validated YouTube or Bilibili video identifiers, constrained NetEase links, and validated QQ Music share or song-detail links from the LRC Editor page. It resolves streams locally. NetEase and QQ Music audio are materialized as temporary in-memory Blobs so playback, waveform rendering, and AI alignment use the same bytes without writing the audio to persistent browser storage. QQ Music playback metadata is read through a restricted 1×1 temporary frame hosted offscreen on desktop or in the current editor tab on mobile; the resolver requires the public `pay_play=0` and full-playback state and rejects trial resources. Scoped browser rules supply only the Bilibili referer and QQ Music mobile playback header required by those flows.
 
 Download the current unpacked extension package from [GitHub Releases](https://github.com/samgum/lrc-editor/releases/latest).
 
@@ -59,6 +59,17 @@ Microsoft Edge uses `edge://extensions` with the same **Developer mode** and **L
 - Direct media URLs remain available as a manual fallback.
 
 The YouTube resolver uses the private InnerTube interface through `youtubei.js`; the Bilibili resolver uses public web-player endpoints; the QQ Music resolver reads its official public share-page playback state without cookies. Any integration can stop working when a platform changes its clients or playback requirements. Use is subject to the platform terms and the laws applicable to the media.
+
+### Mobile extensions
+
+The same resolver core now produces two separate mobile packages:
+
+- `lrc-editor-media-bridge-edge-mobile-v0.4.6.zip` is a Manifest V3 submission package for Microsoft Edge Mobile on Android and iOS. It uses the current editor tab instead of the Chromium-only offscreen permission.
+- `lrc-editor-media-bridge-firefox-android-v0.4.6.zip` is a Manifest V2 Firefox Android package with a non-persistent event page because Firefox Android does not support Manifest V3 background service workers. It declares no data collection and requires Firefox Android 142 or later.
+
+Both packages keep media URLs and bytes local, request no cookie, tab-history, account, or native-messaging permission, and support the Cloudflare and GitHub Pages site addresses. Edge Mobile installation requires a signed Microsoft Edge Add-ons listing. Persistent Firefox installation requires Mozilla signing; `web-ext` can temporarily load the extracted package on a development device.
+
+The current faster-whisper/Demucs alignment engine does not run on a phone. The mobile bridge rejects AI uploads before reading media bytes and directs the user to the desktop version. Authenticated desktop pairing is the intended next step; the loopback-only desktop service will not be exposed to the LAN without a separate pairing security design.
 
 ## Optional local AI alignment
 
@@ -99,6 +110,8 @@ Outputs:
 
 - `build/`: static web application
 - `extension-dist/`: unpacked Chrome/Edge extension
+- `extension-edge-mobile-dist/`: Edge Mobile MV3 package
+- `extension-firefox-android-dist/`: Firefox Android MV2 package
 
 To test the extension locally, open the browser's extension management page, enable developer mode, choose **Load unpacked**, and select `extension-dist/`. The manifest allows the bridge only on `localhost`, `127.0.0.1`, `lrc.sgmy.org`, and the exact `samgum.github.io/lrc-editor/` backup path.
 
@@ -117,18 +130,20 @@ The offline Service Worker runs in the visitor's browser and does not add a Page
 
 Cloudflare deployment remains manual. Every successful push to `main` is also checked, tested, built, and automatically published by [the GitHub Pages workflow](./.github/workflows/pages.yml) to the independent backup site at [samgum.github.io/lrc-editor](https://samgum.github.io/lrc-editor/).
 
-The extension is packaged separately. Build it with `pnpm build:extension`, then distribute the resulting `extension-dist/` directory or submit the same packaged code to a Chromium extension store. After committing a release version, `./scripts/package-release.ps1` creates the extension archive, both companion archives with the bundled engine, and `SHA256SUMS.txt`.
+The extensions are packaged separately. Build the desktop package with `pnpm build:extension`, or both mobile packages with `pnpm build:extension:mobile`. After committing a release version, `./scripts/package-release.ps1` creates the desktop, Edge Mobile, and Firefox Android extension archives, both companion archives with the bundled engine, and `SHA256SUMS.txt`.
 
 ## Project structure
 
 ```text
 src/                 React application, LRC logic, localization, and tests
 worker/              Local NCM/QMC media workers
-extension/           Manifest V3 source and manifest
+extension/           Shared extension source plus desktop and mobile manifests
 companion/           Local AI installer, launcher, documentation, and bundled engine snapshot
 public/              PWA metadata and brand assets
 build/               Web build output
 extension-dist/      Extension build output
+extension-edge-mobile-dist/       Edge Mobile build output
+extension-firefox-android-dist/    Firefox Android build output
 ```
 
 ## Credits

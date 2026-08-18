@@ -1,0 +1,21 @@
+LRC Editor Media Bridge for Firefox for Android
+LRC Editor Media Bridge Firefox Android 版
+
+This package uses a Manifest V2 non-persistent event page because Firefox for Android does not support Manifest V3 background service workers.
+由于 Firefox Android 不支持 Manifest V3 后台 Service Worker，此安装包使用 Manifest V2 非持久 Event Page。
+
+Development test:
+开发测试：
+
+1. Install the current web-ext command-line tool and Android platform tools on a computer.
+1. 在电脑安装最新版 web-ext 与 Android platform tools。
+2. Enable Remote debugging via USB in Firefox for Android and connect the phone with adb.
+2. 在 Firefox Android 开启“通过 USB 远程调试”，并使用 adb 连接手机。
+3. From this extracted directory, run web-ext against the manifest in this directory.
+3. 在此解压目录中使用 web-ext 载入当前目录的 manifest。
+
+Persistent installation requires Mozilla signing and an addons.mozilla.org listing.
+长期安装需要经过 Mozilla 签名并发布到 addons.mozilla.org。
+
+The current AI alignment engine does not run on a phone. Use the desktop version for AI alignment.
+当前 AI 对轴引擎无法在手机本机运行，请在桌面端使用 AI 对轴。

@@ -7,5 +7,6 @@
     "neteaseShareLinks": { "message": "NetEase 공유 링크" },
     "qqMusicLinks": { "message": "QQ Music 공개 곡" },
     "localAiAlignment": { "message": "로컬 AI 가사 싱크" },
+    "mobileAiDesktop": { "message": "AI 가사 싱크에는 데스크톱 컴패니언이 필요합니다" },
     "openEditor": { "message": "LRC Editor 열기" }
 }

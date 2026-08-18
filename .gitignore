@@ -65,6 +65,8 @@ metadata.d.ts
 build/
 build.es6/
 extension-dist/
+extension-edge-mobile-dist/
+extension-firefox-android-dist/
 .release-artifacts/
 companion/install-location.txt
 *.tsbuildinfo

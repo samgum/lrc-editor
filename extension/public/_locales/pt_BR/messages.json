@@ -7,5 +7,6 @@
     "neteaseShareLinks": { "message": "Links compartilhados do NetEase" },
     "qqMusicLinks": { "message": "Faixas públicas do QQ Music" },
     "localAiAlignment": { "message": "Alinhamento local com IA" },
+    "mobileAiDesktop": { "message": "O alinhamento por IA requer o componente para computador" },
     "openEditor": { "message": "Abrir LRC Editor" }
 }

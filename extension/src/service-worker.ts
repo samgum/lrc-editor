@@ -33,7 +33,8 @@ interface YouTubeClientSession {
 }
 
 let youtubeClientPromise: Promise<YouTubeClientSession> | undefined;
-let qqMusicHeaderRulePromise: Promise<void> | undefined;
+let mediaHeaderModePromise: Promise<"dnr" | "legacy"> | undefined;
+let legacyHeaderRulesInstalled = false;
 let qqMusicFrameQueue: Promise<void> = Promise.resolve();
 let qqMusicFramePending: {
     expectedSongMid: string | null;
@@ -44,12 +45,20 @@ const qqMusicResolutionPromises = new Map<string, Promise<QQMusicResolvedAudio>>
 
 const loadTokenFrameType = "LRC_EDITOR_LOAD_TOKEN_FRAME";
 const loadQQMusicFrameType = "LRC_EDITOR_LOAD_QQMUSIC_FRAME";
+const removeMediaFrameType = "LRC_EDITOR_REMOVE_MEDIA_FRAME";
 const qqMusicFrameResultType = "LRC_EDITOR_QQMUSIC_FRAME_RESULT";
 const tokenVideoId = "jNQXAC9IVRw";
 const qqMusicHeaderRuleId = 90_046;
 const qqMusicMobileUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 "
     + "(KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
 const localAligner = new LocalAlignerClient();
+const firefoxAndroid = import.meta.env.firefoxAndroid === true;
+
+type MediaFrameRequest =
+    | { type: typeof loadTokenFrameType; tokenPageUrl: string }
+    | { type: typeof loadQQMusicFrameType; frameUrl: string };
+
+type MediaFrameHost = { kind: "offscreen" } | { kind: "tab"; tabId: number };
 
 chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
     if (sender.id !== chrome.runtime.id) return false;
@@ -63,7 +72,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
     const siteBaseUrl = sender.url ? getSiteBaseUrl(sender.url) : null;
     if (!siteBaseUrl) return false;
     if (isResolveRequest(message)) {
-        void resolveAudio(message, siteBaseUrl).then(sendResponse);
+        void resolveAudio(message, siteBaseUrl, sender.tab?.id).then(sendResponse);
         return true;
     }
     if (isLocalAlignerRequest(message)) {
@@ -95,21 +104,26 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
     return false;
 });
 
-const resolveAudio = (request: MediaExtensionRequest, siteBaseUrl: string): Promise<MediaExtensionResponse> =>
+const resolveAudio = (
+    request: MediaExtensionRequest,
+    siteBaseUrl: string,
+    tabId?: number,
+): Promise<MediaExtensionResponse> =>
     request.type === youtubeExtensionRequestType
-        ? resolveYouTube(request, siteBaseUrl)
+        ? resolveYouTube(request, siteBaseUrl, tabId)
         : request.type === bilibiliExtensionRequestType
         ? resolveBilibili(request)
         : request.type === neteaseExtensionRequestType
         ? resolveNetease(request)
-        : resolveQQMusic(request);
+        : resolveQQMusic(request, tabId);
 
 const resolveYouTube = async (
     request: YouTubeExtensionRequest,
     siteBaseUrl: string,
+    tabId?: number,
 ): Promise<MediaExtensionResponse> => {
     try {
-        youtubeClientPromise ??= createYouTubeClient(siteBaseUrl);
+        youtubeClientPromise ??= createYouTubeClient(siteBaseUrl, tabId);
         const { client, poToken } = await youtubeClientPromise;
         const strategies = [
             { client: "VISIONOS", format: "mp4" },
@@ -161,14 +175,18 @@ const resolveYouTube = async (
         }
         youtubeClientPromise = undefined;
         return failure(request.requestId, "NOT_PLAYABLE");
-    } catch {
+    } catch (error) {
         youtubeClientPromise = undefined;
-        return failure(request.requestId, "RESOLVE_FAILED");
+        return failure(
+            request.requestId,
+            "RESOLVE_FAILED",
+            error instanceof Error ? error.message : undefined,
+        );
     }
 };
 
-const createYouTubeClient = async (siteBaseUrl: string): Promise<YouTubeClientSession> => {
-    const { poToken, visitorData } = await requestYouTubePlaybackToken(siteBaseUrl);
+const createYouTubeClient = async (siteBaseUrl: string, tabId?: number): Promise<YouTubeClientSession> => {
+    const { poToken, visitorData } = await requestYouTubePlaybackToken(siteBaseUrl, tabId);
     const client = await Innertube.create({
         generate_session_locally: true,
         po_token: poToken,
@@ -178,22 +196,26 @@ const createYouTubeClient = async (siteBaseUrl: string): Promise<YouTubeClientSe
     return { client, poToken };
 };
 
-const requestYouTubePlaybackToken = (siteBaseUrl: string): Promise<{ poToken: string; visitorData: string }> =>
+const requestYouTubePlaybackToken = (
+    siteBaseUrl: string,
+    tabId?: number,
+): Promise<{ poToken: string; visitorData: string }> =>
     new Promise((resolve, reject) => {
         let settled = false;
+        let frameHost: MediaFrameHost | undefined;
         const finish = (result?: { poToken: string; visitorData: string }, error?: Error): void => {
             if (settled) return;
             settled = true;
             clearTimeout(timeout);
             chrome.webRequest.onBeforeRequest.removeListener(onBeforeRequest);
-            void chrome.offscreen.closeDocument().catch(() => undefined);
+            if (frameHost) void closeMediaFrame(frameHost).catch(() => undefined);
             if (result) resolve(result);
             else reject(error || new Error("YouTube playback token was unavailable"));
         };
         const onBeforeRequest = (
             details: chrome.webRequest.OnBeforeRequestDetails,
         ): chrome.webRequest.BlockingResponse | undefined => {
-            if (details.tabId !== -1 || !details.requestBody?.raw) return undefined;
+            if (details.tabId !== -1 && details.tabId !== tabId || !details.requestBody?.raw) return undefined;
             try {
                 const payloadText = details.requestBody.raw
                     .map((part) => part.bytes ? new TextDecoder().decode(part.bytes) : "")
@@ -221,21 +243,68 @@ const requestYouTubePlaybackToken = (siteBaseUrl: string): Promise<{ poToken: st
         );
         void (async () => {
             try {
-                if (await chrome.offscreen.hasDocument()) {
-                    await chrome.offscreen.closeDocument();
-                }
-                await chrome.offscreen.createDocument({
-                    url: "offscreen.html",
-                    reasons: [chrome.offscreen.Reason.AUDIO_PLAYBACK, chrome.offscreen.Reason.DOM_SCRAPING],
-                    justification: "Generate a YouTube playback token for the requested media",
-                });
                 const tokenPageUrl = new URL("youtube-token.html", siteBaseUrl);
                 tokenPageUrl.searchParams.set("video", tokenVideoId);
-                await chrome.runtime.sendMessage({ type: loadTokenFrameType, tokenPageUrl: tokenPageUrl.href });
+                frameHost = await openMediaFrame(
+                    { type: loadTokenFrameType, tokenPageUrl: tokenPageUrl.href },
+                    tabId,
+                );
             } catch (error) {
                 finish(undefined, error instanceof Error ? error : new Error(String(error)));
             }
         })();
+    });
+
+const openMediaFrame = async (request: MediaFrameRequest, tabId?: number): Promise<MediaFrameHost> => {
+    if (Number.isInteger(tabId) && tabId !== undefined && tabId >= 0) {
+        try {
+            const response = await sendTabMessage(tabId, request);
+            if (isSuccessfulFrameLoad(response)) return { kind: "tab", tabId };
+        } catch {
+        }
+    }
+    if (!firefoxAndroid && typeof chrome.offscreen?.createDocument === "function") {
+        try {
+            if (await chrome.offscreen.hasDocument()) await chrome.offscreen.closeDocument();
+            await chrome.offscreen.createDocument({
+                url: "offscreen.html",
+                reasons: request.type === loadTokenFrameType
+                    ? [chrome.offscreen.Reason.AUDIO_PLAYBACK, chrome.offscreen.Reason.DOM_SCRAPING]
+                    : [chrome.offscreen.Reason.DOM_SCRAPING],
+                justification: request.type === loadTokenFrameType
+                    ? "Generate a YouTube playback token for the requested media"
+                    : "Read the public QQ Music playback data selected by the user",
+            });
+            const response = await chrome.runtime.sendMessage(request) as unknown;
+            if (!isSuccessfulFrameLoad(response)) throw new Error("The offscreen media frame did not open");
+            return { kind: "offscreen" };
+        } catch {
+            if (await chrome.offscreen.hasDocument().catch(() => false)) {
+                await chrome.offscreen.closeDocument().catch(() => undefined);
+            }
+        }
+    }
+    throw new Error("A browser media frame could not be opened");
+};
+
+const closeMediaFrame = async (host: MediaFrameHost): Promise<void> => {
+    if (host.kind === "offscreen") {
+        if (firefoxAndroid) return;
+        if (typeof chrome.offscreen?.hasDocument === "function" && await chrome.offscreen.hasDocument()) {
+            await chrome.offscreen.closeDocument();
+        }
+        return;
+    }
+    await sendTabMessage(host.tabId, { type: removeMediaFrameType }).catch(() => undefined);
+};
+
+const sendTabMessage = (tabId: number, message: unknown): Promise<unknown> =>
+    new Promise((resolve, reject) => {
+        chrome.tabs.sendMessage(tabId, message, (response: unknown) => {
+            const error = chrome.runtime.lastError;
+            if (error) reject(new Error(error.message));
+            else resolve(response);
+        });
     });
 
 const getSiteBaseUrl = (value: string): string | null => {
@@ -259,6 +328,7 @@ const getSiteBaseUrl = (value: string): string | null => {
 
 const resolveBilibili = async (request: BilibiliExtensionRequest): Promise<MediaExtensionResponse> => {
     try {
+        const headerMode = await ensureMediaHeaderSupport();
         const videoUrl = await expandBilibiliUrl(request.url);
         const identity = getBilibiliIdentity(videoUrl);
         if (identity === null) {
@@ -292,7 +362,10 @@ const resolveBilibili = async (request: BilibiliExtensionRequest): Promise<Media
             );
             if (mediaUrl) {
                 const mimeType = format.mimeType || format.mime_type || "audio/mp4";
-                return success(request.requestId, "bilibili", mediaUrl.href, mimeType, format.bandwidth);
+                const audioData = headerMode === "legacy"
+                    ? await downloadMediaAsBase64(mediaUrl, async () => mediaUrl)
+                    : undefined;
+                return success(request.requestId, "bilibili", mediaUrl.href, mimeType, format.bandwidth, audioData);
             }
         }
         return failure(request.requestId, "NOT_PLAYABLE");
@@ -319,12 +392,12 @@ const resolveNetease = async (request: NeteaseExtensionRequest): Promise<MediaEx
     }
 };
 
-const resolveQQMusic = async (request: QQMusicExtensionRequest): Promise<MediaExtensionResponse> => {
+const resolveQQMusic = async (request: QQMusicExtensionRequest, tabId?: number): Promise<MediaExtensionResponse> => {
     const key = request.songMid || request.url || "";
     try {
         let pending = qqMusicResolutionPromises.get(key);
         if (!pending) {
-            pending = resolveQQMusicFromFrame(request);
+            pending = resolveQQMusicFromFrame(request, tabId);
             qqMusicResolutionPromises.set(key, pending);
         }
         const audio = await pending;
@@ -349,20 +422,21 @@ const resolveQQMusic = async (request: QQMusicExtensionRequest): Promise<MediaEx
     }
 };
 
-const resolveQQMusicFromFrame = async (request: QQMusicExtensionRequest) => {
+const resolveQQMusicFromFrame = async (request: QQMusicExtensionRequest, tabId?: number) => {
     const expectedSongMid = request.songMid || extractQQMusicSongMid(request.url || "");
     const frameUrl = expectedSongMid
         ? `https://i2.y.qq.com/n3/other/pages/playsong/index.html?songmid=${expectedSongMid}&type=0&lrc_editor_bridge=1`
         : request.url || "";
-    const frame = await queueQQMusicFrame(frameUrl, expectedSongMid);
+    const frame = await queueQQMusicFrame(frameUrl, expectedSongMid, tabId);
     return { ...parseQQMusicPlaybackPage(frame.html, frame.songMid), songMid: frame.songMid };
 };
 
 const queueQQMusicFrame = (
     frameUrl: string,
     expectedSongMid: string | null,
+    tabId?: number,
 ): Promise<{ html: string; songMid: string }> => {
-    const task = qqMusicFrameQueue.then(() => loadQQMusicFrame(frameUrl, expectedSongMid));
+    const task = qqMusicFrameQueue.then(() => loadQQMusicFrame(frameUrl, expectedSongMid, tabId));
     qqMusicFrameQueue = task.then(() => undefined, () => undefined);
     return task;
 };
@@ -370,16 +444,13 @@ const queueQQMusicFrame = (
 const loadQQMusicFrame = async (
     frameUrl: string,
     expectedSongMid: string | null,
+    tabId?: number,
 ): Promise<{ html: string; songMid: string }> => {
-    await ensureQQMusicMobileUserAgent();
-    if (await chrome.offscreen.hasDocument()) await chrome.offscreen.closeDocument();
-    await chrome.offscreen.createDocument({
-        url: "offscreen.html",
-        reasons: [chrome.offscreen.Reason.DOM_SCRAPING],
-        justification: "Read the public QQ Music playback data selected by the user",
-    });
+    await ensureMediaHeaderSupport();
+    let frameHost: MediaFrameHost | undefined;
+    let failPending: (error: Error) => void = () => undefined;
     try {
-        return await new Promise((resolve, reject) => {
+        const pending = new Promise<{ html: string; songMid: string }>((resolve, reject) => {
             let settled = false;
             const finish = (value?: { html: string; songMid: string }, error?: Error): void => {
                 if (settled) return;
@@ -394,47 +465,83 @@ const loadQQMusicFrame = async (
                 15_000,
             );
             qqMusicFramePending = { expectedSongMid, resolve: (value) => finish(value) };
-            void chrome.runtime.sendMessage({ type: loadQQMusicFrameType, frameUrl }).then(
-                (response: unknown) => {
-                    if (!isSuccessfulFrameLoad(response)) {
-                        finish(undefined, new Error("QQ Music playback frame could not be opened"));
-                    }
-                },
-                (error: unknown) => finish(undefined, error instanceof Error ? error : new Error(String(error))),
-            );
+            failPending = (error) => finish(undefined, error);
         });
+        try {
+            frameHost = await openMediaFrame({ type: loadQQMusicFrameType, frameUrl }, tabId);
+        } catch (error) {
+            failPending(error instanceof Error ? error : new Error(String(error)));
+        }
+        return await pending;
     } finally {
         qqMusicFramePending = undefined;
-        if (await chrome.offscreen.hasDocument()) await chrome.offscreen.closeDocument();
+        if (frameHost) await closeMediaFrame(frameHost).catch(() => undefined);
     }
 };
 
-const ensureQQMusicMobileUserAgent = async (): Promise<void> => {
-    if (!qqMusicHeaderRulePromise) {
-        qqMusicHeaderRulePromise = chrome.declarativeNetRequest.updateSessionRules({
-            removeRuleIds: [qqMusicHeaderRuleId],
-            addRules: [{
-                id: qqMusicHeaderRuleId,
-                priority: 1,
-                action: {
-                    type: chrome.declarativeNetRequest.RuleActionType.MODIFY_HEADERS,
-                    requestHeaders: [{
-                        header: "User-Agent",
-                        operation: chrome.declarativeNetRequest.HeaderOperation.SET,
-                        value: qqMusicMobileUserAgent,
+const ensureMediaHeaderSupport = (): Promise<"dnr" | "legacy"> => {
+    mediaHeaderModePromise ??= (async () => {
+        if (!firefoxAndroid && typeof chrome.declarativeNetRequest?.updateSessionRules === "function") {
+            try {
+                await chrome.declarativeNetRequest.updateSessionRules({
+                    removeRuleIds: [qqMusicHeaderRuleId],
+                    addRules: [{
+                        id: qqMusicHeaderRuleId,
+                        priority: 1,
+                        action: {
+                            type: chrome.declarativeNetRequest.RuleActionType.MODIFY_HEADERS,
+                            requestHeaders: [{
+                                header: "User-Agent",
+                                operation: chrome.declarativeNetRequest.HeaderOperation.SET,
+                                value: qqMusicMobileUserAgent,
+                            }],
+                        },
+                        condition: {
+                            regexFilter: "^https://i2\\.y\\.qq\\.com/n3/other/pages/playsong/index\\.html\\?",
+                            resourceTypes: [chrome.declarativeNetRequest.ResourceType.SUB_FRAME],
+                        },
                     }],
-                },
-                condition: {
-                    regexFilter: "^https://i2\\.y\\.qq\\.com/n3/other/pages/playsong/index\\.html\\?",
-                    resourceTypes: [chrome.declarativeNetRequest.ResourceType.SUB_FRAME],
-                },
-            }],
-        }).catch((error: unknown) => {
-            qqMusicHeaderRulePromise = undefined;
-            throw error;
-        });
-    }
-    await qqMusicHeaderRulePromise;
+                });
+                return "dnr";
+            } catch {
+            }
+        }
+        installLegacyHeaderRules();
+        return "legacy";
+    })();
+    return mediaHeaderModePromise;
+};
+
+const installLegacyHeaderRules = (): void => {
+    if (legacyHeaderRulesInstalled) return;
+    legacyHeaderRulesInstalled = true;
+    chrome.webRequest.onBeforeSendHeaders.addListener(
+        (details) => {
+            const headers = [...details.requestHeaders || []];
+            const url = new URL(details.url);
+            if (url.hostname === "i2.y.qq.com") setRequestHeader(headers, "User-Agent", qqMusicMobileUserAgent);
+            if (isBilibiliMediaHost(url.hostname)) setRequestHeader(headers, "Referer", "https://www.bilibili.com/");
+            return { requestHeaders: headers };
+        },
+        {
+            urls: [
+                "https://i2.y.qq.com/n3/other/pages/playsong/index.html*",
+                "https://*.bilivideo.com/*",
+            ],
+            types: ["sub_frame", "xmlhttprequest", "media", "other"],
+        },
+        ["blocking", "requestHeaders"],
+    );
+};
+
+const setRequestHeader = (
+    headers: chrome.webRequest.HttpHeader[],
+    name: string,
+    value: string,
+): void => {
+    const current = headers.find((header) => header.name.toLowerCase() === name.toLowerCase());
+    if (current) current.value = value;
+    else headers.push({ name, value });
 };
 
 const isQQMusicFrameResult = (

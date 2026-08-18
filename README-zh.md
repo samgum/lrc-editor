@@ -36,7 +36,7 @@ LRC Editor 是用于编辑 LRC 歌词并配合音频或视频制作时间轴的�
 
 ## 媒体配套扩展
 
-LRC Editor Media Bridge 只接收主站验证过的 YouTube／哔哩哔哩视频标识、受限的网易云链接，以及通过校验的 QQ 音乐分享或歌曲详情链接。扩展在本机解析音频；网易云和 QQ 音乐音频会转成仅存在于内存的临时 Blob，让播放、波形和 AI 对轴共用同一份数据，不写入浏览器持久存储。QQ 音乐播放信息通过限定到官方分享页的 1×1 离屏页面读取；解析器必须确认公开 `pay_play=0` 且允许完整播放，并拒绝试听资源。浏览器规则只补充哔哩哔哩 Referer 与 QQ 音乐流程所需的移动播放请求头。
+LRC Editor Media Bridge 只接收主站验证过的 YouTube／哔哩哔哩视频标识、受限的网易云链接，以及通过校验的 QQ 音乐分享或歌曲详情链接。扩展在本机解析音频；网易云和 QQ 音乐音频会转成仅存在于内存的临时 Blob，让播放、波形和 AI 对轴共用同一份数据，不写入浏览器持久存储。QQ 音乐播放信息通过受限的 1×1 临时页面读取：桌面端使用离屏页面，移动端使用当前编辑器标签页；解析器必须确认公开 `pay_play=0` 且允许完整播放，并拒绝试听资源。浏览器规则只补充哔哩哔哩 Referer 与 QQ 音乐流程所需的移动播放请求头。
 
 可从 [GitHub Releases](https://github.com/samgum/lrc-editor/releases/latest) 下载当前版本的可解压安装扩展包。
 
@@ -59,6 +59,17 @@ Microsoft Edge 打开 `edge://extensions`，其余“开发者模式”和“加
 - 媒体资源直链仍可作为手动备用方案。
 
 YouTube 解析器通过 `youtubei.js` 使用非公开 InnerTube 接口；哔哩哔哩解析器使用网页播放器接口；QQ 音乐解析器不使用 Cookie，只读取官方公开分享页的播放状态。平台客户端或播放要求变化时，对应功能可能失效。使用者需遵守平台条款和媒体所在地区的适用法律。
+
+### 移动端扩展
+
+同一套解析核心现在会生成两套互相独立的移动安装包：
+
+- `lrc-editor-media-bridge-edge-mobile-v0.4.6.zip`：面向 Android／iOS Microsoft Edge Mobile 的 Manifest V3 提交包，不申请 Chromium 桌面专用的 offscreen 权限，改用当前编辑器标签页承载临时页面。
+- `lrc-editor-media-bridge-firefox-android-v0.4.6.zip`：使用 Manifest V2 非持久 Event Page；原因是 Firefox Android 不支持 Manifest V3 后台 Service Worker。包内声明不收集数据，并要求 Firefox Android 142 或更高版本。
+
+两套移动包都不会上传媒体，不申请 Cookie、标签页历史、账号或 `nativeMessaging` 权限，并同时支持 Cloudflare 与 GitHub Pages 地址。Edge Mobile 需要在 Microsoft Edge 扩展商店签名上架后安装；Firefox 长期安装需要 Mozilla 签名，开发设备可使用 `web-ext` 临时载入解压目录。
+
+现有 faster-whisper／Demucs AI 对轴引擎不能在手机运行。移动扩展会在读取音频字节前拒绝 AI 上传，并引导用户使用桌面端。安全的电脑配对是下一阶段；在完成独立配对鉴权设计之前，不会把当前仅限回环地址的桌面服务直接暴露到局域网。
 
 ## 可选本机 AI 对轴
 
@@ -99,6 +110,8 @@ pnpm build:all
 
 - `build/`：静态 Web 应用
 - `extension-dist/`：可解压安装的 Chrome/Edge 扩展
+- `extension-edge-mobile-dist/`：Edge Mobile MV3 安装包
+- `extension-firefox-android-dist/`：Firefox Android MV2 安装包
 
 本地测试扩展时，打开浏览器扩展管理页，启用开发者模式，选择“加载已解压的扩展程序”，然后选择 `extension-dist/`。扩展清单只允许桥接 `localhost`、`127.0.0.1`、`lrc.sgmy.org` 和精确的 `samgum.github.io/lrc-editor/` 备用路径。
 
@@ -117,7 +130,7 @@ pnpm exec wrangler pages deploy build --project-name lrc-editor
 
 Cloudflare 继续手动部署。每次成功推送到 `main` 后，[GitHub Pages 工作流](./.github/workflows/pages.yml)还会自动完成检查、测试、构建，并把同一站点发布到独立备用地址 [samgum.github.io/lrc-editor](https://samgum.github.io/lrc-editor/)。
 
-扩展单独打包。运行 `pnpm build:extension` 后，可分发 `extension-dist/`，或用同一份打包代码提交至 Chromium 扩展商店。提交 Release 版本号后，运行 `./scripts/package-release.ps1` 会同时生成扩展压缩包、两套含内置引擎的本机组件包和 `SHA256SUMS.txt`。
+扩展单独打包。运行 `pnpm build:extension` 构建桌面版，运行 `pnpm build:extension:mobile` 构建两套移动版。提交 Release 版本号后，运行 `./scripts/package-release.ps1` 会同时生成桌面、Edge Mobile、Firefox Android 扩展压缩包、两套含内置引擎的本机组件包和 `SHA256SUMS.txt`。
 
 ## 目录结构
 

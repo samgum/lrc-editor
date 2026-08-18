@@ -7,5 +7,6 @@
     "neteaseShareLinks": { "message": "Linki udostępniania NetEase" },
     "qqMusicLinks": { "message": "Publiczne utwory QQ Music" },
     "localAiAlignment": { "message": "Lokalne wyrównanie AI" },
+    "mobileAiDesktop": { "message": "Wyrównanie AI wymaga aplikacji komputerowej" },
     "openEditor": { "message": "Otwórz LRC Editor" }
 }

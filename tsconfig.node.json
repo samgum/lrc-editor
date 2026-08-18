@@ -10,6 +10,10 @@
     "include": [
         "vite.config.ts",
         "vite.extension.config.ts",
+        "vite.extension.shared.ts",
+        "vite.extension-edge-mobile.config.ts",
+        "vite.extension-firefox-android.config.ts",
+        "vite.extension-firefox-worker.config.ts",
         "vitest.config.ts",
         "plugins",
         "scripts",

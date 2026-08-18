@@ -1,0 +1,22 @@
+LRC Editor Media Bridge for Microsoft Edge Mobile
+LRC Editor Media Bridge Microsoft Edge 手机版
+
+This package targets the mobile extension support in Microsoft Edge on Android and iOS.
+此安装包面向 Android 与 iOS 上支持扩展的 Microsoft Edge 手机版。
+
+Normal users should install the signed release from Microsoft Edge Add-ons after it is published and approved.
+普通用户应在上架并通过审核后，从 Microsoft Edge 扩展商店安装签名版本。
+
+This ZIP is the source package for Partner Center submission and controlled device testing. Mobile Edge does not provide the desktop Load unpacked workflow.
+此 ZIP 用于 Partner Center 提交和受控真机测试；手机 Edge 不提供桌面版“加载已解压扩展”的安装流程。
+
+Supported mobile features:
+移动端支持：
+
+- NetEase, QQ Music, YouTube, and Bilibili link resolution.
+- 网易云、QQ 音乐、YouTube 与哔哩哔哩链接解析。
+- Playback, waveform, manual timing, translation timing, and LRC tools on the website.
+- 网站内播放、波形、手动打轴、翻译打轴和 LRC 实用工具。
+
+The current AI alignment engine does not run on a phone. Use the desktop version for AI alignment.
+当前 AI 对轴引擎无法在手机本机运行，请在桌面端使用 AI 对轴。

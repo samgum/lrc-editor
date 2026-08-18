@@ -86,6 +86,25 @@ try {
 
     await loadFromSession(
         page,
+        "https://music.youtube.com/watch?v=78wrful9cVU&si=KniWVWPKTKFA-jzz",
+    );
+    let youtube;
+    try {
+        youtube = await waitFor(async () => {
+            const state = await mediaState(page);
+            const failure = state.messages.find((message) =>
+                message.type === "LRC_EDITOR_MEDIA_RESULT" && message.ok === false
+            );
+            if (failure) throw new Error(`Extension response: ${JSON.stringify(failure)}`);
+            return state.readyState >= 1 && state.src.startsWith("blob:") && state.duration > 30 ? state : false;
+        }, 120_000);
+    } catch (error) {
+        throw new Error(`YouTube Music did not load: ${error.message}\n${JSON.stringify(await mediaState(page))}`);
+    }
+    successful.push({ title: "YouTube Music", duration: youtube.duration, readyState: youtube.readyState });
+
+    await loadFromSession(
+        page,
         "分享Troye Sivan的单曲《She’s the Best》https://163cn.tv/bdlP6XHD (@网易云音乐)",
     );
     const netease = await waitFor(async () => {

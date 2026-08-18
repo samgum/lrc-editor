@@ -185,6 +185,46 @@ describe("local AI alignment page bridge", () => {
         expect(cancelCount).toBe(1);
     });
 
+    it("stops before uploading media when the mobile bridge responds", async () => {
+        const events = new EventTarget();
+        let requestCount = 0;
+        const windowStub = {
+            addEventListener: events.addEventListener.bind(events),
+            removeEventListener: events.removeEventListener.bind(events),
+            setTimeout,
+            clearTimeout,
+            postMessage: (request: LocalAlignerRequest): void => {
+                requestCount += 1;
+                const event = new Event("message");
+                Object.defineProperties(event, {
+                    source: { value: windowStub },
+                    origin: { value: "https://samgum.github.io" },
+                    data: {
+                        value: {
+                            type: mediaExtensionAckType,
+                            requestId: request.requestId,
+                            version: "0.4.6",
+                            mobile: true,
+                        },
+                    },
+                });
+                events.dispatchEvent(event);
+            },
+        };
+        vi.stubGlobal("location", { origin: "https://samgum.github.io" });
+        vi.stubGlobal("window", windowStub);
+
+        await expect(runLocalAiAlignment({
+            audio: new Blob([new Uint8Array([1, 2, 3])], { type: "audio/mp4" }),
+            audioName: "mobile.m4a",
+            transcript: "One",
+            precision: 3,
+            keepTaskCache: false,
+            useGpuAcceleration: false,
+        })).rejects.toMatchObject({ code: "mobile" });
+        expect(requestCount).toBe(1);
+    });
+
     it("estimates remaining time from lightweight progress samples", () => {
         let now = 0;
         const estimator = new ProgressEtaEstimator(() => now);

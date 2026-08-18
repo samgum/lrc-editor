@@ -24,13 +24,17 @@
         "start": "vite",
         "build": "vite build",
         "build:extension": "vite build --config vite.extension.config.ts",
-        "build:all": "pnpm build && pnpm build:extension",
+        "build:extension:edge-mobile": "vite build --config vite.extension-edge-mobile.config.ts",
+        "build:extension:firefox-android": "vite build --config vite.extension-firefox-android.config.ts && vite build --config vite.extension-firefox-worker.config.ts",
+        "build:extension:mobile": "pnpm build:extension:edge-mobile && pnpm build:extension:firefox-android",
+        "build:all": "pnpm build && pnpm build:extension && pnpm build:extension:mobile",
         "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.node.json && tsc -p extension/tsconfig.json",
         "test": "vitest run",
         "fix:fmt": "dprint fmt",
         "check:fmt": "dprint check",
         "check:lint": "oxlint src extension/src worker plugins -D correctness",
-        "check:companion": "bash scripts/test-companion-shell.sh"
+        "check:companion": "bash scripts/test-companion-shell.sh",
+        "check:extension-mobile": "pnpm build:extension:mobile && node scripts/validate-mobile-extensions.mjs"
     },
     "imports": {
         "#const/*": "./src/const/*"

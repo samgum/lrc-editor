@@ -48,6 +48,7 @@
             "aiNoLyrics": "同期する歌詞行がありません。",
             "aiExtensionMissing": "Media Bridge v0.4.5 以降をインストールしてページを再読み込みしてください。",
             "aiExtensionOutdated": "Media Bridge を v0.4.5 以降に更新して再読み込みしてください。",
+            "aiMobileDesktopRequired": "このスマートフォンでは AI タイミング調整を実行できません。デスクトップ版を使用してください。",
             "aiServiceMissing": "Lyrics Forced Aligner をインストールして起動してください。",
             "aiFailed": "ローカル AI タイミング調整に失敗しました。",
             "aiDuplicate": "AI タイミング調整はすでに実行中です。"
@@ -196,6 +197,7 @@
             "aiNoLyrics": "맞출 가사 줄이 없습니다.",
             "aiExtensionMissing": "Media Bridge v0.4.5 이상을 설치하고 페이지를 새로고침하세요.",
             "aiExtensionOutdated": "Media Bridge를 v0.4.5 이상으로 업데이트하고 다시 로드하세요.",
+            "aiMobileDesktopRequired": "이 휴대전화에서는 AI 가사 싱크를 실행할 수 없습니다. 데스크톱 버전을 사용하세요.",
             "aiServiceMissing": "Lyrics Forced Aligner를 설치하고 실행하세요.",
             "aiFailed": "로컬 AI 가사 싱크에 실패했습니다.",
             "aiDuplicate": "AI 싱크 작업이 이미 실행 중입니다."
@@ -344,6 +346,7 @@
             "aiNoLyrics": "Brak wersów do wyrównania.",
             "aiExtensionMissing": "Zainstaluj Media Bridge v0.4.5 lub nowszy i odśwież stronę.",
             "aiExtensionOutdated": "Zaktualizuj Media Bridge do v0.4.5 lub nowszej wersji.",
+            "aiMobileDesktopRequired": "Wyrównanie AI nie może działać na tym telefonie. Użyj wersji komputerowej.",
             "aiServiceMissing": "Zainstaluj i uruchom Lyrics Forced Aligner.",
             "aiFailed": "Lokalne wyrównanie AI nie powiodło się.",
             "aiDuplicate": "Zadanie wyrównania AI jest już uruchomione."
@@ -492,6 +495,7 @@
             "aiNoLyrics": "Não há linhas de letra para alinhar.",
             "aiExtensionMissing": "Instale o Media Bridge v0.4.5 ou posterior e atualize a página.",
             "aiExtensionOutdated": "Atualize o Media Bridge para v0.4.5 ou posterior.",
+            "aiMobileDesktopRequired": "O alinhamento por IA não pode ser executado neste telefone. Use a versão para computador.",
             "aiServiceMissing": "Instale e inicie o Lyrics Forced Aligner.",
             "aiFailed": "O alinhamento local com IA falhou.",
             "aiDuplicate": "Já existe uma tarefa de alinhamento com IA em execução."
@@ -640,6 +644,7 @@
             "aiNoLyrics": "Nie sú k dispozícii riadky na zarovnanie.",
             "aiExtensionMissing": "Nainštalujte Media Bridge v0.4.5 alebo novší a obnovte stránku.",
             "aiExtensionOutdated": "Aktualizujte Media Bridge na v0.4.5 alebo novší.",
+            "aiMobileDesktopRequired": "Zarovnanie AI sa na tomto telefóne nedá spustiť. Použite verziu pre počítač.",
             "aiServiceMissing": "Nainštalujte a spustite Lyrics Forced Aligner.",
             "aiFailed": "Lokálne zarovnanie AI zlyhalo.",
             "aiDuplicate": "Úloha zarovnania AI už beží."
@@ -788,6 +793,7 @@
             "aiNoLyrics": "編輯器內沒有可對齊的歌詞行。",
             "aiExtensionMissing": "請安裝 Media Bridge v0.4.5 或更新版本並重新整理頁面。",
             "aiExtensionOutdated": "請更新並重新載入 Media Bridge v0.4.5 或更新版本。",
+            "aiMobileDesktopRequired": "此手機無法執行 AI 對軸，請使用桌面版本。",
             "aiServiceMissing": "請先安裝並啟動 Lyrics Forced Aligner。",
             "aiFailed": "本機 AI 對軸失敗。",
             "aiDuplicate": "已有 AI 對軸工作正在執行。"
@@ -936,6 +942,7 @@
             "aiNoLyrics": "編輯器中沒有可對齊的歌詞行。",
             "aiExtensionMissing": "請安裝 Media Bridge v0.4.5 或更新版本並重新整理頁面。",
             "aiExtensionOutdated": "請更新並重新載入 Media Bridge v0.4.5 或更新版本。",
+            "aiMobileDesktopRequired": "此手機無法執行 AI 對軸，請使用桌面版本。",
             "aiServiceMissing": "請先安裝並啟動 Lyrics Forced Aligner。",
             "aiFailed": "本機 AI 對軸失敗。",
             "aiDuplicate": "已有 AI 對軸工作正在執行。"

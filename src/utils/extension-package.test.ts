@@ -3,12 +3,32 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const extensionRoot = resolve("extension/public");
+const mobileRoot = resolve("extension/mobile");
 const manifest = JSON.parse(readFileSync(resolve(extensionRoot, "manifest.json"), "utf8")) as {
     default_locale: string;
     icons: Record<string, string>;
     host_permissions: string[];
     permissions: string[];
     declarative_net_request: { rule_resources: Array<{ path: string }> };
+    version: string;
+};
+const edgeMobileManifest = JSON.parse(readFileSync(resolve(mobileRoot, "edge-manifest.json"), "utf8")) as {
+    action: { default_popup: string };
+    manifest_version: number;
+    permissions: string[];
+    version: string;
+};
+const firefoxAndroidManifest = JSON.parse(
+    readFileSync(resolve(mobileRoot, "firefox-android-manifest.json"), "utf8"),
+) as {
+    background: { persistent: boolean; scripts: string[] };
+    browser_action: { default_popup: string };
+    browser_specific_settings: {
+        gecko: { data_collection_permissions: { required: string[] }; id: string };
+        gecko_android: { strict_min_version: string };
+    };
+    manifest_version: number;
+    permissions: string[];
     version: string;
 };
 
@@ -57,6 +77,7 @@ describe("extension package", () => {
             "extensionDescription",
             "extensionName",
             "localAiAlignment",
+            "mobileAiDesktop",
             "neteaseShareLinks",
             "openEditor",
             "qqMusicLinks",
@@ -103,5 +124,36 @@ describe("extension package", () => {
             "offscreen",
             "webRequest",
         ]);
+    });
+
+    it("defines separate Edge Mobile and Firefox Android packages", () => {
+        expect(edgeMobileManifest).toMatchObject({
+            manifest_version: 3,
+            version: manifest.version,
+            action: { default_popup: "popup-mobile.html" },
+        });
+        expect(edgeMobileManifest.permissions).toContain("declarativeNetRequestWithHostAccess");
+        expect(edgeMobileManifest.permissions).not.toEqual(
+            expect.arrayContaining(["cookies", "nativeMessaging", "offscreen", "tabs"]),
+        );
+        expect(firefoxAndroidManifest).toMatchObject({
+            manifest_version: 2,
+            version: manifest.version,
+            background: { persistent: false, scripts: ["service-worker.js"] },
+            browser_action: { default_popup: "popup-mobile.html" },
+        });
+        expect(firefoxAndroidManifest.permissions).toContain("webRequestBlocking");
+        expect(firefoxAndroidManifest.permissions).not.toEqual(
+            expect.arrayContaining(["cookies", "nativeMessaging", "offscreen", "tabs"]),
+        );
+        expect(firefoxAndroidManifest.browser_specific_settings.gecko.id).toBe(
+            "lrc-editor-media-bridge@sgmy.org",
+        );
+        expect(firefoxAndroidManifest.browser_specific_settings.gecko.data_collection_permissions.required)
+            .toEqual(["none"]);
+        expect(Number.parseInt(firefoxAndroidManifest.browser_specific_settings.gecko_android.strict_min_version))
+            .toBeGreaterThanOrEqual(142);
+        expect(existsSync(resolve(mobileRoot, "INSTALL-Edge-Mobile.txt"))).toBe(true);
+        expect(existsSync(resolve(mobileRoot, "INSTALL-Firefox-Android.txt"))).toBe(true);
     });
 });

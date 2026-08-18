@@ -60,7 +60,7 @@ export const requestYouTubeAudio = (videoId: string, timeoutMs = 90_000): Promis
     return requestExtensionAudio(request, "youtube", timeoutMs);
 };
 
-export const requestBilibiliAudio = (url: string, timeoutMs = 20_000): Promise<ResolvedExtensionAudio> => {
+export const requestBilibiliAudio = (url: string, timeoutMs = 90_000): Promise<ResolvedExtensionAudio> => {
     if (!isBilibiliUrl(url)) {
         return Promise.reject(new MediaExtensionError("failed", "Invalid Bilibili video URL"));
     }

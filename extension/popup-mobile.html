@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>LRC Editor Media Bridge Mobile</title>
+        <link rel="stylesheet" href="./src/popup.css">
+    </head>
+    <body>
+        <header>
+            <img src="/icons/icon-192.png" width="40" height="40" alt="">
+            <strong data-i18n="extensionName">LRC Editor Media Bridge</strong>
+        </header>
+        <main>
+            <span data-i18n="supportedSources">Supported sources</span>
+            <ul>
+                <li>YouTube</li>
+                <li>Bilibili</li>
+                <li data-i18n="neteaseShareLinks">NetEase share links</li>
+                <li data-i18n="qqMusicLinks">QQ Music public tracks</li>
+                <li data-i18n="mobileAiDesktop">AI alignment requires the desktop companion</li>
+            </ul>
+        </main>
+        <a
+            class="open-editor"
+            href="https://samgum.github.io/lrc-editor/"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-i18n="openEditor"
+        >
+            Open LRC Editor
+        </a>
+        <script type="module" src="./src/popup.ts"></script>
+    </body>
+</html>

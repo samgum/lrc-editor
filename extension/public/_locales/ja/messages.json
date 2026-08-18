@@ -7,5 +7,6 @@
     "neteaseShareLinks": { "message": "NetEase 共有リンク" },
     "qqMusicLinks": { "message": "QQ Music の公開楽曲" },
     "localAiAlignment": { "message": "ローカル AI タイミング調整" },
+    "mobileAiDesktop": { "message": "AI タイミング調整にはデスクトップ版が必要です" },
     "openEditor": { "message": "LRC Editor を開く" }
 }

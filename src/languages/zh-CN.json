@@ -75,6 +75,7 @@
         "aiNoLyrics": "编辑器中没有可对齐的歌词行。",
         "aiExtensionMissing": "请安装 Media Bridge v0.4.5 或更高版本，然后刷新页面。",
         "aiExtensionOutdated": "请更新并重新加载 Media Bridge v0.4.5 或更高版本，然后刷新页面。",
+        "aiMobileDesktopRequired": "手机无法运行当前 AI 对轴引擎。请使用桌面端；移动桥接后续会接入安全的电脑配对。",
         "aiServiceMissing": "请先安装并启动本机 Lyrics Forced Aligner。",
         "aiFailed": "本机 AI 对轴失败。",
         "aiDuplicate": "已有 AI 对轴任务正在运行。"

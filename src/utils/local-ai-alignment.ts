@@ -28,7 +28,7 @@ import { mediaExtensionAckType } from "../shared/media-extension-protocol.js";
 
 export class LocalAiAlignmentError extends Error {
     constructor(
-        readonly code: "missing" | "outdated" | "not-running" | "busy" | "cancelled" | "failed",
+        readonly code: "missing" | "outdated" | "mobile" | "not-running" | "busy" | "cancelled" | "failed",
         message: string,
     ) {
         super(message);
@@ -349,6 +349,11 @@ const requestAligner = (
             if (event.source !== window || event.origin !== location.origin) return;
             if (isAck(event.data, request.requestId)) {
                 window.clearTimeout(extensionTimeout);
+                if (event.data.mobile === true) {
+                    finish();
+                    reject(new LocalAiAlignmentError("mobile", "AI alignment requires the desktop companion"));
+                    return;
+                }
                 if (!isSupportedVersion(event.data.version)) {
                     finish();
                     reject(new LocalAiAlignmentError("outdated", "Media Bridge is too old for AI alignment"));
@@ -390,7 +395,7 @@ const requestAligner = (
 const isAck = (
     value: unknown,
     requestId: string,
-): value is { type: typeof mediaExtensionAckType; requestId: string; version?: string } => {
+): value is { type: typeof mediaExtensionAckType; requestId: string; version?: string; mobile?: boolean } => {
     if (typeof value !== "object" || value === null) return false;
     const response = value as Record<string, unknown>;
     return response.type === mediaExtensionAckType && response.requestId === requestId;

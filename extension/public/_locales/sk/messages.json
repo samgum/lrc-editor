@@ -7,5 +7,6 @@
     "neteaseShareLinks": { "message": "Zdieľané odkazy NetEase" },
     "qqMusicLinks": { "message": "Verejné skladby QQ Music" },
     "localAiAlignment": { "message": "Lokálne zarovnanie AI" },
+    "mobileAiDesktop": { "message": "Zarovnanie AI vyžaduje počítačový komponent" },
     "openEditor": { "message": "Otvoriť LRC Editor" }
 }

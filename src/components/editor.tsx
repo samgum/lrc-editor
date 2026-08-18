@@ -165,6 +165,7 @@ export const Editor: React.FC<{
         if (error instanceof LocalAiAlignmentError) {
             if (error.code === "missing") return lang.editor.aiExtensionMissing;
             if (error.code === "outdated") return lang.editor.aiExtensionOutdated;
+            if (error.code === "mobile") return lang.editor.aiMobileDesktopRequired;
             if (error.code === "not-running") return lang.editor.aiServiceMissing;
             if (error.code === "busy") return lang.editor.aiDuplicate;
         }

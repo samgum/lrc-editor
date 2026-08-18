@@ -81,6 +81,7 @@
         "aiNoLyrics": "There are no lyric lines to align.",
         "aiExtensionMissing": "Install Media Bridge v0.4.5 or later, then refresh this page.",
         "aiExtensionOutdated": "Update Media Bridge to v0.4.5 or later, reload it, then refresh this page.",
+        "aiMobileDesktopRequired": "AI alignment cannot run on this phone. Use the desktop companion; secure desktop pairing is planned for the mobile bridge.",
         "aiServiceMissing": "Install and start Lyrics Forced Aligner on this computer.",
         "aiFailed": "Local AI alignment failed.",
         "aiDuplicate": "An AI alignment task is already running."

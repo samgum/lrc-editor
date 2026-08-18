@@ -1,0 +1,87 @@
+{
+    "manifest_version": 2,
+    "name": "__MSG_extensionName__",
+    "version": "0.4.6",
+    "description": "__MSG_extensionDescription__",
+    "default_locale": "en",
+    "background": {
+        "scripts": [
+            "service-worker.js"
+        ],
+        "persistent": false
+    },
+    "browser_action": {
+        "default_title": "__MSG_extensionName__",
+        "default_popup": "popup-mobile.html"
+    },
+    "permissions": [
+        "webRequest",
+        "webRequestBlocking",
+        "https://www.youtube.com/*",
+        "https://youtubei.googleapis.com/*",
+        "https://*.googlevideo.com/*",
+        "https://api.bilibili.com/*",
+        "https://www.bilibili.com/*",
+        "https://b23.tv/*",
+        "https://*.bilivideo.com/*",
+        "https://163cn.tv/*",
+        "https://music.163.com/*",
+        "https://*.music.163.com/*",
+        "http://*.music.126.net/*",
+        "https://*.music.126.net/*",
+        "https://c6.y.qq.com/*",
+        "https://i.y.qq.com/*",
+        "https://i2.y.qq.com/*",
+        "https://aqqmusic.tc.qq.com/*",
+        "https://lrc.sgmy.org/*",
+        "https://samgum.github.io/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+    ],
+    "content_scripts": [
+        {
+            "matches": [
+                "https://lrc.sgmy.org/*",
+                "https://samgum.github.io/lrc-editor/*",
+                "http://localhost/*",
+                "http://127.0.0.1/*"
+            ],
+            "js": [
+                "bridge.js"
+            ],
+            "run_at": "document_start"
+        },
+        {
+            "matches": [
+                "https://i2.y.qq.com/n3/other/pages/playsong/index.html*"
+            ],
+            "js": [
+                "qqmusic-frame.js"
+            ],
+            "all_frames": true,
+            "run_at": "document_end"
+        }
+    ],
+    "icons": {
+        "16": "icons/icon-16.png",
+        "32": "icons/icon-32.png",
+        "48": "icons/icon-48.png",
+        "128": "icons/icon-128.png",
+        "192": "icons/icon-192.png"
+    },
+    "content_security_policy": "script-src 'self'; object-src 'self'; frame-src https://c6.y.qq.com https://i.y.qq.com https://i2.y.qq.com https://lrc.sgmy.org https://samgum.github.io http://localhost http://127.0.0.1",
+    "browser_specific_settings": {
+        "gecko": {
+            "id": "lrc-editor-media-bridge@sgmy.org",
+            "strict_min_version": "140.0",
+            "data_collection_permissions": {
+                "required": [
+                    "none"
+                ]
+            }
+        },
+        "gecko_android": {
+            "strict_min_version": "142.0"
+        }
+    }
+}

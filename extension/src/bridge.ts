@@ -7,6 +7,9 @@ const qqMusicRequestType = "LRC_EDITOR_RESOLVE_QQMUSIC";
 const ackType = "LRC_EDITOR_MEDIA_ACK";
 const responseType = "LRC_EDITOR_MEDIA_RESULT";
 const alignerResponseType = "LRC_EDITOR_ALIGNER_RESULT";
+const loadTokenFrameType = "LRC_EDITOR_LOAD_TOKEN_FRAME";
+const loadQQMusicFrameType = "LRC_EDITOR_LOAD_QQMUSIC_FRAME";
+const removeMediaFrameType = "LRC_EDITOR_REMOVE_MEDIA_FRAME";
 const alignerRequestTypes = new Set([
     "LRC_EDITOR_ALIGNER_START",
     "LRC_EDITOR_ALIGNER_CHUNK",
@@ -18,6 +21,7 @@ const alignerRequestTypes = new Set([
     "LRC_EDITOR_ALIGNER_SERVICE_STOP",
     "LRC_EDITOR_ALIGNER_CACHE_CLEAR",
 ]);
+const mobileExtension = import.meta.env.mobileExtension === true;
 
 window.addEventListener("message", (event: MessageEvent<unknown>) => {
     if (event.source !== window || event.origin !== location.origin || !isRequest(event.data)) {
@@ -26,7 +30,12 @@ window.addEventListener("message", (event: MessageEvent<unknown>) => {
     const request = event.data;
     const expectedResponseType = isLocalAlignerRequest(request) ? alignerResponseType : responseType;
     window.postMessage(
-        { type: ackType, requestId: request.requestId, version: chrome.runtime.getManifest().version },
+        {
+            type: ackType,
+            requestId: request.requestId,
+            version: chrome.runtime.getManifest().version,
+            mobile: mobileExtension,
+        },
         location.origin,
     );
 
@@ -40,6 +49,38 @@ window.addEventListener("message", (event: MessageEvent<unknown>) => {
         },
         () => postFailure(request.requestId, expectedResponseType),
     );
+});
+
+let hostedMediaFrame: HTMLIFrameElement | undefined;
+
+chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
+    if (sender.id !== chrome.runtime.id || typeof message !== "object" || message === null) return false;
+    const request = message as Record<string, unknown>;
+    if (request.type === removeMediaFrameType) {
+        hostedMediaFrame?.remove();
+        hostedMediaFrame = undefined;
+        sendResponse({ ok: true });
+        return false;
+    }
+    const frameUrl = request.type === loadTokenFrameType && isTokenFrameUrl(request.tokenPageUrl)
+        ? request.tokenPageUrl
+        : request.type === loadQQMusicFrameType && isQQMusicFrameUrl(request.frameUrl)
+        ? request.frameUrl
+        : null;
+    if (!frameUrl) return false;
+
+    const frame = document.createElement("iframe");
+    frame.ariaHidden = "true";
+    frame.tabIndex = -1;
+    frame.referrerPolicy = "no-referrer";
+    frame.style.cssText = "position:fixed;width:1px;height:1px;left:-10000px;top:-10000px;border:0;opacity:0";
+    if (request.type === loadTokenFrameType) frame.allow = "autoplay; encrypted-media";
+    frame.src = frameUrl;
+    hostedMediaFrame?.remove();
+    hostedMediaFrame = frame;
+    document.documentElement.append(frame);
+    sendResponse({ ok: true });
+    return false;
 });
 
 const postFailure = (requestId: string, type: string): void => {
@@ -142,4 +183,34 @@ const isResponse = (value: unknown, requestId: string, type: string): value is R
     }
     const response = value as Record<string, unknown>;
     return response.type === type && response.requestId === requestId && typeof response.ok === "boolean";
+};
+
+const isTokenFrameUrl = (value: unknown): value is string => {
+    if (typeof value !== "string") return false;
+    try {
+        const url = new URL(value);
+        const expectedPath = location.hostname === "samgum.github.io"
+            ? "/lrc-editor/youtube-token.html"
+            : "/youtube-token.html";
+        return url.origin === location.origin && url.pathname === expectedPath
+            && /^[A-Za-z0-9_-]{11}$/.test(url.searchParams.get("video") || "");
+    } catch {
+        return false;
+    }
+};
+
+const isQQMusicFrameUrl = (value: unknown): value is string => {
+    if (typeof value !== "string") return false;
+    try {
+        const url = new URL(value);
+        if (url.protocol !== "https:" || url.username !== "" || url.password !== "") return false;
+        if (url.hostname === "c6.y.qq.com") {
+            return url.pathname === "/base/fcgi-bin/u"
+                && /^[A-Za-z0-9_-]{6,64}$/.test(url.searchParams.get("__") || "");
+        }
+        return url.hostname === "i2.y.qq.com" && url.pathname === "/n3/other/pages/playsong/index.html"
+            && /^[A-Za-z0-9]{14}$/.test(url.searchParams.get("songmid") || "");
+    } catch {
+        return false;
+    }
 };
