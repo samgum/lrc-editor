@@ -1,25 +1,19 @@
-export async function unregister() {
+export async function unregister(reload = true): Promise<void> {
     const APP_NAME = "lrc-editor";
 
-    if ("serviceWorker" in navigator) {
-        await caches.keys().then(async (cacheNames) => {
-            return Promise.all(
-                cacheNames
-                    .filter((cacheName) => {
-                        return cacheName.startsWith(APP_NAME);
-                    })
-                    .map(async (cacheName) => {
-                        return caches.delete(cacheName);
-                    }),
-            );
-        });
-
-        await navigator.serviceWorker.getRegistration().then((registration) => {
-            if (registration) {
-                void registration.unregister().then(() => {
-                    location.reload();
-                });
-            }
-        });
+    if ("caches" in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(
+            cacheNames
+                .filter((cacheName) => cacheName.startsWith(APP_NAME))
+                .map((cacheName) => caches.delete(cacheName)),
+        );
     }
+
+    if ("serviceWorker" in navigator) {
+        const registration = await navigator.serviceWorker.getRegistration("./");
+        if (registration) await registration.unregister();
+    }
+
+    if (reload) location.reload();
 }

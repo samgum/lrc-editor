@@ -4,10 +4,13 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-if ([string]::IsNullOrWhiteSpace($InstallRoot)) {
-    $InstallRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$launcherRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$resolver = Join-Path $launcherRoot "resolve-ai-aligner-install.ps1"
+if (-not (Test-Path -LiteralPath $resolver)) {
+    throw "The installation locator is missing. Download the complete companion package again."
 }
-$resolvedInstallRoot = [System.IO.Path]::GetFullPath($InstallRoot)
+. $resolver
+$resolvedInstallRoot = Resolve-AiAlignerInstallRoot -LauncherRoot $launcherRoot -RequestedRoot $InstallRoot
 $engineRoot = Join-Path $resolvedInstallRoot "engine"
 $environmentRoot = Join-Path $resolvedInstallRoot "environment"
 $modelRoot = Join-Path $resolvedInstallRoot "models"
@@ -28,7 +31,7 @@ function Add-PrivateNvidiaRuntimePath {
 }
 
 if (-not (Test-Path -LiteralPath $venvPython)) {
-    throw "The AI aligner is not installed. Run install-ai-aligner.cmd first."
+    throw "The AI aligner is not installed at $resolvedInstallRoot. Run install-ai-aligner.cmd first."
 }
 if (-not (Test-Path -LiteralPath (Join-Path $engineRoot "src\lyrics_aligner\server.py"))) {
     throw "The installed alignment engine is incomplete. Run install-ai-aligner.cmd again."

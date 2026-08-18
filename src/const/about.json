@@ -26,9 +26,9 @@
             "url": "https://github.com/samgum/lyrics-tools"
         },
         {
-            "name": "lyrics-forced-aligner",
-            "author": "samgum",
-            "url": "https://github.com/samgum/lyrics-forced-aligner"
+            "name": "LRC Editor AI Aligner Engine",
+            "author": "伤感咩吖",
+            "url": "https://github.com/samgum/lrc-editor/tree/main/companion/engine"
         }
     ]
 }

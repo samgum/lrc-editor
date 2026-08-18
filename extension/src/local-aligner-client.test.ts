@@ -1,9 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+    alignerCacheClearRequestType,
+    alignerCancelRequestType,
     alignerChunkRequestType,
     alignerCleanupRequestType,
     alignerCommitRequestType,
     alignerResultRequestType,
+    alignerServiceStopRequestType,
     alignerStartRequestType,
     alignerStatusRequestType,
     type LocalAlignerRequest,
@@ -16,6 +19,7 @@ const uploadIdPattern = /^[a-f0-9-]{36}$/i;
 const startRequest = (): LocalAlignerRequest => ({
     type: alignerStartRequestType,
     requestId: "request-start",
+    uploadId: "12345678-1234-1234-1234-123456789abc",
     audioName: "demo.flac",
     audioType: "audio/flac",
     audioSize: 4,
@@ -24,6 +28,7 @@ const startRequest = (): LocalAlignerRequest => ({
     bypassCache: false,
     preserveBlankLines: true,
     wordTimingBeta: false,
+    useGpuAcceleration: true,
 });
 
 describe("LocalAlignerClient", () => {
@@ -39,7 +44,7 @@ describe("LocalAlignerClient", () => {
             if (url.pathname === "/api/health") {
                 return Response.json({ ok: true, gpu_queue: { running: 0, queued: 0 } });
             }
-            if (url.pathname === "/api/jobs" && init?.method === "POST") {
+            if (url.pathname === "/api/lrc-editor/jobs" && init?.method === "POST") {
                 submittedForm = init.body as FormData;
                 return Response.json({ id: jobId, status: "queued", stage: "queued", progress: 0 });
             }
@@ -80,6 +85,7 @@ describe("LocalAlignerClient", () => {
         expect([...(new Uint8Array(await (audio as Blob).arrayBuffer()))]).toEqual([1, 2, 3, 4]);
         expect(submittedForm?.get("transcript_text")).toBe("One\nTwo");
         expect(submittedForm?.get("preserve_blank_lines")).toBe("true");
+        expect(submittedForm?.get("device")).toBe("auto");
 
         const status = await client.handle({
             type: alignerStatusRequestType,
@@ -103,6 +109,61 @@ describe("LocalAlignerClient", () => {
             jobId,
         });
         expect(cleanup).toEqual({ kind: "cleanup", reclaimedBytes: 8192 });
+    });
+
+    it("uses token-authenticated controls for cancellation, cache clearing, and service stop", async () => {
+        const token = "a".repeat(43);
+        const controlRequests: string[] = [];
+        const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+            const url = input instanceof URL ? input : new URL(typeof input === "string" ? input : input.url);
+            if (url.pathname === "/openapi.json" && url.port === "8765") {
+                return Response.json({ info: { title: "Lyrics Forced Aligner", version: "0.2.27" } });
+            }
+            if (url.pathname === "/api/lrc-editor/capabilities") {
+                return Response.json({ control_token: token });
+            }
+            if (url.pathname === `/api/lrc-editor/jobs/${jobId}/cancel`) {
+                expect(new Headers(init?.headers).get("X-LRC-Editor-Control")).toBe(token);
+                controlRequests.push("cancel");
+                return Response.json({ accepted: true });
+            }
+            if (url.pathname === "/api/lrc-editor/cache") {
+                expect(init?.method).toBe("DELETE");
+                expect(new Headers(init?.headers).get("X-LRC-Editor-Control")).toBe(token);
+                controlRequests.push("cache");
+                return Response.json({ deleted: true, reclaimed_bytes: 1024 });
+            }
+            if (url.pathname === "/api/lrc-editor/service/stop") {
+                expect(init?.method).toBe("POST");
+                expect(new Headers(init?.headers).get("X-LRC-Editor-Control")).toBe(token);
+                controlRequests.push("stop");
+                return Response.json({ accepted: true });
+            }
+            return new Response(null, { status: 404 });
+        });
+        const client = new LocalAlignerClient(fetchMock as unknown as typeof fetch);
+
+        expect(
+            await client.handle({
+                type: alignerCancelRequestType,
+                requestId: "request-cancel",
+                baseUrl: "http://127.0.0.1:8765/",
+                jobId,
+            }),
+        ).toEqual({ kind: "cancel", accepted: true });
+        expect(
+            await client.handle({
+                type: alignerCacheClearRequestType,
+                requestId: "request-cache",
+            }),
+        ).toEqual({ kind: "cache-clear", reclaimedBytes: 1024 });
+        expect(
+            await client.handle({
+                type: alignerServiceStopRequestType,
+                requestId: "request-stop",
+            }),
+        ).toEqual({ kind: "service-stop", accepted: true });
+        expect(controlRequests).toEqual(["cancel", "cache", "stop"]);
     });
 
     it("rejects out-of-order chunks and concurrent starts", async () => {

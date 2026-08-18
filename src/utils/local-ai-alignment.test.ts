@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+    alignerCancelRequestType,
     alignerChunkRequestType,
     alignerCleanupRequestType,
     alignerCommitRequestType,
@@ -22,7 +23,6 @@ describe("local AI alignment page bridge", () => {
         const requestTypes: string[] = [];
         let precision = 0;
         const jobId = "0123456789abcdef0123456789abcdef";
-        const uploadId = "12345678-1234-1234-1234-123456789abc";
 
         const windowStub = {
             addEventListener: events.addEventListener.bind(events),
@@ -34,16 +34,18 @@ describe("local AI alignment page bridge", () => {
                 dispatch({
                     type: mediaExtensionAckType,
                     requestId: request.requestId,
-                    version: "0.4.2",
+                    version: "0.4.5",
                 });
 
                 if (request.type === alignerStartRequestType) {
+                    expect(request.uploadId).toMatch(/^[a-f0-9-]{36}$/i);
                     expect(request.audioName).toBe("demo.flac");
                     expect(request.transcript).toBe("One\nTwo");
                     expect(request.bypassCache).toBe(true);
+                    expect(request.useGpuAcceleration).toBe(true);
                     dispatchSuccess(request.requestId, {
                         kind: "start",
-                        uploadId,
+                        uploadId: request.uploadId,
                         baseUrl: "http://127.0.0.1:8765/",
                         chunkSize: 2,
                         serviceVersion: "0.2.27",
@@ -91,6 +93,7 @@ describe("local AI alignment page bridge", () => {
             transcript: "One\nTwo",
             precision: 3,
             keepTaskCache: false,
+            useGpuAcceleration: true,
         });
 
         expect(result).toEqual({
@@ -109,6 +112,77 @@ describe("local AI alignment page bridge", () => {
             alignerResultRequestType,
             alignerCleanupRequestType,
         ]);
+    });
+
+    it("cancels the active local job when the page aborts", async () => {
+        const events = new EventTarget();
+        const controller = new AbortController();
+        const jobId = "0123456789abcdef0123456789abcdef";
+        let cancelCount = 0;
+
+        const windowStub = {
+            addEventListener: events.addEventListener.bind(events),
+            removeEventListener: events.removeEventListener.bind(events),
+            setTimeout,
+            clearTimeout,
+            postMessage: (request: LocalAlignerRequest): void => {
+                dispatch({
+                    type: mediaExtensionAckType,
+                    requestId: request.requestId,
+                    version: "0.4.5",
+                });
+                if (request.type === alignerStartRequestType) {
+                    dispatchSuccess(request.requestId, {
+                        kind: "start",
+                        uploadId: request.uploadId,
+                        baseUrl: "http://127.0.0.1:8765/",
+                        chunkSize: 16,
+                        serviceVersion: "0.2.27",
+                    });
+                } else if (request.type === alignerChunkRequestType) {
+                    dispatchSuccess(request.requestId, { kind: "chunk", received: 4 });
+                } else if (request.type === alignerCommitRequestType) {
+                    dispatchSuccess(request.requestId, {
+                        kind: "job",
+                        baseUrl: "http://127.0.0.1:8765/",
+                        job: { id: jobId, status: "running", stage: "recognize", progress: 0.4 },
+                    });
+                } else if (request.type === alignerCancelRequestType) {
+                    cancelCount += 1;
+                    expect("jobId" in request && request.jobId).toBe(jobId);
+                    dispatchSuccess(request.requestId, { kind: "cancel", accepted: true });
+                }
+            },
+        };
+        const dispatch = (data: unknown): void => {
+            const event = new Event("message");
+            Object.defineProperties(event, {
+                source: { value: windowStub },
+                origin: { value: "https://lrc.sgmy.org" },
+                data: { value: data },
+            });
+            events.dispatchEvent(event);
+        };
+        const dispatchSuccess = (requestId: string, payload: unknown): void => {
+            dispatch({ type: alignerResponseType, requestId, ok: true, payload });
+        };
+
+        vi.stubGlobal("location", { origin: "https://lrc.sgmy.org" });
+        vi.stubGlobal("window", windowStub);
+
+        await expect(runLocalAiAlignment({
+            audio: new Blob([new Uint8Array([1, 2, 3, 4])], { type: "audio/flac" }),
+            audioName: "demo.flac",
+            transcript: "One",
+            precision: 3,
+            keepTaskCache: false,
+            useGpuAcceleration: false,
+            signal: controller.signal,
+            onProgress: (progress) => {
+                if (progress.phase === "running") controller.abort();
+            },
+        })).rejects.toMatchObject({ code: "cancelled" });
+        expect(cancelCount).toBe(1);
     });
 
     it("estimates remaining time from lightweight progress samples", () => {

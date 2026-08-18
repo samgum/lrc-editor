@@ -9,10 +9,10 @@
 1. 从最新 [LRC Editor Release](https://github.com/samgum/lrc-editor/releases/latest) 下载并解压 `lrc-editor-ai-aligner` 安装包。
 2. 双击 `install-ai-aligner.cmd`；选择 1 使用 C 盘默认目录、2 使用 `D:\LRC Editor AI`、3 输入自定义目录，然后等待全部下载完成。
 3. 只在需要 AI 对轴时双击 `start-ai-aligner.cmd`，并保持终端窗口开启。
-4. 安装或更新到 LRC Editor Media Bridge v0.4.4 或更高版本。
+4. 安装或更新到 LRC Editor Media Bridge v0.4.5 或更高版本。
 5. 在 LRC Editor 中开启“设置 → 启用本机 AI 对轴”，载入媒体、打开编辑器，再点击“AI 对轴”。
 
-缺少 Git、FFmpeg 或 uv 时，安装脚本会通过 WinGet 自动安装。安装器始终把 uv 管理的 Python 3.11 下载到所选目录内的 `python`，并只用这个解释器创建 `environment`；不会复用、注册或加入系统 PATH，用户无需预装 Python。删除整个 AI 安装目录即可一并移除这套私有 Python。
+缺少 FFmpeg 或 uv 时，安装脚本会通过 WinGet 自动安装。固定引擎快照已经随 Release 安装包提供，不需要访问私有仓库，也不要求安装 Git。安装器始终把 uv 管理的 Python 3.11 下载到所选目录内的 `python`，并只用这个解释器创建 `environment`；不会复用、注册或加入系统 PATH，用户无需预装 Python。删除整个 AI 安装目录即可一并移除这套私有 Python。
 
 ## macOS／Linux 安装
 
@@ -51,7 +51,7 @@ CPU 模式请预留至少 15 GB，CUDA 模式请预留至少 22 GB。下载中�
 
 - `large-v3-turbo` 使用 faster-whisper 标准的 `download_model` 接口下载。faster-whisper 官方模型别名指向 Hugging Face 上的 [`mobiuslabsgmbh/faster-whisper-large-v3-turbo`](https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo)。
 - `htdemucs_ft` 使用 Demucs 标准的 `demucs.pretrained.get_model` 接口，从 Meta 官方 [`dl.fbaipublicfiles.com/demucs`](https://dl.fbaipublicfiles.com/demucs/) 模型站点下载。
-- PyTorch 来自官方 `download.pytorch.org` wheel 索引；独立 CUDA 运行库使用 NVIDIA 自有的 PyPI 软件包；Git、FFmpeg 和 uv 使用平台包管理器或固定版本的 uv 官方安装器。
+- PyTorch 来自官方 `download.pytorch.org` wheel 索引；独立 CUDA 运行库使用 NVIDIA 自有的 PyPI 软件包；FFmpeg 和 uv 使用平台包管理器或固定版本的 uv 官方安装器。
 - CUDA 模式会把 NVIDIA 的 [`nvidia-cublas-cu12`](https://pypi.org/project/nvidia-cublas-cu12/) 与 [`nvidia-cudnn-cu12`](https://pypi.org/project/nvidia-cudnn-cu12/) 固定版本安装在用户选择的目录内部。
 
 安装器会在下载前显示每个模型的来源，不使用项目自建镜像、第三方网盘或 LRC Editor 站点分发模型。
@@ -88,6 +88,7 @@ Windows 默认安装位置为 `%LOCALAPPDATA%\LRC Editor\AI Aligner`。安装提
 - 功能默认关闭。关闭时页面不会探测本机端口、传输媒体或创建模型任务。
 - 浏览器扩展不能直接启动任意本机程序，因此只在需要时启动组件，用完后按 `Ctrl+C` 停止。
 - 重复运行启动器时会识别已有服务并直接退出，不会创建第二个进程。
+- 下载目录中的启动、停止和卸载入口会自动读取安装器记录的位置，并检查系统默认目录；自定义目录未被记录时会要求用户输入。
 - 使用 `stop-ai-aligner.cmd`、`stop-ai-aligner.command` 或 `stop-ai-aligner.sh`，只停止经过校验的本项目服务进程。
 - 使用对应系统的 `uninstall-ai-aligner` 命令卸载；必须分别输入 `UNINSTALL` 和完整安装路径两次确认。
 - 一个任务在准备、排队或处理期间，扩展会拒绝第二次上传和第二个任务。
@@ -98,4 +99,4 @@ Windows 默认安装位置为 `%LOCALAPPDATA%\LRC Editor\AI Aligner`。安装提
 - 只有歌词行顺序完全不变，且全部时间戳均为有限、非负、唯一并严格递增时，结果才会应用。
 - AI 结果作为一次可撤销操作写入编辑器，并保留歌曲名、艺人和专辑信息。
 
-安装器固定使用 [`lyrics-forced-aligner`](https://github.com/samgum/lyrics-forced-aligner) 的 `4898a3cbc569349c5db87bbc931c9d6fa124d64d` 版本。清理接口由 LRC Editor 项目自己的本机包装层提供，不会修改固定引擎源码，也不会修改其他位置的原项目仓库。
+安装器会复制 [`engine`](./engine/README-zh.md) 内置的最小引擎快照，并核对版本 `4898a3cbc569349c5db87bbc931c9d6fa124d64d`；不会克隆私有开发仓库。任务取消、服务停止与缓存清理接口均由 LRC Editor 自己的本机包装层提供，不会修改内置引擎源码。

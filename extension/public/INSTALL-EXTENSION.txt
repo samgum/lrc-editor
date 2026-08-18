@@ -1,4 +1,4 @@
-LRC Editor Media Bridge v0.4.4
+LRC Editor Media Bridge v0.4.5
 
 This is the browser extension package.
 这是浏览器扩展安装包。
@@ -15,9 +15,9 @@ Browser security does not allow a CMD file to silently install an unpacked exten
 受浏览器安全机制限制，CMD 不能静默完成最后的扩展安装确认。
 
 The optional local AI engine is a different package:
-lrc-editor-ai-aligner-windows-v0.4.4.zip
-lrc-editor-ai-aligner-macos-linux-v0.4.4.tar.gz
+lrc-editor-ai-aligner-windows-v0.4.5.zip
+lrc-editor-ai-aligner-macos-linux-v0.4.5.tar.gz
 
 可选的本机 AI 引擎是另一个安装包：
-lrc-editor-ai-aligner-windows-v0.4.4.zip
-lrc-editor-ai-aligner-macos-linux-v0.4.4.tar.gz
+lrc-editor-ai-aligner-windows-v0.4.5.zip
+lrc-editor-ai-aligner-macos-linux-v0.4.5.tar.gz

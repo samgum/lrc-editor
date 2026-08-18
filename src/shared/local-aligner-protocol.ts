@@ -4,6 +4,9 @@ export const alignerCommitRequestType = "LRC_EDITOR_ALIGNER_COMMIT";
 export const alignerStatusRequestType = "LRC_EDITOR_ALIGNER_STATUS";
 export const alignerResultRequestType = "LRC_EDITOR_ALIGNER_RESULT_REQUEST";
 export const alignerCleanupRequestType = "LRC_EDITOR_ALIGNER_CLEANUP";
+export const alignerCancelRequestType = "LRC_EDITOR_ALIGNER_CANCEL";
+export const alignerServiceStopRequestType = "LRC_EDITOR_ALIGNER_SERVICE_STOP";
+export const alignerCacheClearRequestType = "LRC_EDITOR_ALIGNER_CACHE_CLEAR";
 export const alignerResponseType = "LRC_EDITOR_ALIGNER_RESULT";
 
 export const localAlignerPorts = [8765, ...Array.from({ length: 20 }, (_, index) => 8876 + index)] as const;
@@ -16,6 +19,7 @@ interface AlignerRequestBase {
 
 export interface AlignerStartRequest extends AlignerRequestBase {
     type: typeof alignerStartRequestType;
+    uploadId: string;
     audioName: string;
     audioType: string;
     audioSize: number;
@@ -24,6 +28,7 @@ export interface AlignerStartRequest extends AlignerRequestBase {
     bypassCache: boolean;
     preserveBlankLines: boolean;
     wordTimingBeta: boolean;
+    useGpuAcceleration: boolean;
 }
 
 export interface AlignerChunkRequest extends AlignerRequestBase {
@@ -57,13 +62,37 @@ export interface AlignerCleanupRequest extends AlignerRequestBase {
     jobId: string;
 }
 
+export interface AlignerCancelUploadRequest extends AlignerRequestBase {
+    type: typeof alignerCancelRequestType;
+    uploadId: string;
+}
+
+export interface AlignerCancelJobRequest extends AlignerRequestBase {
+    type: typeof alignerCancelRequestType;
+    baseUrl: string;
+    jobId: string;
+}
+
+export type AlignerCancelRequest = AlignerCancelUploadRequest | AlignerCancelJobRequest;
+
+export interface AlignerServiceStopRequest extends AlignerRequestBase {
+    type: typeof alignerServiceStopRequestType;
+}
+
+export interface AlignerCacheClearRequest extends AlignerRequestBase {
+    type: typeof alignerCacheClearRequestType;
+}
+
 export type LocalAlignerRequest =
     | AlignerStartRequest
     | AlignerChunkRequest
     | AlignerCommitRequest
     | AlignerStatusRequest
     | AlignerResultRequest
-    | AlignerCleanupRequest;
+    | AlignerCleanupRequest
+    | AlignerCancelRequest
+    | AlignerServiceStopRequest
+    | AlignerCacheClearRequest;
 
 export interface LocalAlignerJob {
     id: string;
@@ -81,7 +110,10 @@ export type LocalAlignerPayload =
     | { kind: "chunk"; received: number }
     | { kind: "job"; baseUrl: string; job: LocalAlignerJob }
     | { kind: "result"; lrc: string }
-    | { kind: "cleanup"; reclaimedBytes: number };
+    | { kind: "cleanup"; reclaimedBytes: number }
+    | { kind: "cancel"; accepted: true }
+    | { kind: "service-stop"; accepted: true }
+    | { kind: "cache-clear"; reclaimedBytes: number };
 
 export type LocalAlignerResponse =
     | {
@@ -102,14 +134,16 @@ export const isLocalAlignerRequest = (value: unknown): value is LocalAlignerRequ
     if (!isRecord(value) || typeof value.requestId !== "string" || value.requestId.length < 8) return false;
     switch (value.type) {
         case alignerStartRequestType:
-            return typeof value.audioName === "string" && value.audioName.length > 0 && value.audioName.length <= 255
+            return isUploadId(value.uploadId)
+                && typeof value.audioName === "string" && value.audioName.length > 0 && value.audioName.length <= 255
                 && typeof value.audioType === "string" && value.audioType.length <= 100
                 && Number.isSafeInteger(value.audioSize) && Number(value.audioSize) > 0
                 && Number(value.audioSize) <= localAlignerMaxAudioBytes
                 && typeof value.transcript === "string" && value.transcript.length > 0
                 && value.transcript.length <= 4 * 1024 * 1024
                 && typeof value.separate === "boolean" && typeof value.bypassCache === "boolean"
-                && typeof value.preserveBlankLines === "boolean" && typeof value.wordTimingBeta === "boolean";
+                && typeof value.preserveBlankLines === "boolean" && typeof value.wordTimingBeta === "boolean"
+                && typeof value.useGpuAcceleration === "boolean";
         case alignerChunkRequestType:
             return isUploadId(value.uploadId) && Number.isSafeInteger(value.index) && Number(value.index) >= 0
                 && typeof value.data === "string" && value.data.length > 0
@@ -124,6 +158,12 @@ export const isLocalAlignerRequest = (value: unknown): value is LocalAlignerRequ
                 && (value.precision === 2 || value.precision === 3);
         case alignerCleanupRequestType:
             return isLocalAlignerBaseUrl(value.baseUrl) && isJobId(value.jobId);
+        case alignerCancelRequestType:
+            return isUploadId(value.uploadId)
+                || (isLocalAlignerBaseUrl(value.baseUrl) && isJobId(value.jobId));
+        case alignerServiceStopRequestType:
+        case alignerCacheClearRequestType:
+            return true;
         default:
             return false;
     }

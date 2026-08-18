@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-engine_repository="https://github.com/samgum/lyrics-forced-aligner.git"
 engine_revision="4898a3cbc569349c5db87bbc931c9d6fa124d64d"
 uv_version="0.12.5"
 install_root=""
@@ -82,10 +81,16 @@ download_cache_root="$install_root/download-cache"
 venv_python="$environment_root/bin/python"
 script_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 constraints_path="$script_root/ai-constraints.txt"
+resolver_path="$script_root/resolve-ai-aligner-install.sh"
 if [[ ! -f "$constraints_path" ]]; then
     echo "ai-constraints.txt is missing from the installer package." >&2
     exit 1
 fi
+if [[ ! -f "$resolver_path" ]]; then
+    echo "resolve-ai-aligner-install.sh is missing from the installer package." >&2
+    exit 1
+fi
+source "$resolver_path"
 
 use_cuda=0
 cuda_device=""
@@ -191,7 +196,7 @@ install_system_package() {
     exit 1
 }
 
-for prerequisite in curl git ffmpeg; do
+for prerequisite in curl ffmpeg; do
     if ! command -v "$prerequisite" >/dev/null 2>&1; then
         install_system_package "$prerequisite"
     fi
@@ -224,22 +229,51 @@ if [[ "$installed_uv_version" != "$uv_version" ]]; then
     exit 1
 fi
 
-if [[ -d "$engine_root/.git" ]]; then
-    git -C "$engine_root" fetch --depth 1 origin "$engine_revision"
-else
-    if [[ -e "$engine_root" && -n "$(ls -A "$engine_root" 2>/dev/null)" ]]; then
-        echo "$engine_root exists but is not an aligner Git checkout." >&2
-        exit 1
-    fi
-    git clone --filter=blob:none --no-checkout "$engine_repository" "$engine_root"
-    git -C "$engine_root" fetch --depth 1 origin "$engine_revision"
-fi
-git -C "$engine_root" checkout --detach "$engine_revision"
-installed_revision="$(git -C "$engine_root" rev-parse HEAD)"
-if [[ "$installed_revision" != "$engine_revision" ]]; then
-    echo "The installed aligner revision could not be verified." >&2
+bundled_engine_root="$script_root/engine"
+if [[ ! -f "$bundled_engine_root/ENGINE_REVISION" || \
+      ! -f "$bundled_engine_root/src/lyrics_aligner/server.py" || \
+      ! -f "$bundled_engine_root/pyproject.toml" ]]; then
+    echo "The verified engine bundle is missing or incomplete. Download the complete AI aligner package again." >&2
     exit 1
 fi
+installed_revision="$(tr -d '[:space:]' < "$bundled_engine_root/ENGINE_REVISION")"
+if [[ "$installed_revision" != "$engine_revision" ]]; then
+    echo "The bundled aligner revision could not be verified." >&2
+    exit 1
+fi
+case "$engine_root" in
+    "$install_root"/*) ;;
+    *)
+        echo "The managed engine destination is unsafe. Choose a different installation directory." >&2
+        exit 1
+        ;;
+esac
+if [[ "$(cd "$(dirname "$engine_root")" && pwd -P)/$(basename "$engine_root")" == "$bundled_engine_root" ]]; then
+    echo "The install directory cannot contain the bundled engine source." >&2
+    exit 1
+fi
+if [[ -e "$engine_root" || -L "$engine_root" ]]; then
+    if [[ ! -d "$engine_root/.git" && ! -f "$engine_root/ENGINE_REVISION" && -n "$(ls -A "$engine_root" 2>/dev/null)" ]]; then
+        echo "$engine_root contains files that were not created by the LRC Editor installer." >&2
+        exit 1
+    fi
+    for managed_link in ".cache:$model_root" "runtime:$runtime_root"; do
+        link_name="${managed_link%%:*}"
+        expected_target="${managed_link#*:}"
+        link_path="$engine_root/$link_name"
+        if [[ -e "$link_path" || -L "$link_path" ]]; then
+            if [[ ! -L "$link_path" || "$(readlink "$link_path")" != "$expected_target" ]]; then
+                echo "$link_path is not the expected managed link; it will not be removed." >&2
+                exit 1
+            fi
+            rm -- "$link_path"
+        fi
+    done
+    rm -rf -- "$engine_root"
+fi
+echo "Installing the verified bundled alignment engine"
+mkdir -p "$engine_root"
+cp -R "$bundled_engine_root"/. "$engine_root"/
 
 ensure_symlink() {
     local link_path="$1"
@@ -375,7 +409,7 @@ install_guide="INSTALL-Linux.txt"
 if [[ "$os_name" == "Darwin" ]]; then
     install_guide="INSTALL-macOS.txt"
 fi
-for file_name in install-ai-aligner.sh install-ai-aligner.command ai-constraints.txt lrc_editor_companion_server.py start-ai-aligner.sh start-ai-aligner.command stop-ai-aligner.sh stop-ai-aligner.command uninstall-ai-aligner.sh uninstall-ai-aligner.command README.md README-zh.md "$install_guide"; do
+for file_name in install-ai-aligner.sh install-ai-aligner.command resolve-ai-aligner-install.sh ai-constraints.txt lrc_editor_companion_server.py start-ai-aligner.sh start-ai-aligner.command stop-ai-aligner.sh stop-ai-aligner.command uninstall-ai-aligner.sh uninstall-ai-aligner.command README.md README-zh.md "$install_guide"; do
     if [[ -f "$script_root/$file_name" && "$script_root/$file_name" != "$install_root/$file_name" ]]; then
         destination_name="$file_name"
         if [[ "$file_name" == "$install_guide" ]]; then
@@ -436,6 +470,28 @@ with open(os.environ["LRC_STATE_PATH"], "w", encoding="utf-8") as handle:
     json.dump(state, handle, ensure_ascii=False, indent=2)
     handle.write("\n")
 PY
+
+write_install_location() {
+    local location_file="$1"
+    local location_directory
+    location_directory="$(dirname "$location_file")"
+    if mkdir -p "$location_directory" 2>/dev/null && \
+        printf '%s\n' "$install_root" > "$location_file.tmp" 2>/dev/null && \
+        mv -f "$location_file.tmp" "$location_file" 2>/dev/null; then
+        return 0
+    fi
+    rm -f -- "$location_file.tmp" 2>/dev/null || true
+    echo "Warning: unable to record the install location in $location_file" >&2
+}
+
+location_registry="$(lrc_ai_location_registry || true)"
+write_install_location "$install_root/install-location.txt"
+if [[ "$script_root" != "$install_root" ]]; then
+    write_install_location "$script_root/install-location.txt"
+fi
+if [[ -n "$location_registry" ]]; then
+    write_install_location "$location_registry"
+fi
 
 echo "Cleaning rebuildable package download cache..."
 "$uv_command" cache clean

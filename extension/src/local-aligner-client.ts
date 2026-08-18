@@ -1,4 +1,8 @@
 import {
+    type AlignerCacheClearRequest,
+    alignerCacheClearRequestType,
+    type AlignerCancelRequest,
+    alignerCancelRequestType,
     type AlignerChunkRequest,
     alignerChunkRequestType,
     type AlignerCleanupRequest,
@@ -7,6 +11,8 @@ import {
     alignerCommitRequestType,
     type AlignerResultRequest,
     alignerResultRequestType,
+    type AlignerServiceStopRequest,
+    alignerServiceStopRequestType,
     type AlignerStartRequest,
     alignerStartRequestType,
     type AlignerStatusRequest,
@@ -39,13 +45,17 @@ interface UploadSession {
     bypassCache: boolean;
     preserveBlankLines: boolean;
     wordTimingBeta: boolean;
+    device: "auto" | "cpu";
     parts: Uint8Array<ArrayBuffer>[];
     received: number;
     updatedAt: number;
+    cancelled: boolean;
+    committing: boolean;
 }
 
 export class LocalAlignerClient {
     private readonly uploads = new Map<string, UploadSession>();
+    private readonly cancelledUploads = new Map<string, number>();
     private cachedService: { baseUrl: string; version: string } | undefined;
     private startLocked = false;
     private commitLocked = false;
@@ -66,6 +76,12 @@ export class LocalAlignerClient {
                 return await this.result(request);
             case alignerCleanupRequestType:
                 return await this.cleanup(request);
+            case alignerCancelRequestType:
+                return await this.cancel(request);
+            case alignerServiceStopRequestType:
+                return await this.stopService(request);
+            case alignerCacheClearRequestType:
+                return await this.clearCache(request);
         }
     }
 
@@ -78,8 +94,10 @@ export class LocalAlignerClient {
         try {
             const service = await this.findService();
             await this.ensureServiceIdle(service.baseUrl);
-            const uploadId = crypto.randomUUID();
-            this.uploads.set(uploadId, {
+            if (this.cancelledUploads.delete(request.uploadId)) {
+                throw new LocalAlignerClientError("UPLOAD_LOST", "Local alignment upload was stopped");
+            }
+            this.uploads.set(request.uploadId, {
                 baseUrl: service.baseUrl,
                 serviceVersion: service.version,
                 audioName: sanitizeFileName(request.audioName),
@@ -90,13 +108,16 @@ export class LocalAlignerClient {
                 bypassCache: request.bypassCache,
                 preserveBlankLines: request.preserveBlankLines,
                 wordTimingBeta: request.wordTimingBeta,
+                device: request.useGpuAcceleration ? "auto" : "cpu",
                 parts: [],
                 received: 0,
                 updatedAt: Date.now(),
+                cancelled: false,
+                committing: false,
             });
             return {
                 kind: "start",
-                uploadId,
+                uploadId: request.uploadId,
                 baseUrl: service.baseUrl,
                 chunkSize: localAlignerChunkSize,
                 serviceVersion: service.version,
@@ -109,6 +130,7 @@ export class LocalAlignerClient {
     private chunk(request: AlignerChunkRequest): LocalAlignerPayload {
         const upload = this.uploads.get(request.uploadId);
         if (!upload) throw new LocalAlignerClientError("UPLOAD_LOST", "Local alignment upload expired");
+        if (upload.cancelled) throw new LocalAlignerClientError("UPLOAD_LOST", "Local alignment upload was stopped");
         if (request.index !== upload.parts.length) {
             throw new LocalAlignerClientError("INVALID_REQUEST", "Local alignment chunks are out of order");
         }
@@ -129,8 +151,11 @@ export class LocalAlignerClient {
             throw new LocalAlignerClientError("ALIGNER_BUSY", "A local alignment task is already being submitted");
         }
         this.commitLocked = true;
-        this.uploads.delete(request.uploadId);
+        upload.committing = true;
         try {
+            if (upload.cancelled) {
+                throw new LocalAlignerClientError("UPLOAD_LOST", "Local alignment upload was stopped");
+            }
             if (upload.received !== upload.audioSize) {
                 throw new LocalAlignerClientError("INVALID_REQUEST", "Local alignment upload is incomplete");
             }
@@ -142,14 +167,26 @@ export class LocalAlignerClient {
             form.append("bypass_cache", String(upload.bypassCache));
             form.append("preserve_blank_lines", String(upload.preserveBlankLines));
             form.append("word_timing_beta", String(upload.wordTimingBeta));
+            form.append("device", upload.device);
 
-            const response = await this.fetchFn(new URL("/api/jobs", upload.baseUrl), {
+            let response = await this.fetchFn(new URL("/api/lrc-editor/jobs", upload.baseUrl), {
                 method: "POST",
                 body: form,
             });
+            if (response.status === 404) {
+                response = await this.fetchFn(new URL("/api/jobs", upload.baseUrl), {
+                    method: "POST",
+                    body: form,
+                });
+            }
             const job = await readJobResponse(response);
+            if (upload.cancelled) {
+                await this.cancelJob(upload.baseUrl, job.id).catch(() => undefined);
+                throw new LocalAlignerClientError("ALIGNER_FAILED", "Local alignment was stopped");
+            }
             return { kind: "job", baseUrl: upload.baseUrl, job };
         } finally {
+            this.uploads.delete(request.uploadId);
             this.commitLocked = false;
         }
     }
@@ -187,6 +224,90 @@ export class LocalAlignerClient {
             );
         }
         return { kind: "cleanup", reclaimedBytes: payload.reclaimed_bytes };
+    }
+
+    private async cancel(request: AlignerCancelRequest): Promise<LocalAlignerPayload> {
+        if ("uploadId" in request) {
+            const upload = this.uploads.get(request.uploadId);
+            if (upload) {
+                upload.cancelled = true;
+                upload.parts.length = 0;
+                if (!upload.committing) this.uploads.delete(request.uploadId);
+            } else {
+                this.cancelledUploads.set(request.uploadId, Date.now());
+            }
+            return { kind: "cancel", accepted: true };
+        }
+        await this.cancelJob(request.baseUrl, request.jobId);
+        return { kind: "cancel", accepted: true };
+    }
+
+    private async cancelJob(baseUrl: string, jobId: string): Promise<void> {
+        const token = await this.controlToken(baseUrl);
+        const response = await this.fetchFn(
+            new URL(`/api/lrc-editor/jobs/${jobId}/cancel`, baseUrl),
+            {
+                method: "POST",
+                cache: "no-store",
+                headers: { "X-LRC-Editor-Control": token },
+            },
+        );
+        if (!response.ok) {
+            const payload = await response.json().catch(() => ({})) as { detail?: string };
+            throw new LocalAlignerClientError("ALIGNER_FAILED", payload.detail || "Alignment could not be stopped");
+        }
+    }
+
+    private async stopService(_request: AlignerServiceStopRequest): Promise<LocalAlignerPayload> {
+        const service = await this.findService();
+        const token = await this.controlToken(service.baseUrl);
+        const response = await this.fetchFn(new URL("/api/lrc-editor/service/stop", service.baseUrl), {
+            method: "POST",
+            cache: "no-store",
+            headers: { "X-LRC-Editor-Control": token },
+        });
+        if (!response.ok) {
+            const payload = await response.json().catch(() => ({})) as { detail?: string };
+            throw new LocalAlignerClientError(
+                "ALIGNER_FAILED",
+                payload.detail || "Local AI service could not be stopped",
+            );
+        }
+        this.cachedService = undefined;
+        return { kind: "service-stop", accepted: true };
+    }
+
+    private async clearCache(_request: AlignerCacheClearRequest): Promise<LocalAlignerPayload> {
+        const service = await this.findService();
+        const token = await this.controlToken(service.baseUrl);
+        const response = await this.fetchFn(new URL("/api/lrc-editor/cache", service.baseUrl), {
+            method: "DELETE",
+            cache: "no-store",
+            headers: { "X-LRC-Editor-Control": token },
+        });
+        const payload = await response.json().catch(() => ({})) as {
+            detail?: string;
+            reclaimed_bytes?: unknown;
+        };
+        if (!response.ok || typeof payload.reclaimed_bytes !== "number" || payload.reclaimed_bytes < 0) {
+            throw new LocalAlignerClientError(
+                "ALIGNER_FAILED",
+                payload.detail || "Local AI cache could not be cleared",
+            );
+        }
+        return { kind: "cache-clear", reclaimedBytes: payload.reclaimed_bytes };
+    }
+
+    private async controlToken(baseUrl: string): Promise<string> {
+        const response = await this.fetchFn(new URL("/api/lrc-editor/capabilities", baseUrl), {
+            cache: "no-store",
+        });
+        if (!response.ok) throw new LocalAlignerClientError("ALIGNER_FAILED", "Companion control is unavailable");
+        const payload = await response.json() as { control_token?: unknown };
+        if (typeof payload.control_token !== "string" || payload.control_token.length < 32) {
+            throw new LocalAlignerClientError("ALIGNER_FAILED", "Companion control response was invalid");
+        }
+        return payload.control_token;
     }
 
     private async findService(): Promise<{ baseUrl: string; version: string }> {
@@ -256,6 +377,9 @@ export class LocalAlignerClient {
         const cutoff = Date.now() - 2 * 60_000;
         for (const [uploadId, upload] of this.uploads) {
             if (upload.updatedAt < cutoff) this.uploads.delete(uploadId);
+        }
+        for (const [uploadId, cancelledAt] of this.cancelledUploads) {
+            if (cancelledAt < cutoff) this.cancelledUploads.delete(uploadId);
         }
     }
 }

@@ -197,12 +197,14 @@
     margin: 10px 0 0;
     color: var(--text-secondary-color);
     font-size: 0.82rem;
+    line-height: 1.45;
 }
 
 .ai-align-dialog .ai-align-remaining {
-    margin-top: -0.35rem;
+    margin-top: 4px;
     color: var(--text-secondary-color);
-    font-size: 0.88rem;
+    font-size: 0.78rem;
+    line-height: 1.4;
     font-variant-numeric: tabular-nums;
 }
 
@@ -210,6 +212,27 @@
     display: inline-block;
     margin-top: 10px;
     color: var(--theme-foreground-color);
+}
+
+.ai-align-dialog .ai-align-stop {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 5.5rem;
+    margin-top: 12px;
+    padding: 7px 12px;
+    color: var(--theme-contrast-color);
+    font-weight: 650;
+    background: var(--theme-color);
+    border-radius: 6px;
+    transition:
+        transform var(--transition-duration) var(--ease-standard),
+        filter var(--transition-duration) var(--ease-standard);
+}
+
+.ai-align-dialog .ai-align-stop:hover, .ai-align-dialog .ai-align-stop:focus-visible {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
 }
 
 .app-textarea {

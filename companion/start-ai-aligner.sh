@@ -1,10 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-install_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+launcher_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+resolver="$launcher_root/resolve-ai-aligner-install.sh"
+requested_root=""
 if [[ "${1:-}" == "--install-root" ]]; then
-    install_root="${2:-}"
+    requested_root="${2:-}"
 fi
+if [[ ! -f "$resolver" ]]; then
+    echo "The installation locator is missing. Download the complete companion package again." >&2
+    exit 1
+fi
+source "$resolver"
+install_root="$(lrc_ai_resolve_install_root "$launcher_root" "$requested_root")"
 engine_root="$install_root/engine"
 environment_root="$install_root/environment"
 model_root="$install_root/models"
@@ -14,7 +22,8 @@ state_path="$install_root/install-state.json"
 ports=(8765 {8876..8895})
 
 if [[ ! -x "$venv_python" || ! -f "$engine_root/src/lyrics_aligner/server.py" || ! -f "$companion_server" ]]; then
-    echo "The AI aligner is not installed. Run install-ai-aligner.sh first." >&2
+    echo "The AI aligner is not installed at: $install_root" >&2
+    echo "Run install-ai-aligner.command first, or enter the directory used during installation." >&2
     exit 1
 fi
 for prerequisite in curl ffmpeg ffprobe; do

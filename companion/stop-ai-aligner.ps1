@@ -5,10 +5,13 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-if ([string]::IsNullOrWhiteSpace($InstallRoot)) {
-    $InstallRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$launcherRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$resolver = Join-Path $launcherRoot "resolve-ai-aligner-install.ps1"
+if (-not (Test-Path -LiteralPath $resolver)) {
+    throw "The installation locator is missing."
 }
-$resolvedInstallRoot = [System.IO.Path]::GetFullPath($InstallRoot)
+. $resolver
+$resolvedInstallRoot = Resolve-AiAlignerInstallRoot -LauncherRoot $launcherRoot -RequestedRoot $InstallRoot
 $pidPath = Join-Path $resolvedInstallRoot "runtime\service.pid"
 $ports = @(8765) + @(8876..8895)
 

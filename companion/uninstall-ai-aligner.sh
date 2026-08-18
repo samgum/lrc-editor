@@ -1,10 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-install_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+launcher_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+resolver="$launcher_root/resolve-ai-aligner-install.sh"
+requested_root=""
 if [[ "${1:-}" == "--install-root" ]]; then
-    install_root="${2:-}"
+    requested_root="${2:-}"
 fi
+if [[ ! -f "$resolver" ]]; then
+    echo "The installation locator is missing." >&2
+    exit 1
+fi
+source "$resolver"
+install_root="$(lrc_ai_resolve_install_root "$launcher_root" "$requested_root")"
+location_registry="$(lrc_ai_location_registry || true)"
 if [[ "$install_root" != /* ]]; then
     echo "Install directory must be an absolute path." >&2
     exit 1
@@ -23,7 +32,7 @@ fi
 echo "LRC Editor AI Aligner will be permanently removed."
 echo "Directory: $install_root"
 echo "This deletes the engine, models, private Python/CUDA runtime, settings, and task data."
-echo "Git, FFmpeg, Homebrew, and package-manager prerequisites outside this directory are not removed."
+echo "FFmpeg, Homebrew, and package-manager prerequisites outside this directory are not removed."
 echo
 read -r -p "First confirmation: type UNINSTALL: " first_confirmation
 if [[ "$first_confirmation" != "UNINSTALL" ]]; then
@@ -45,4 +54,14 @@ if [[ -e "$install_root" ]]; then
     echo "Some files could not be removed from $install_root" >&2
     exit 1
 fi
+for location_file in "$launcher_root/install-location.txt" "$location_registry"; do
+    if [[ -n "$location_file" && -f "$location_file" ]]; then
+        recorded_root=""
+        IFS= read -r recorded_root < "$location_file" || true
+        recorded_root="${recorded_root%$'\r'}"
+        if [[ "${recorded_root%/}" == "$install_root" ]]; then
+            rm -f -- "$location_file"
+        fi
+    fi
+done
 echo "LRC Editor AI Aligner was removed."

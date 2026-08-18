@@ -9,10 +9,10 @@ This optional companion runs the verified `lyrics-forced-aligner` engine entirel
 1. Download and extract the `lrc-editor-ai-aligner` package from the latest [LRC Editor release](https://github.com/samgum/lrc-editor/releases/latest).
 2. Double-click `install-ai-aligner.cmd`, choose 1 for the C drive default, 2 for `D:\LRC Editor AI`, or 3 for a custom directory, then allow the downloads to finish.
 3. Double-click `start-ai-aligner.cmd` only when AI alignment is needed. Keep its terminal open.
-4. Install or update LRC Editor Media Bridge to v0.4.4 or later.
+4. Install or update LRC Editor Media Bridge to v0.4.5 or later.
 5. In LRC Editor, turn on **Settings → Enable local AI alignment**, load media, open the editor, and select **AI align**.
 
-The installer uses WinGet when Git, FFmpeg, or uv is missing. It always downloads a uv-managed Python 3.11 runtime into the chosen `python` directory and creates `environment` from that exact executable. It does not reuse, register, or add a system Python to `PATH`; no preinstalled Python or Python command is required. Removing the selected AI directory removes this private Python as well.
+The installer uses WinGet when FFmpeg or uv is missing. The verified engine snapshot is already included in the release package, so no private repository access or Git installation is required. It always downloads a uv-managed Python 3.11 runtime into the chosen `python` directory and creates `environment` from that exact executable. It does not reuse, register, or add a system Python to `PATH`; no preinstalled Python or Python command is required. Removing the selected AI directory removes this private Python as well.
 
 ## Install on macOS or Linux
 
@@ -51,7 +51,7 @@ After every successful installation and model verification, the installer remove
 
 - `large-v3-turbo` is downloaded with faster-whisper's standard `download_model` API. The official faster-whisper model alias maps to [`mobiuslabsgmbh/faster-whisper-large-v3-turbo`](https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo) on Hugging Face.
 - `htdemucs_ft` is downloaded with Demucs' standard `demucs.pretrained.get_model` API from Meta's official [`dl.fbaipublicfiles.com/demucs`](https://dl.fbaipublicfiles.com/demucs/) model host.
-- PyTorch packages come from the official `download.pytorch.org` wheel index. Private CUDA libraries use NVIDIA-owned PyPI packages. Git, FFmpeg, and uv use their platform package manager or the pinned official uv installer.
+- PyTorch packages come from the official `download.pytorch.org` wheel index. Private CUDA libraries use NVIDIA-owned PyPI packages. FFmpeg and uv use their platform package manager or the pinned official uv installer.
 - CUDA mode pins NVIDIA's [`nvidia-cublas-cu12`](https://pypi.org/project/nvidia-cublas-cu12/) and [`nvidia-cudnn-cu12`](https://pypi.org/project/nvidia-cudnn-cu12/) runtime packages inside the selected installation directory.
 
 The installer prints each model source before downloading it. It does not use a project mirror, third-party cloud drive, or the LRC Editor site for model files.
@@ -88,6 +88,7 @@ Use the same path when starting:
 - The setting is off by default. When it is off, the page does not probe the local ports, upload media, or start a model task.
 - The browser extension cannot start an arbitrary local executable. Start the companion only when needed and stop it with `Ctrl+C` afterward.
 - Starting the launcher twice detects the existing service and exits without creating a second process.
+- Downloaded start, stop, and uninstall launchers automatically resolve the location recorded by the installer. They also check the platform default and can ask for a custom directory.
 - Use `stop-ai-aligner.cmd`, `stop-ai-aligner.command`, or `stop-ai-aligner.sh` to stop only the verified companion process.
 - Use the matching `uninstall-ai-aligner` command for removal. It requires `UNINSTALL` and the exact install path as two separate confirmations.
 - The extension refuses a second upload or job while one is being prepared, queued, or processed.
@@ -98,4 +99,4 @@ Use the same path when starting:
 - Results are accepted only when every lyric line remains in order and all timestamps are finite, non-negative, unique, and strictly increasing.
 - Applying an AI result is one undoable editor operation and preserves title, artist, and album metadata.
 
-The installer pins [`lyrics-forced-aligner`](https://github.com/samgum/lyrics-forced-aligner) revision `4898a3cbc569349c5db87bbc931c9d6fa124d64d`. The cleanup API is supplied by the LRC Editor companion wrapper; the pinned engine and any separate checkout of the aligner repository remain unmodified.
+The installer copies the minimal engine snapshot bundled in [`engine`](./engine/README.md), verified as revision `4898a3cbc569349c5db87bbc931c9d6fa124d64d`. It never clones the private development repository. The control, cancellation, service-stop, and cache APIs are supplied by the LRC Editor companion wrapper; the bundled engine remains unmodified.

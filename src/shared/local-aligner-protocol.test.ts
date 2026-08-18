@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+    alignerCacheClearRequestType,
+    alignerCancelRequestType,
     alignerChunkRequestType,
     alignerResultRequestType,
+    alignerServiceStopRequestType,
     alignerStartRequestType,
     isLocalAlignerBaseUrl,
     isLocalAlignerRequest,
@@ -12,6 +15,7 @@ describe("local aligner protocol", () => {
         expect(isLocalAlignerRequest({
             type: alignerStartRequestType,
             requestId: "request-123",
+            uploadId: "12345678-1234-1234-1234-123456789abc",
             audioName: "song.flac",
             audioType: "audio/flac",
             audioSize: 4,
@@ -20,6 +24,7 @@ describe("local aligner protocol", () => {
             bypassCache: false,
             preserveBlankLines: true,
             wordTimingBeta: false,
+            useGpuAcceleration: true,
         })).toBe(true);
         expect(isLocalAlignerRequest({
             type: alignerChunkRequestType,
@@ -27,6 +32,28 @@ describe("local aligner protocol", () => {
             uploadId: "12345678-1234-1234-1234-123456789abc",
             index: 0,
             data: "AQIDBA==",
+        })).toBe(true);
+    });
+
+    it("accepts scoped upload, job, service, and cache controls", () => {
+        expect(isLocalAlignerRequest({
+            type: alignerCancelRequestType,
+            requestId: "request-upload-cancel",
+            uploadId: "12345678-1234-1234-1234-123456789abc",
+        })).toBe(true);
+        expect(isLocalAlignerRequest({
+            type: alignerCancelRequestType,
+            requestId: "request-job-cancel",
+            baseUrl: "http://127.0.0.1:8765/",
+            jobId: "0123456789abcdef0123456789abcdef",
+        })).toBe(true);
+        expect(isLocalAlignerRequest({
+            type: alignerServiceStopRequestType,
+            requestId: "request-service-stop",
+        })).toBe(true);
+        expect(isLocalAlignerRequest({
+            type: alignerCacheClearRequestType,
+            requestId: "request-cache-clear",
         })).toBe(true);
     });
 

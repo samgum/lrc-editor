@@ -11,6 +11,10 @@ const alignerRequestTypes = new Set([
     "LRC_EDITOR_ALIGNER_COMMIT",
     "LRC_EDITOR_ALIGNER_STATUS",
     "LRC_EDITOR_ALIGNER_RESULT_REQUEST",
+    "LRC_EDITOR_ALIGNER_CLEANUP",
+    "LRC_EDITOR_ALIGNER_CANCEL",
+    "LRC_EDITOR_ALIGNER_SERVICE_STOP",
+    "LRC_EDITOR_ALIGNER_CACHE_CLEAR",
 ]);
 
 window.addEventListener("message", (event: MessageEvent<unknown>) => {

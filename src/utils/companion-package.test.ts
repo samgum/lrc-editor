@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const companionRoot = resolve("companion");
+const engineRoot = resolve("companion", "engine");
 
 describe("local AI companion package", () => {
     it("ships a self-contained Windows installer and launcher", () => {
@@ -15,6 +16,8 @@ describe("local AI companion package", () => {
                 "install-ai-aligner.sh",
                 "start-ai-aligner.sh",
                 "install-ai-aligner.command",
+                "resolve-ai-aligner-install.ps1",
+                "resolve-ai-aligner-install.sh",
                 "start-ai-aligner.command",
                 "stop-ai-aligner.ps1",
                 "stop-ai-aligner.cmd",
@@ -51,6 +54,19 @@ describe("local AI companion package", () => {
         expect(installer).toContain("python install 3.11 --install-dir \"$python_root\" --managed-python");
     });
 
+    it("resolves installations from downloaded launchers", () => {
+        const unixResolver = readFileSync(resolve(companionRoot, "resolve-ai-aligner-install.sh"), "utf8");
+        const windowsResolver = readFileSync(resolve(companionRoot, "resolve-ai-aligner-install.ps1"), "utf8");
+        const unixInstaller = readFileSync(resolve(companionRoot, "install-ai-aligner.sh"), "utf8");
+        const windowsInstaller = readFileSync(resolve(companionRoot, "install-ai-aligner.ps1"), "utf8");
+        for (const resolver of [unixResolver, windowsResolver]) {
+            expect(resolver).toContain("install-location.txt");
+            expect(resolver).toContain("install-state.json");
+        }
+        expect(unixInstaller).toContain("lrc_ai_location_registry");
+        expect(windowsInstaller).toContain("ai-aligner-location.txt");
+    });
+
     it("ships operating-system-specific guides and lifecycle commands", () => {
         const macGuide = readFileSync(resolve(companionRoot, "INSTALL-macOS.txt"), "utf8");
         const windowsGuide = readFileSync(resolve(companionRoot, "INSTALL.txt"), "utf8");
@@ -75,6 +91,8 @@ describe("local AI companion package", () => {
         const installer = readFileSync(resolve(companionRoot, "install-ai-aligner.ps1"), "utf8");
         expect(installer).toContain("LRC Editor\\AI Aligner");
         expect(installer).toContain("4898a3cbc569349c5db87bbc931c9d6fa124d64d");
+        expect(installer).toContain("Install-BundledEngine");
+        expect(installer).not.toContain("github.com/samgum/lyrics-forced-aligner");
         expect(installer).toContain("Join-Path $resolvedInstallRoot \"models\"");
         expect(installer).toContain("Join-Path $resolvedInstallRoot \"runtime\"");
         expect(installer).toContain("Read-Host \"Choose installation location [1/2/3]\"");
@@ -85,11 +103,38 @@ describe("local AI companion package", () => {
         expect(installer).toContain("\"cache\", \"clean\"");
     });
 
+    it("bundles only the pinned runtime engine without private repository history", () => {
+        expect(readFileSync(resolve(engineRoot, "ENGINE_REVISION"), "utf8").trim()).toBe(
+            "4898a3cbc569349c5db87bbc931c9d6fa124d64d",
+        );
+        for (
+            const path of [
+                "pyproject.toml",
+                "README.md",
+                "README-zh.md",
+                "LICENSE",
+                "src/lyrics_aligner/server.py",
+                "web/index.html",
+            ]
+        ) {
+            expect(existsSync(resolve(engineRoot, path))).toBe(true);
+        }
+        for (const path of [".git", "tests", "training", "benchmarks", "runtime", ".cache"]) {
+            expect(existsSync(resolve(engineRoot, path))).toBe(false);
+        }
+        const unixInstaller = readFileSync(resolve(companionRoot, "install-ai-aligner.sh"), "utf8");
+        expect(unixInstaller).toContain("bundled_engine_root");
+        expect(unixInstaller).not.toContain("git clone");
+    });
+
     it("runs the LRC Editor wrapper and exposes task cache cleanup", () => {
         const wrapper = readFileSync(resolve(companionRoot, "lrc_editor_companion_server.py"), "utf8");
         const windowsLauncher = readFileSync(resolve(companionRoot, "start-ai-aligner.ps1"), "utf8");
         const unixLauncher = readFileSync(resolve(companionRoot, "start-ai-aligner.sh"), "utf8");
         expect(wrapper).toContain("@app.delete(\"/api/jobs/{job_id}/cache\")");
+        expect(wrapper).toContain("@app.post(\"/api/lrc-editor/jobs/{job_id}/cancel\")");
+        expect(wrapper).toContain("@app.delete(\"/api/lrc-editor/cache\")");
+        expect(wrapper).toContain("@app.post(\"/api/lrc-editor/service/stop\")");
         expect(wrapper).toContain("reclaimed_bytes");
         expect(wrapper).toContain("service.pid");
         expect(windowsLauncher).toContain("-m lrc_editor_companion_server");

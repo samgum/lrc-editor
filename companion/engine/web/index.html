@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="本地多语言歌词强制对齐：音频或视频加文字稿，输出 LRC 与 SRT。"
+    />
+    <title>歌词轴 · Local Aligner</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-a"></div>
+    <div class="ambient ambient-b"></div>
+
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="歌词轴首页">
+        <span class="brand-mark">轴</span>
+        <span>
+          <strong>歌词轴</strong>
+          <small>Local Forced Aligner</small>
+        </span>
+      </a>
+      <div class="top-pills">
+        <span class="pill"><i class="status-dot"></i> 本机运行</span>
+        <span class="pill">无需 API Key</span>
+        <span class="pill">最长 15 分钟</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+          <p class="eyebrow">SINGING ALIGNMENT · MULTILINGUAL</p>
+        <h1>把正确的歌词，<br /><span>落到正确的声音上。</span></h1>
+        <p class="lede">
+          拖入音频或视频，再给出 TXT、LRC、SRT 文字稿。已有 LRC
+          时间轴会被清理，不参与对齐；正文、行序、大小写和标点保持原样。
+        </p>
+      </section>
+
+      <section class="workspace">
+        <div class="panel input-panel">
+          <div class="panel-heading">
+            <div>
+              <span class="step-number">01</span>
+              <h2>放入素材</h2>
+            </div>
+            <span class="muted">音频流由 FFmpeg 自动提取</span>
+          </div>
+
+          <div
+            id="audioDrop"
+            class="drop-zone audio-zone"
+            tabindex="0"
+            role="button"
+            aria-label="选择音频或视频"
+          >
+            <input
+              id="audioInput"
+              type="file"
+              accept="audio/*,video/*,.m4a,.flac,.wav,.mp3,.aac,.ogg,.mp4,.mkv,.mov,.webm"
+              hidden
+            />
+            <div class="drop-icon" aria-hidden="true">
+              <svg viewBox="0 0 32 32">
+                <path d="M9 24V8.6L23 6v15.4" />
+                <circle cx="6.5" cy="24.5" r="3.5" />
+                <circle cx="20.5" cy="21.5" r="3.5" />
+              </svg>
+            </div>
+            <div class="file-copy">
+              <strong id="audioTitle">拖入音频或视频</strong>
+              <p id="audioMeta">M4A、FLAC、WAV、MP3、MP4、MKV 等</p>
+            </div>
+            <button type="button" class="ghost-button">选择文件</button>
+          </div>
+
+          <div class="transcript-block">
+            <div class="field-label">
+              <span>文字稿</span>
+              <div class="segmented" role="tablist">
+                <button
+                  id="fileTab"
+                  type="button"
+                  class="active"
+                  role="tab"
+                  aria-selected="true"
+                >
+                  文件
+                </button>
+                <button
+                  id="pasteTab"
+                  type="button"
+                  role="tab"
+                  aria-selected="false"
+                >
+                  粘贴
+                </button>
+              </div>
+            </div>
+
+            <div
+              id="lyricsDrop"
+              class="drop-zone compact"
+              tabindex="0"
+              role="button"
+              aria-label="选择文字稿"
+            >
+              <input
+                id="lyricsInput"
+                type="file"
+                accept=".txt,.lrc,.srt,text/plain"
+                hidden
+              />
+              <div class="file-copy">
+                <strong id="lyricsTitle">拖入 TXT / LRC / SRT</strong>
+                <p id="lyricsMeta">自动去掉行首 LRC 轴、逐字轴和元数据</p>
+              </div>
+              <button type="button" class="ghost-button small">选择文件</button>
+            </div>
+
+            <textarea
+              id="lyricsText"
+              class="lyrics-text hidden"
+              rows="8"
+              placeholder="在这里粘贴歌词；一行对应一行字幕……"
+            ></textarea>
+          </div>
+
+          <div class="option-row">
+            <div>
+              <strong>无损人声分离</strong>
+              <p>推荐开启；重复副歌和伴奏较强时提升明显</p>
+            </div>
+            <label class="switch">
+              <input id="separateToggle" type="checkbox" checked />
+              <span></span>
+            </label>
+          </div>
+
+          <div class="option-row cache-bypass-row">
+            <div>
+              <strong>本次不使用缓存</strong>
+              <p id="cacheBypassHint">
+                重新分离与识别；不会删除已有缓存，模型文件仍会保留
+              </p>
+            </div>
+            <label class="switch">
+              <input
+                id="cacheBypassToggle"
+                type="checkbox"
+                aria-describedby="cacheBypassHint"
+              />
+              <span></span>
+            </label>
+          </div>
+
+          <div class="option-row">
+            <div>
+              <strong>保留歌词段落空行</strong>
+              <p id="preserveBlankLinesHint">
+                默认开启；导出带独立时间轴的空正文行，连续空行折叠为一个
+              </p>
+            </div>
+            <label class="switch">
+              <input
+                id="preserveBlankLinesToggle"
+                type="checkbox"
+                aria-describedby="preserveBlankLinesHint"
+                checked
+              />
+              <span></span>
+            </label>
+          </div>
+
+          <div class="option-row">
+            <div>
+              <strong>逐字时间轴 Beta</strong>
+              <p id="wordTimingBetaHint">
+                默认关闭；用 Qwen3-ForcedAligner 添加真实词轴，不会改动逐行起点
+              </p>
+            </div>
+            <label class="switch">
+              <input
+                id="wordTimingBetaToggle"
+                type="checkbox"
+                aria-describedby="wordTimingBetaHint"
+              />
+              <span></span>
+            </label>
+          </div>
+
+          <div class="pipeline-note">
+            <span class="note-icon">i</span>
+            <p>
+              默认流程：Demucs 人声轨 → Whisper 多语言粗锚点 →
+              全局连续片段匹配 → 人声起音复核 → 重复段与长静音修复。
+              GPU 任务一次只跑一个。
+            </p>
+          </div>
+
+          <button id="submitButton" class="primary-button" type="button">
+            <span>开始强制对齐</span>
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M4 10h12M11 5l5 5-5 5" />
+            </svg>
+          </button>
+          <p id="formError" class="form-error" role="alert"></p>
+        </div>
+
+        <div class="panel process-panel">
+          <div class="panel-heading">
+            <div>
+              <span class="step-number">02</span>
+              <h2>处理状态</h2>
+            </div>
+            <span id="queueBadge" class="queue-badge">等待素材</span>
+          </div>
+
+          <div id="idleState" class="idle-state">
+            <div class="waveform" aria-hidden="true">
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            </div>
+            <h3>结果会出现在这里</h3>
+            <p>
+              首次运行需要下载模型；同一素材的分离轨、分析 WAV
+              与各语言识别结果都会持久复用。
+            </p>
+          </div>
+
+          <div id="runningState" class="running-state hidden">
+            <div class="progress-orbit">
+              <svg viewBox="0 0 120 120">
+                <circle class="orbit-track" cx="60" cy="60" r="52" />
+                <circle id="orbitValue" class="orbit-value" cx="60" cy="60" r="52" />
+              </svg>
+              <div>
+                <strong id="progressValue">0%</strong>
+                <span id="stageLabel">准备中</span>
+              </div>
+            </div>
+            <h3 id="progressDetail">正在准备任务</h3>
+            <p id="progressHint">请保持这个页面打开，后台任务不会并行抢占显存。</p>
+            <div class="stage-list">
+              <div data-stage="prepare"><i></i><span>清理与转码</span></div>
+              <div data-stage="separate"><i></i><span>分离人声</span></div>
+              <div data-stage="recognize"><i></i><span>生成粗锚点</span></div>
+              <div data-stage="merge"><i></i><span>多语言合并</span></div>
+              <div data-stage="word-align"><i></i><span>逐字 Beta</span></div>
+              <div data-stage="done"><i></i><span>导出字幕</span></div>
+            </div>
+          </div>
+
+          <div id="failedState" class="failed-state hidden">
+            <div class="failure-icon">!</div>
+            <h3>这次没有完成</h3>
+            <p id="failureText">任务失败，请检查输入。</p>
+            <button id="retryButton" type="button" class="ghost-button">
+              返回修改
+            </button>
+          </div>
+
+          <div id="resultState" class="result-state hidden">
+            <div class="result-title">
+              <div class="success-icon">✓</div>
+              <div>
+                <h3>歌词轴已经生成</h3>
+                <p id="resultSummary"></p>
+              </div>
+            </div>
+
+            <div id="downloadGrid" class="download-grid"></div>
+
+            <div class="quality-strip">
+              <div>
+                <span>识别语言 pass</span>
+                <strong id="languagePasses">—</strong>
+              </div>
+              <div>
+                <span>低置信度行</span>
+                <strong id="lowConfidence">—</strong>
+              </div>
+              <div>
+                <span>总耗时</span>
+                <strong id="elapsedTime">—</strong>
+              </div>
+            </div>
+
+            <div class="preview-heading">
+              <h4>行级预览</h4>
+              <span>最多显示前 200 行</span>
+            </div>
+            <div class="preview-table-wrap">
+              <table class="preview-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>时间</th>
+                    <th>歌词</th>
+                    <th>语言</th>
+                  </tr>
+                </thead>
+                <tbody id="previewBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span>输出 UTF-8 · LRC 两位格式按截断生成</span>
+      <span>输入参考轴不会参与模型对齐</span>
+    </footer>
+
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>

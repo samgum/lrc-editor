@@ -8,7 +8,6 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$engineRepository = "https://github.com/samgum/lyrics-forced-aligner.git"
 $engineRevision = "4898a3cbc569349c5db87bbc931c9d6fa124d64d"
 
 if ($env:OS -ne "Windows_NT") {
@@ -153,6 +152,62 @@ function Ensure-Junction {
     New-Item -ItemType Junction -Path $Path -Target $Target | Out-Null
 }
 
+function Install-BundledEngine {
+    $bundleRoot = Join-Path $PSScriptRoot "engine"
+    $bundleRoot = [System.IO.Path]::GetFullPath($bundleRoot)
+    $bundleRevisionPath = Join-Path $bundleRoot "ENGINE_REVISION"
+    if (-not (Test-Path -LiteralPath $bundleRevisionPath) -or
+        -not (Test-Path -LiteralPath (Join-Path $bundleRoot "src\lyrics_aligner\server.py")) -or
+        -not (Test-Path -LiteralPath (Join-Path $bundleRoot "pyproject.toml"))) {
+        throw "The verified engine bundle is missing or incomplete. Download the complete AI aligner package again."
+    }
+    $bundleRevision = (Get-Content -LiteralPath $bundleRevisionPath -Raw).Trim()
+    if ($bundleRevision -ne $engineRevision) {
+        throw "The bundled aligner revision could not be verified."
+    }
+
+    $resolvedEngineRoot = [System.IO.Path]::GetFullPath($engineRoot)
+    $installPrefix = $resolvedInstallRoot.TrimEnd([System.IO.Path]::DirectorySeparatorChar) +
+        [System.IO.Path]::DirectorySeparatorChar
+    if (-not $resolvedEngineRoot.StartsWith($installPrefix, [System.StringComparison]::OrdinalIgnoreCase) -or
+        $resolvedEngineRoot -eq $bundleRoot) {
+        throw "The managed engine destination is unsafe. Choose a different installation directory."
+    }
+
+    if (Test-Path -LiteralPath $resolvedEngineRoot) {
+        $knownInstall = (Test-Path -LiteralPath (Join-Path $resolvedEngineRoot ".git")) -or
+            (Test-Path -LiteralPath (Join-Path $resolvedEngineRoot "ENGINE_REVISION")) -or
+            @(Get-ChildItem -LiteralPath $resolvedEngineRoot -Force).Count -eq 0
+        if (-not $knownInstall) {
+            throw "$resolvedEngineRoot contains files that were not created by the LRC Editor installer."
+        }
+        foreach ($managedLink in @(
+            @{ Path = (Join-Path $resolvedEngineRoot ".cache"); Target = $modelRoot },
+            @{ Path = (Join-Path $resolvedEngineRoot "runtime"); Target = $runtimeRoot }
+        )) {
+            if (-not (Test-Path -LiteralPath $managedLink.Path)) {
+                continue
+            }
+            $item = Get-Item -LiteralPath $managedLink.Path -Force
+            $linkTarget = $item.Target | Select-Object -First 1
+            $expectedLink = ($item.LinkType -eq "Junction" -or $item.LinkType -eq "SymbolicLink") -and
+                -not [string]::IsNullOrWhiteSpace([string]$linkTarget) -and
+                [System.IO.Path]::GetFullPath([string]$linkTarget) -eq [System.IO.Path]::GetFullPath($managedLink.Target)
+            if (-not $expectedLink) {
+                throw "$($managedLink.Path) is not the expected managed link; it will not be removed."
+            }
+            Remove-Item -LiteralPath $managedLink.Path -Force
+        }
+        Remove-Item -LiteralPath $resolvedEngineRoot -Recurse -Force
+    }
+
+    New-Item -ItemType Directory -Path $resolvedEngineRoot -Force | Out-Null
+    foreach ($entry in Get-ChildItem -LiteralPath $bundleRoot -Force) {
+        Copy-Item -LiteralPath $entry.FullName -Destination $resolvedEngineRoot -Recurse -Force
+    }
+    return $bundleRevision
+}
+
 function Add-PrivateNvidiaRuntimePath {
     $sitePackages = Join-Path $environmentRoot "Lib\site-packages\nvidia"
     $privatePaths = @(
@@ -268,7 +323,6 @@ Write-Host "LRC Editor AI Aligner" -ForegroundColor Magenta
 Write-Host "Install directory: $resolvedInstallRoot"
 Write-Host "Model directory:   $modelRoot"
 
-$git = Resolve-CommandWithPackage -CommandName "git" -PackageId "Git.Git"
 $uv = Resolve-CommandWithPackage -CommandName "uv" -PackageId "astral-sh.uv"
 $ffmpeg = Resolve-CommandWithPackage -CommandName "ffmpeg" -PackageId "Gyan.FFmpeg"
 $ffmpegDirectory = Split-Path -Parent $ffmpeg
@@ -277,30 +331,8 @@ if (Test-Path -LiteralPath (Join-Path $ffmpegDirectory "ffprobe.exe")) {
 }
 $null = Resolve-CommandWithPackage -CommandName "ffprobe" -PackageId "Gyan.FFmpeg"
 
-if (Test-Path -LiteralPath (Join-Path $engineRoot ".git")) {
-    Write-Host "Updating the installed engine source..." -ForegroundColor Cyan
-    Invoke-Checked -FilePath $git -Arguments @("-C", $engineRoot, "fetch", "--depth", "1", "origin", $engineRevision) `
-        -FailureMessage "Unable to fetch the verified aligner revision"
-} else {
-    if (Test-Path -LiteralPath $engineRoot) {
-        $engineEntries = @(Get-ChildItem -LiteralPath $engineRoot -Force)
-        if ($engineEntries.Count -ne 0) {
-            throw "$engineRoot exists but is not an aligner Git checkout."
-        }
-    }
-    Write-Host "Downloading the verified alignment engine..." -ForegroundColor Cyan
-    Invoke-Checked -FilePath $git -Arguments @(
-        "clone", "--filter=blob:none", "--no-checkout", $engineRepository, $engineRoot
-    ) -FailureMessage "Unable to download the alignment engine"
-    Invoke-Checked -FilePath $git -Arguments @("-C", $engineRoot, "fetch", "--depth", "1", "origin", $engineRevision) `
-        -FailureMessage "Unable to fetch the verified aligner revision"
-}
-Invoke-Checked -FilePath $git -Arguments @("-C", $engineRoot, "checkout", "--detach", $engineRevision) `
-    -FailureMessage "Unable to select the verified aligner revision"
-$installedRevision = (& $git -C $engineRoot rev-parse HEAD).Trim()
-if ($LASTEXITCODE -ne 0 -or $installedRevision -ne $engineRevision) {
-    throw "The installed aligner revision could not be verified."
-}
+Write-Host "Installing the verified bundled alignment engine..." -ForegroundColor Cyan
+$installedRevision = Install-BundledEngine
 
 Ensure-Junction -Path (Join-Path $engineRoot ".cache") -Target $modelRoot
 Ensure-Junction -Path (Join-Path $engineRoot "runtime") -Target $runtimeRoot
@@ -496,6 +528,7 @@ Invoke-Checked -FilePath $venvPython -Arguments @("-c", $verificationCode) `
 foreach ($fileName in @(
     "install-ai-aligner.cmd",
     "install-ai-aligner.ps1",
+    "resolve-ai-aligner-install.ps1",
     "ai-constraints.txt",
     "lrc_editor_companion_server.py",
     "start-ai-aligner.ps1",
@@ -539,6 +572,20 @@ $state = [ordered]@{
     expectedInstalledSize = $expectedInstalled
 }
 $state | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $resolvedInstallRoot "install-state.json") -Encoding UTF8
+
+foreach ($locationFile in @(
+    (Join-Path $resolvedInstallRoot "install-location.txt"),
+    (Join-Path $PSScriptRoot "install-location.txt"),
+    (Join-Path $env:LOCALAPPDATA "LRC Editor\ai-aligner-location.txt")
+)) {
+    try {
+        $locationDirectory = Split-Path -Parent $locationFile
+        New-Item -ItemType Directory -Path $locationDirectory -Force | Out-Null
+        Set-Content -LiteralPath $locationFile -Value $resolvedInstallRoot -Encoding UTF8
+    } catch {
+        Write-Warning "Unable to record the install location in $locationFile"
+    }
+}
 
 Write-Host "Cleaning rebuildable package download cache..." -ForegroundColor Cyan
 Invoke-Checked -FilePath $uv -Arguments @("cache", "clean") -FailureMessage "Unable to clean the package cache"

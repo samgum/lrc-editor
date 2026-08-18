@@ -1,10 +1,12 @@
 import STRINGS from "#const/strings.json" assert { type: "json" };
 import { convertTimeToTag, formatText } from "@lrc-maker/lrc-parser";
-import { useCallback, useContext, useEffect, useMemo, useRef } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { themeColor, ThemeMode } from "../hooks/usePref.js";
+import { clearLocalAiCache, stopLocalAiService } from "../utils/local-ai-alignment.js";
 import { unregister } from "../utils/sw.unregister.js";
 import { AboutDialog } from "./about.js";
 import { appContext, ChangBits } from "./app.context.js";
+import { toastPubSub } from "./toast.js";
 
 const numberInputProps = { type: "number", step: 1 } as const;
 
@@ -48,6 +50,10 @@ const useNumberInput: IUseNumberInput = (defaultValue: number, onChange) => {
 const langMap = i18n.langMap;
 export const Preferences: React.FC = () => {
     const { prefState, prefDispatch, lang } = useContext(appContext, ChangBits.lang | ChangBits.prefState);
+    const serviceStopDialog = useRef<HTMLDialogElement>(null);
+    const aiCacheDialog = useRef<HTMLDialogElement>(null);
+    const [serviceStopping, setServiceStopping] = useState(false);
+    const [aiCacheClearing, setAiCacheClearing] = useState(false);
 
     const onColorPick = useCallback(
         (ev: React.ChangeEvent<HTMLInputElement>) => {
@@ -119,8 +125,10 @@ export const Preferences: React.FC = () => {
     );
 
     const onCacheClear = useCallback(() => {
-        void unregister();
-    }, []);
+        void unregister().catch(() => {
+            toastPubSub.pub({ type: "warning", text: lang.notify.websiteCacheClearFailed });
+        });
+    }, [lang.notify.websiteCacheClearFailed]);
 
     const onSeekStepChange = useCallback(
         (ev: React.ChangeEvent<HTMLInputElement>) => {
@@ -183,6 +191,41 @@ export const Preferences: React.FC = () => {
         () => prefDispatch({ type: "keepAiTaskCache", payload: (state) => !state.keepAiTaskCache }),
         [prefDispatch],
     );
+
+    const onAiGpuAccelerationToggle = useCallback(
+        () => prefDispatch({ type: "aiGpuAcceleration", payload: (state) => !state.aiGpuAcceleration }),
+        [prefDispatch],
+    );
+
+    const onStopAiService = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (serviceStopping) return;
+        setServiceStopping(true);
+        try {
+            await stopLocalAiService();
+            serviceStopDialog.current?.close();
+            toastPubSub.pub({ type: "success", text: lang.notify.aiServiceStopped });
+        } catch {
+            toastPubSub.pub({ type: "warning", text: lang.notify.aiServiceStopFailed });
+        } finally {
+            setServiceStopping(false);
+        }
+    }, [lang.notify, serviceStopping]);
+
+    const onClearAiCache = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (aiCacheClearing) return;
+        setAiCacheClearing(true);
+        try {
+            await clearLocalAiCache();
+            aiCacheDialog.current?.close();
+            toastPubSub.pub({ type: "success", text: lang.notify.aiCacheCleared });
+        } catch {
+            toastPubSub.pub({ type: "warning", text: lang.notify.aiCacheClearFailed });
+        } finally {
+            setAiCacheClearing(false);
+        }
+    }, [aiCacheClearing, lang.notify]);
 
     const onScreenButtonToggle = useCallback(
         () =>
@@ -369,6 +412,20 @@ export const Preferences: React.FC = () => {
                 </li>
                 <li>
                     <label className="list-item">
+                        <span>{lang.preferences.aiGpuAcceleration}</span>
+                        <label className="toggle-switch">
+                            <input
+                                type="checkbox"
+                                checked={prefState.aiGpuAcceleration}
+                                onChange={onAiGpuAccelerationToggle}
+                                aria-label={lang.preferences.aiGpuAcceleration}
+                            />
+                            <span className="toggle-switch-label" />
+                        </label>
+                    </label>
+                </li>
+                <li>
+                    <label className="list-item">
                         <span>{lang.preferences.keepAiTaskCache}</span>
                         <label className="toggle-switch">
                             <input
@@ -380,6 +437,24 @@ export const Preferences: React.FC = () => {
                             <span className="toggle-switch-label" />
                         </label>
                     </label>
+                </li>
+                <li className="ripple">
+                    <button
+                        className="list-item preferences-button"
+                        type="button"
+                        onClick={() => aiCacheDialog.current?.showModal()}
+                    >
+                        {lang.preferences.aiClearCache}
+                    </button>
+                </li>
+                <li className="ripple">
+                    <button
+                        className="list-item preferences-button"
+                        type="button"
+                        onClick={() => serviceStopDialog.current?.showModal()}
+                    >
+                        {lang.preferences.aiStopService}
+                    </button>
                 </li>
                 <li>
                     <section className="list-item">
@@ -537,6 +612,44 @@ export const Preferences: React.FC = () => {
                     </button>
                 </li>
             </ul>
+            <dialog className="about-dialog service-stop-dialog" ref={aiCacheDialog}>
+                <article>
+                    <h2>{lang.preferences.aiClearCacheTitle}</h2>
+                    <p>{lang.preferences.aiClearCacheConfirm}</p>
+                    <form onSubmit={onClearAiCache}>
+                        <button
+                            type="button"
+                            className="button service-stop-cancel"
+                            disabled={aiCacheClearing}
+                            onClick={() => aiCacheDialog.current?.close()}
+                        >
+                            {lang.preferences.aiStopServiceCancel}
+                        </button>
+                        <button type="submit" className="button" disabled={aiCacheClearing}>
+                            {lang.preferences.aiClearCacheAction}
+                        </button>
+                    </form>
+                </article>
+            </dialog>
+            <dialog className="about-dialog service-stop-dialog" ref={serviceStopDialog}>
+                <article>
+                    <h2>{lang.preferences.aiStopServiceTitle}</h2>
+                    <p>{lang.preferences.aiStopServiceConfirm}</p>
+                    <form onSubmit={onStopAiService}>
+                        <button
+                            type="button"
+                            className="button service-stop-cancel"
+                            disabled={serviceStopping}
+                            onClick={() => serviceStopDialog.current?.close()}
+                        >
+                            {lang.preferences.aiStopServiceCancel}
+                        </button>
+                        <button type="submit" className="button" disabled={serviceStopping}>
+                            {lang.preferences.aiStopServiceAction}
+                        </button>
+                    </form>
+                </article>
+            </dialog>
             <AboutDialog dialogRef={aboutDialog} lang={lang} />
         </div>
     );

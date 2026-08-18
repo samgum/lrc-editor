@@ -1,4 +1,8 @@
 import {
+    type AlignerCacheClearRequest,
+    alignerCacheClearRequestType,
+    type AlignerCancelRequest,
+    alignerCancelRequestType,
     type AlignerChunkRequest,
     alignerChunkRequestType,
     type AlignerCleanupRequest,
@@ -8,6 +12,8 @@ import {
     alignerResponseType,
     type AlignerResultRequest,
     alignerResultRequestType,
+    type AlignerServiceStopRequest,
+    alignerServiceStopRequestType,
     type AlignerStartRequest,
     alignerStartRequestType,
     type AlignerStatusRequest,
@@ -21,14 +27,17 @@ import {
 import { mediaExtensionAckType } from "../shared/media-extension-protocol.js";
 
 export class LocalAiAlignmentError extends Error {
-    constructor(readonly code: "missing" | "outdated" | "not-running" | "busy" | "failed", message: string) {
+    constructor(
+        readonly code: "missing" | "outdated" | "not-running" | "busy" | "cancelled" | "failed",
+        message: string,
+    ) {
         super(message);
         this.name = LocalAiAlignmentError.name;
     }
 }
 
 export interface LocalAlignmentProgress {
-    phase: "connecting" | "uploading" | "queued" | "running" | "cleaning" | "complete";
+    phase: "connecting" | "uploading" | "queued" | "running" | "stopping" | "stopped" | "cleaning" | "complete";
     progress: number;
     detail?: string;
     remainingSeconds?: number;
@@ -40,6 +49,8 @@ export interface LocalAlignmentOptions {
     transcript: string;
     precision: 2 | 3;
     keepTaskCache: boolean;
+    useGpuAcceleration: boolean;
+    signal?: AbortSignal;
     onProgress?: (progress: LocalAlignmentProgress) => void;
 }
 
@@ -49,127 +60,216 @@ export interface LocalAlignmentResult {
     reclaimedBytes?: number;
 }
 
-const minimumAlignerExtensionVersion = [0, 4, 2] as const;
+const minimumAlignerExtensionVersion = [0, 4, 5] as const;
 
 export const runLocalAiAlignment = async (options: LocalAlignmentOptions): Promise<LocalAlignmentResult> => {
+    throwIfCancelled(options.signal);
     if (options.audio.size <= 0 || options.audio.size > localAlignerMaxAudioBytes) {
         throw new LocalAiAlignmentError("failed", "The loaded media size is not supported for local alignment");
     }
-    options.onProgress?.({ phase: "connecting", progress: 0.01 });
-    const startPayload = await requestAligner(
-        {
-            type: alignerStartRequestType,
-            requestId: crypto.randomUUID(),
-            audioName: options.audioName,
-            audioType: options.audio.type || "application/octet-stream",
-            audioSize: options.audio.size,
-            transcript: options.transcript,
-            separate: true,
-            bypassCache: !options.keepTaskCache,
-            preserveBlankLines: true,
-            wordTimingBeta: false,
-        } satisfies AlignerStartRequest,
-        8_000,
-    );
-    if (startPayload.kind !== "start") throw new LocalAiAlignmentError("failed", "Invalid aligner start response");
-
-    const totalChunks = Math.ceil(options.audio.size / startPayload.chunkSize);
-    for (let index = 0; index < totalChunks; index += 1) {
-        const start = index * startPayload.chunkSize;
-        const chunk = options.audio.slice(start, Math.min(start + startPayload.chunkSize, options.audio.size));
-        const payload = await requestAligner(
-            {
-                type: alignerChunkRequestType,
-                requestId: crypto.randomUUID(),
-                uploadId: startPayload.uploadId,
-                index,
-                data: encodeBase64(new Uint8Array(await chunk.arrayBuffer())),
-            } satisfies AlignerChunkRequest,
-            15_000,
-        );
-        if (payload.kind !== "chunk") throw new LocalAiAlignmentError("failed", "Invalid aligner upload response");
-        options.onProgress?.({
-            phase: "uploading",
-            progress: Math.min(0.15, 0.02 + 0.13 * payload.received / options.audio.size),
-        });
-    }
-
-    const commitPayload = await requestAligner(
-        {
-            type: alignerCommitRequestType,
-            requestId: crypto.randomUUID(),
-            uploadId: startPayload.uploadId,
-        } satisfies AlignerCommitRequest,
-        120_000,
-    );
-    if (commitPayload.kind !== "job") throw new LocalAiAlignmentError("failed", "Invalid aligner job response");
-
-    let job = commitPayload.job;
-    const etaEstimator = new ProgressEtaEstimator();
-    while (job.status === "queued" || job.status === "running") {
-        reportJob(job, etaEstimator, options.onProgress);
-        await new Promise((resolve) => setTimeout(resolve, 900));
-        const statusPayload = await requestAligner(
-            {
-                type: alignerStatusRequestType,
-                requestId: crypto.randomUUID(),
-                baseUrl: commitPayload.baseUrl,
-                jobId: job.id,
-            } satisfies AlignerStatusRequest,
-            15_000,
-        );
-        if (statusPayload.kind !== "job") throw new LocalAiAlignmentError("failed", "Invalid aligner status response");
-        job = statusPayload.job;
-    }
-    if (job.status !== "complete") {
-        throw new LocalAiAlignmentError("failed", job.error || "Local alignment failed");
-    }
-    options.onProgress?.({ phase: "complete", progress: 0.99, detail: job.detail });
-
-    const resultPayload = await requestAligner(
-        {
-            type: alignerResultRequestType,
-            requestId: crypto.randomUUID(),
-            baseUrl: commitPayload.baseUrl,
-            jobId: job.id,
-            precision: options.precision,
-        } satisfies AlignerResultRequest,
-        15_000,
-    );
-    if (resultPayload.kind !== "result" || !resultPayload.lrc.trim()) {
-        throw new LocalAiAlignmentError("failed", "Aligned LRC was empty");
-    }
-
-    if (options.keepTaskCache) {
-        options.onProgress?.({ phase: "complete", progress: 1, detail: job.detail });
-        return { lrc: resultPayload.lrc, cacheCleanup: "kept" };
-    }
-
-    options.onProgress?.({ phase: "cleaning", progress: 0.995 });
+    const uploadId = crypto.randomUUID();
+    let activeJob: { baseUrl: string; job: LocalAlignerJob } | undefined;
     try {
-        const cleanupPayload = await requestAligner(
+        options.onProgress?.({ phase: "connecting", progress: 0.01 });
+        const startPayload = await requestAligner(
             {
-                type: alignerCleanupRequestType,
+                type: alignerStartRequestType,
                 requestId: crypto.randomUUID(),
-                baseUrl: commitPayload.baseUrl,
-                jobId: job.id,
-            } satisfies AlignerCleanupRequest,
-            30_000,
+                uploadId,
+                audioName: options.audioName,
+                audioType: options.audio.type || "application/octet-stream",
+                audioSize: options.audio.size,
+                transcript: options.transcript,
+                separate: true,
+                bypassCache: !options.keepTaskCache,
+                preserveBlankLines: true,
+                wordTimingBeta: false,
+                useGpuAcceleration: options.useGpuAcceleration,
+            } satisfies AlignerStartRequest,
+            8_000,
+            options.signal,
         );
-        if (cleanupPayload.kind !== "cleanup") {
-            throw new LocalAiAlignmentError("failed", "Invalid aligner cleanup response");
+        if (startPayload.kind !== "start" || startPayload.uploadId !== uploadId) {
+            throw new LocalAiAlignmentError("failed", "Invalid aligner start response");
         }
-        options.onProgress?.({ phase: "complete", progress: 1, detail: job.detail });
-        return {
-            lrc: resultPayload.lrc,
-            cacheCleanup: "deleted",
-            reclaimedBytes: cleanupPayload.reclaimedBytes,
-        };
-    } catch {
-        options.onProgress?.({ phase: "complete", progress: 1, detail: job.detail });
-        return { lrc: resultPayload.lrc, cacheCleanup: "failed" };
+
+        const totalChunks = Math.ceil(options.audio.size / startPayload.chunkSize);
+        for (let index = 0; index < totalChunks; index += 1) {
+            const start = index * startPayload.chunkSize;
+            const chunk = options.audio.slice(start, Math.min(start + startPayload.chunkSize, options.audio.size));
+            const payload = await requestAligner(
+                {
+                    type: alignerChunkRequestType,
+                    requestId: crypto.randomUUID(),
+                    uploadId,
+                    index,
+                    data: encodeBase64(new Uint8Array(await chunk.arrayBuffer())),
+                } satisfies AlignerChunkRequest,
+                15_000,
+                options.signal,
+            );
+            if (payload.kind !== "chunk") {
+                throw new LocalAiAlignmentError("failed", "Invalid aligner upload response");
+            }
+            options.onProgress?.({
+                phase: "uploading",
+                progress: Math.min(0.15, 0.02 + 0.13 * payload.received / options.audio.size),
+            });
+        }
+
+        const commitPayload = await requestAligner(
+            {
+                type: alignerCommitRequestType,
+                requestId: crypto.randomUUID(),
+                uploadId,
+            } satisfies AlignerCommitRequest,
+            120_000,
+            options.signal,
+        );
+        if (commitPayload.kind !== "job") {
+            throw new LocalAiAlignmentError("failed", "Invalid aligner job response");
+        }
+
+        activeJob = { baseUrl: commitPayload.baseUrl, job: commitPayload.job };
+        const etaEstimator = new ProgressEtaEstimator();
+        while (activeJob.job.status === "queued" || activeJob.job.status === "running") {
+            throwIfCancelled(options.signal);
+            reportJob(activeJob.job, etaEstimator, options.onProgress);
+            await cancellableDelay(900, options.signal);
+            const statusPayload = await requestAligner(
+                {
+                    type: alignerStatusRequestType,
+                    requestId: crypto.randomUUID(),
+                    baseUrl: activeJob.baseUrl,
+                    jobId: activeJob.job.id,
+                } satisfies AlignerStatusRequest,
+                15_000,
+                options.signal,
+            );
+            if (statusPayload.kind !== "job") {
+                throw new LocalAiAlignmentError("failed", "Invalid aligner status response");
+            }
+            activeJob = { baseUrl: statusPayload.baseUrl, job: statusPayload.job };
+        }
+        const job = activeJob.job;
+        if (job.status !== "complete") {
+            throw new LocalAiAlignmentError("failed", job.error || "Local alignment failed");
+        }
+        options.onProgress?.({ phase: "complete", progress: 0.99, detail: job.detail });
+
+        const resultPayload = await requestAligner(
+            {
+                type: alignerResultRequestType,
+                requestId: crypto.randomUUID(),
+                baseUrl: activeJob.baseUrl,
+                jobId: job.id,
+                precision: options.precision,
+            } satisfies AlignerResultRequest,
+            15_000,
+            options.signal,
+        );
+        if (resultPayload.kind !== "result" || !resultPayload.lrc.trim()) {
+            throw new LocalAiAlignmentError("failed", "Aligned LRC was empty");
+        }
+
+        if (options.keepTaskCache) {
+            options.onProgress?.({ phase: "complete", progress: 1, detail: job.detail });
+            return { lrc: resultPayload.lrc, cacheCleanup: "kept" };
+        }
+
+        options.onProgress?.({ phase: "cleaning", progress: 0.995 });
+        try {
+            const cleanupPayload = await requestAligner(
+                {
+                    type: alignerCleanupRequestType,
+                    requestId: crypto.randomUUID(),
+                    baseUrl: activeJob.baseUrl,
+                    jobId: job.id,
+                } satisfies AlignerCleanupRequest,
+                30_000,
+            );
+            if (cleanupPayload.kind !== "cleanup") {
+                throw new LocalAiAlignmentError("failed", "Invalid aligner cleanup response");
+            }
+            options.onProgress?.({ phase: "complete", progress: 1, detail: job.detail });
+            return {
+                lrc: resultPayload.lrc,
+                cacheCleanup: "deleted",
+                reclaimedBytes: cleanupPayload.reclaimedBytes,
+            };
+        } catch {
+            options.onProgress?.({ phase: "complete", progress: 1, detail: job.detail });
+            return { lrc: resultPayload.lrc, cacheCleanup: "failed" };
+        }
+    } catch (error) {
+        if (!options.signal?.aborted) throw error;
+        options.onProgress?.({ phase: "stopping", progress: activeJob?.job.progress || 0 });
+        const cancelRequest: AlignerCancelRequest = activeJob
+            ? {
+                type: alignerCancelRequestType,
+                requestId: crypto.randomUUID(),
+                baseUrl: activeJob.baseUrl,
+                jobId: activeJob.job.id,
+            }
+            : {
+                type: alignerCancelRequestType,
+                requestId: crypto.randomUUID(),
+                uploadId,
+            };
+        await requestAligner(cancelRequest, 15_000).catch(() => undefined);
+        throw new LocalAiAlignmentError("cancelled", "Local alignment stopped by the user");
     }
 };
+
+export const stopLocalAiService = async (): Promise<void> => {
+    const payload = await requestAligner(
+        {
+            type: alignerServiceStopRequestType,
+            requestId: crypto.randomUUID(),
+        } satisfies AlignerServiceStopRequest,
+        8_000,
+    );
+    if (payload.kind !== "service-stop" || !payload.accepted) {
+        throw new LocalAiAlignmentError("failed", "Local AI service could not be stopped");
+    }
+};
+
+export const clearLocalAiCache = async (): Promise<number> => {
+    const payload = await requestAligner(
+        {
+            type: alignerCacheClearRequestType,
+            requestId: crypto.randomUUID(),
+        } satisfies AlignerCacheClearRequest,
+        30_000,
+    );
+    if (payload.kind !== "cache-clear") {
+        throw new LocalAiAlignmentError("failed", "Local AI cache could not be cleared");
+    }
+    return payload.reclaimedBytes;
+};
+
+const throwIfCancelled = (signal?: AbortSignal): void => {
+    if (signal?.aborted) throw new LocalAiAlignmentError("cancelled", "Local alignment stopped by the user");
+};
+
+const cancellableDelay = (timeoutMs: number, signal?: AbortSignal): Promise<void> =>
+    new Promise((resolve, reject) => {
+        if (signal?.aborted) {
+            reject(new LocalAiAlignmentError("cancelled", "Local alignment stopped by the user"));
+            return;
+        }
+        const timeout = window.setTimeout(finish, timeoutMs);
+        const onAbort = (): void => {
+            window.clearTimeout(timeout);
+            signal?.removeEventListener("abort", onAbort);
+            reject(new LocalAiAlignmentError("cancelled", "Local alignment stopped by the user"));
+        };
+        function finish(): void {
+            signal?.removeEventListener("abort", onAbort);
+            resolve();
+        }
+        signal?.addEventListener("abort", onAbort, { once: true });
+    });
 
 const reportJob = (
     job: LocalAlignerJob,
@@ -224,18 +324,25 @@ export class ProgressEtaEstimator {
     }
 }
 
-const requestAligner = (request: LocalAlignerRequest, timeoutMs: number): Promise<LocalAlignerPayload> =>
+const requestAligner = (
+    request: LocalAlignerRequest,
+    timeoutMs: number,
+    signal?: AbortSignal,
+): Promise<LocalAlignerPayload> =>
     new Promise((resolve, reject) => {
+        let extensionTimeout = 0;
         let responseTimeout = 0;
-        const extensionTimeout = window.setTimeout(() => {
-            finish();
-            reject(new LocalAiAlignmentError("missing", "Media Bridge did not respond"));
-        }, 1_500);
 
         const finish = (): void => {
             window.clearTimeout(extensionTimeout);
             window.clearTimeout(responseTimeout);
             window.removeEventListener("message", onMessage);
+            signal?.removeEventListener("abort", onAbort);
+        };
+
+        const onAbort = (): void => {
+            finish();
+            reject(new LocalAiAlignmentError("cancelled", "Local alignment stopped by the user"));
         };
 
         const onMessage = (event: MessageEvent<unknown>): void => {
@@ -267,6 +374,15 @@ const requestAligner = (request: LocalAlignerRequest, timeoutMs: number): Promis
             resolve(event.data.payload);
         };
 
+        if (signal?.aborted) {
+            reject(new LocalAiAlignmentError("cancelled", "Local alignment stopped by the user"));
+            return;
+        }
+        signal?.addEventListener("abort", onAbort, { once: true });
+        extensionTimeout = window.setTimeout(() => {
+            finish();
+            reject(new LocalAiAlignmentError("missing", "Media Bridge did not respond"));
+        }, 1_500);
         window.addEventListener("message", onMessage);
         window.postMessage(request, location.origin);
     });

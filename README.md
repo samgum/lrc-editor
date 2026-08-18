@@ -46,7 +46,7 @@ Chrome installation:
 
 1. Open `chrome://extensions`.
 2. Enable **Developer mode**.
-3. Select **Load unpacked** and choose the extracted `lrc-editor-media-bridge-v0.4.4` directory.
+3. Select **Load unpacked** and choose the extracted `lrc-editor-media-bridge-v0.4.5` directory.
 4. Reload LRC Editor after installing or replacing the extension.
 
 Microsoft Edge uses `edge://extensions` with the same **Developer mode** and **Load unpacked** steps. On Windows, `INSTALL-EXTENSION.cmd` opens the management page and extracted directory but cannot perform the final confirmation.
@@ -64,11 +64,12 @@ The YouTube resolver uses the private InnerTube interface through `youtubei.js`;
 
 AI alignment is disabled by default. The labeled **AI** button remains visible in the editor; clicking it enables the feature and starts the requested alignment. Before that click, the page does not probe local ports, transfer media, or create a model task. Repeated clicks reopen the same progress card, while the extension and local service reject concurrent duplicate jobs.
 
-Media Bridge v0.4.4 is the only browser extension: media resolution and local AI bridging are combined in the same package. The AI installer below is an optional local model engine, not a second browser extension.
+Media Bridge v0.4.5 is the only browser extension: media resolution and local AI bridging are combined in the same package. The AI installer below is an optional local model engine, not a second browser extension.
 
-Windows, macOS, and Linux companion installers keep the managed runtime, verified engine revision, and models in one user-selected directory. They install an isolated uv-managed Python runtime internally, so users do not need a system Python installation or Python commands. NVIDIA CUDA is private to the companion on Windows/Linux; macOS and unsupported GPUs use the complete CPU path. Per-task audio, outputs, and analysis work are deleted after the selected LRC has reached the editor unless **Keep and reuse AI task cache** is explicitly enabled in Settings. Model weights and the private runtime are never removed by task cleanup. See the [local AI alignment guide](./companion/README.md).
+Windows, macOS, and Linux companion installers keep the managed runtime, bundled verified engine snapshot, and models in one user-selected directory. They install an isolated uv-managed Python runtime internally, so users do not need a system Python installation or Python commands. NVIDIA CUDA is private to the companion on Windows/Linux; macOS and unsupported GPUs use the complete CPU path. Per-task audio, outputs, and analysis work are deleted after the selected LRC has reached the editor unless **Keep and reuse AI task cache** is explicitly enabled in Settings. Website cache and local AI task cache have separate controls; neither task cleanup nor the AI cache control removes model weights or the private runtime. See the [local AI alignment guide](./companion/README.md).
 
 Every platform package includes matching start, stop, and uninstall commands. Uninstall requires typing `UNINSTALL` and then the complete installation path before it removes the engine, models, private runtime, and task data.
+The website downloads the correct Windows or macOS/Linux engine archive directly. Launchers in a downloaded package resolve the recorded installation directory, the platform default, or a manually entered custom path; users do not need to hunt for the copied launcher after installation.
 
 ## Development
 
@@ -114,7 +115,7 @@ pnpm exec wrangler pages deploy build --project-name lrc-editor
 
 The offline Service Worker runs in the visitor's browser and does not add a Pages Function or Cloudflare Worker. Cloudflare documents static asset requests on Pages as free and unlimited on both free and paid plans: [Pages pricing](https://developers.cloudflare.com/pages/functions/pricing/#static-asset-requests).
 
-The extension is packaged separately. Build it with `pnpm build:extension`, then distribute the resulting `extension-dist/` directory or submit the same packaged code to a Chromium extension store.
+The extension is packaged separately. Build it with `pnpm build:extension`, then distribute the resulting `extension-dist/` directory or submit the same packaged code to a Chromium extension store. After committing a release version, `./scripts/package-release.ps1` creates the extension archive, both companion archives with the bundled engine, and `SHA256SUMS.txt`.
 
 ## Project structure
 
@@ -122,7 +123,7 @@ The extension is packaged separately. Build it with `pnpm build:extension`, then
 src/                 React application, LRC logic, localization, and tests
 worker/              Local NCM/QMC media workers
 extension/           Manifest V3 source and manifest
-companion/           On-demand local AI installer, launcher, and documentation
+companion/           Local AI installer, launcher, documentation, and bundled engine snapshot
 public/              PWA metadata and brand assets
 build/               Web build output
 extension-dist/      Extension build output
@@ -138,7 +139,7 @@ The implementation studies and adapts MIT-licensed work from:
 - [lrc-maker-cdgz](https://github.com/CDGZ-ofc/lrc-maker-cdgz), by 重叠广州 / CDGZ-ofc
 - [lrc-utils](https://github.com/magic-akari/lrc-utils), by magic-akari
 - [lyrics-tools](https://github.com/samgum/lyrics-tools), by samgum
-- [lyrics-forced-aligner](https://github.com/samgum/lyrics-forced-aligner), by samgum
+- [Bundled local AI alignment engine](./companion/engine/README.md), by 伤感咩吖
 
 The media companion bundles [YouTube.js](https://github.com/LuanRT/YouTube.js), by LuanRT and contributors, under the MIT license. Local codec fallback uses [ffmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm), also under the MIT license.
 

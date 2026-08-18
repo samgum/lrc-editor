@@ -2,10 +2,18 @@ import BRAND from "#const/brand.json" assert { type: "json" };
 import ROUTER from "#const/router.json" assert { type: "json" };
 import SSK from "#const/session_key.json" assert { type: "json" };
 import { type State as LrcState, stringify } from "@lrc-maker/lrc-parser";
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { Action as LrcAction } from "../hooks/useLrc.js";
 import { ActionType as LrcActionType } from "../hooks/useLrc.js";
 import { createUntimedTranscript, validateAlignedLyrics } from "../utils/ai-alignment-result.js";
+import {
+    getAiAlignmentSessionSnapshot,
+    startAiAlignmentSession,
+    stopAiAlignmentSession,
+    subscribeAiAlignmentSession,
+    updateAiAlignmentSessionState,
+} from "../utils/ai-alignment-session.js";
+import { aiEngineDownloadUrl } from "../utils/ai-engine-download.js";
 import { getAlignmentMediaSource } from "../utils/alignment-media.js";
 import {
     LocalAiAlignmentError,
@@ -26,12 +34,6 @@ const disableCheck = {
 };
 
 type HTMLInputLikeElement = HTMLInputElement & HTMLTextAreaElement;
-
-interface AiAlignmentState extends LocalAlignmentProgress {
-    visible: boolean;
-    error?: string;
-    showInstall?: boolean;
-}
 
 type UseDefaultValue<T = React.RefObject<HTMLInputLikeElement>> = (
     defaultValue: string,
@@ -92,8 +94,12 @@ export const Editor: React.FC<{
 
     const textarea = useRef<HTMLInputLikeElement>(null);
     const [href, setHref] = useState<string | undefined>(undefined);
-    const activeAlignment = useRef<Promise<void> | null>(null);
-    const [aiState, setAiState] = useState<AiAlignmentState | null>(null);
+    const aiSession = useSyncExternalStore(
+        subscribeAiAlignmentSession,
+        getAiAlignmentSessionSnapshot,
+        getAiAlignmentSessionSnapshot,
+    );
+    const aiState = aiSession.state;
 
     const onDownloadClick = useCallback(() => {
         setHref((url) => {
@@ -144,6 +150,10 @@ export const Editor: React.FC<{
                 return lang.editor.aiQueued;
             case "running":
                 return lang.editor.aiRunning;
+            case "stopping":
+                return lang.editor.aiStopping;
+            case "stopped":
+                return lang.editor.aiStopped;
             case "cleaning":
                 return lang.editor.aiCleaning;
             case "complete":
@@ -162,12 +172,12 @@ export const Editor: React.FC<{
     }, [lang.editor]);
 
     const onAiAlign = useCallback(() => {
-        if (activeAlignment.current) {
-            setAiState((state) => state ? { ...state, visible: true } : state);
+        if (aiSession.active) {
+            updateAiAlignmentSessionState((state) => state ? { ...state, visible: true } : state);
             toastPubSub.pub({ type: "info", text: lang.editor.aiDuplicate });
             return;
         }
-        const operation = (async (): Promise<void> => {
+        const started = startAiAlignmentSession(async (signal): Promise<void> => {
             const currentText = textarea.current ? textarea.current.value : text;
             const transcript = createUntimedTranscript(currentText, trimOptions);
             if (!transcript.split(/\r\n|\n|\r/).some((line) => line.trim())) {
@@ -175,12 +185,12 @@ export const Editor: React.FC<{
                 return;
             }
             const initial: LocalAlignmentProgress = { phase: "connecting", progress: 0.01 };
-            setAiState({ ...initial, visible: true });
+            updateAiAlignmentSessionState(() => ({ ...initial, visible: true }));
             let media: { blob: Blob; name: string };
             try {
                 media = await getAlignmentMediaSource();
             } catch {
-                setAiState(null);
+                updateAiAlignmentSessionState(() => null);
                 toastPubSub.pub({ type: "warning", text: lang.editor.aiNoMedia });
                 return;
             }
@@ -192,20 +202,35 @@ export const Editor: React.FC<{
                     transcript,
                     precision: prefState.fixed === 2 ? 2 : 3,
                     keepTaskCache: prefState.keepAiTaskCache,
-                    onProgress: (progress) => setAiState({ ...progress, visible: true }),
+                    useGpuAcceleration: prefState.aiGpuAcceleration,
+                    signal,
+                    onProgress: (progress) =>
+                        updateAiAlignmentSessionState((state) => ({
+                            ...progress,
+                            visible: state?.visible ?? true,
+                        })),
                 });
                 const lyric = validateAlignedLyrics(transcript, result.lrc, trimOptions);
                 lrcDispatch({ type: LrcActionType.replaceLyrics, payload: lyric });
-                setAiState({ phase: "complete", progress: 1, visible: true });
+                updateAiAlignmentSessionState(() => ({ phase: "complete", progress: 1, visible: true }));
                 toastPubSub.pub({ type: "success", text: lang.editor.aiComplete });
                 if (result.cacheCleanup === "failed") {
                     toastPubSub.pub({ type: "warning", text: lang.editor.aiCacheCleanupFailed });
                 }
             } catch (error) {
+                if (error instanceof LocalAiAlignmentError && error.code === "cancelled") {
+                    updateAiAlignmentSessionState((state) => ({
+                        phase: "stopped",
+                        progress: state?.progress || 0,
+                        visible: true,
+                    }));
+                    toastPubSub.pub({ type: "info", text: lang.editor.aiStopped });
+                    return;
+                }
                 const message = alignmentErrorText(error);
                 const showInstall = error instanceof LocalAiAlignmentError
                     && ["missing", "outdated", "not-running"].includes(error.code);
-                setAiState((state) => ({
+                updateAiAlignmentSessionState((state) => ({
                     phase: state?.phase || "connecting",
                     progress: state?.progress || 0,
                     visible: true,
@@ -214,11 +239,22 @@ export const Editor: React.FC<{
                 }));
                 toastPubSub.pub({ type: "warning", text: message });
             }
-        })().finally(() => {
-            activeAlignment.current = null;
         });
-        activeAlignment.current = operation;
-    }, [alignmentErrorText, lang.editor, lrcDispatch, prefState.fixed, prefState.keepAiTaskCache, text, trimOptions]);
+        if (!started) {
+            updateAiAlignmentSessionState((state) => state ? { ...state, visible: true } : state);
+            toastPubSub.pub({ type: "info", text: lang.editor.aiDuplicate });
+        }
+    }, [
+        aiSession.active,
+        alignmentErrorText,
+        lang.editor,
+        lrcDispatch,
+        prefState.aiGpuAcceleration,
+        prefState.fixed,
+        prefState.keepAiTaskCache,
+        text,
+        trimOptions,
+    ]);
 
     const onAiAlignClick = useCallback(() => {
         if (!prefState.aiAlignmentEnabled) {
@@ -228,9 +264,15 @@ export const Editor: React.FC<{
     }, [onAiAlign, prefDispatch, prefState.aiAlignmentEnabled]);
 
     const aiStatus = aiState && !aiState.error ? statusText(aiState) : aiState?.error;
+    const aiEngineDownload = useMemo(
+        () => aiEngineDownloadUrl(BRAND.extensionRelease, import.meta.env.app!.version, navigator.platform),
+        [],
+    );
     const aiRemaining = aiState?.phase === "running" && aiState.remainingSeconds
         ? lang.editor.aiRemaining.replace("%s", formatRemainingTime(aiState.remainingSeconds))
         : undefined;
+    const canStopAi = aiSession.active && aiState !== null
+        && ["connecting", "uploading", "queued", "running"].includes(aiState.phase);
 
     return (
         <div className="app-editor">
@@ -319,7 +361,7 @@ export const Editor: React.FC<{
                             <button
                                 type="button"
                                 onClick={() =>
-                                    setAiState((state) =>
+                                    updateAiAlignmentSessionState((state) =>
                                         state && {
                                             ...state,
                                             visible: false,
@@ -332,9 +374,14 @@ export const Editor: React.FC<{
                         <progress max={1} value={aiState.progress} />
                         <p>{aiStatus}</p>
                         {aiRemaining && <p className="ai-align-remaining">{aiRemaining}</p>}
+                        {canStopAi && (
+                            <button type="button" className="ai-align-stop" onClick={stopAiAlignmentSession}>
+                                {lang.editor.aiStop}
+                            </button>
+                        )}
                         {aiState.showInstall && (
                             <a
-                                href={BRAND.extensionRelease}
+                                href={aiEngineDownload}
                                 target="_blank"
                                 rel="noopener noreferrer"
                             >

@@ -1,10 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-install_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+launcher_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+resolver="$launcher_root/resolve-ai-aligner-install.sh"
+requested_root=""
 if [[ "${1:-}" == "--install-root" ]]; then
-    install_root="${2:-}"
+    requested_root="${2:-}"
 fi
+if [[ ! -f "$resolver" ]]; then
+    echo "The installation locator is missing." >&2
+    exit 1
+fi
+source "$resolver"
+install_root="$(lrc_ai_resolve_install_root "$launcher_root" "$requested_root")"
 pid_path="$install_root/runtime/service.pid"
 
 is_aligner_process() {
