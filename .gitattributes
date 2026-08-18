@@ -1,2 +1,2 @@
-companion/engine/** linguist-vendored
-companion/engine/** -whitespace
+companion/engine-bundle/** linguist-vendored
+companion/engine-bundle/** -whitespace

@@ -100,7 +100,7 @@
         "interactiveSeek": "Seek when selecting a timestamped line",
         "allowBackgroundAudio": "Allow background playback",
         "aiAlignment": "Enable local AI alignment",
-        "aiGpuAcceleration": "Use GPU when available for local AI",
+        "aiGpuAcceleration": "Automatically use GPU when available for local AI",
         "keepAiTaskCache": "Keep and reuse AI task cache",
         "aiClearCache": "Clear local AI alignment cache",
         "aiClearCacheTitle": "Clear local AI alignment cache?",

@@ -50,11 +50,26 @@ try {
         Remove-Item -LiteralPath $extensionStage -Recurse -Force
     }
 
-    & git -C $repositoryRoot archive --format=zip "--prefix=$windowsName/" "--output=$windowsArchive" HEAD:companion
+    $windowsPaths = @(
+        ".",
+        ":(exclude,glob)*.sh",
+        ":(exclude,glob)*.command",
+        ":(exclude)INSTALL-Linux.txt",
+        ":(exclude)INSTALL-macOS.txt"
+    )
+    & git -C $repositoryRoot archive --format=zip "--prefix=$windowsName/" "--output=$windowsArchive" `
+        HEAD:companion -- @windowsPaths
     if ($LASTEXITCODE -ne 0) {
         throw "Unable to create the Windows AI aligner package."
     }
-    & git -C $repositoryRoot archive --format=tar.gz "--prefix=$unixName/" "--output=$unixArchive" HEAD:companion
+    $unixPaths = @(
+        ".",
+        ":(exclude,glob)*.ps1",
+        ":(exclude,glob)*.cmd",
+        ":(exclude)INSTALL.txt"
+    )
+    & git -C $repositoryRoot archive --format=tar.gz "--prefix=$unixName/" "--output=$unixArchive" `
+        HEAD:companion -- @unixPaths
     if ($LASTEXITCODE -ne 0) {
         throw "Unable to create the macOS/Linux AI aligner package."
     }
@@ -66,7 +81,7 @@ try {
     $windowsEntries = @(& tar -tf $windowsArchive)
     $unixEntries = @(& tar -tzf $unixArchive)
     foreach ($entries in @($windowsEntries, $unixEntries)) {
-        if (-not ($entries -match "/engine/ENGINE_REVISION$") -or
+        if (-not ($entries -match "/engine-bundle/ENGINE_REVISION$") -or
             -not ($entries -match "/resolve-ai-aligner-install\.(?:ps1|sh)$")) {
             throw "A companion archive is missing its bundled engine or installation locator."
         }

@@ -12,7 +12,10 @@ if [[ ! -f "$resolver" ]]; then
     exit 1
 fi
 source "$resolver"
-install_root="$(lrc_ai_resolve_install_root "$launcher_root" "$requested_root")"
+if ! install_root="$(lrc_ai_resolve_install_root "$launcher_root" "$requested_root")"; then
+    echo "No complete LRC Editor AI Aligner installation was found."
+    exit 0
+fi
 pid_path="$install_root/runtime/service.pid"
 
 is_aligner_process() {

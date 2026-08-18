@@ -2,28 +2,32 @@ LRC Editor local AI engine / LRC Editor 本机 AI 引擎
 
 This package is not a browser extension.
 这个安装包不是浏览器扩展，不能在 Chrome/Edge 的“扩展程序”页面加载。
+This Windows archive contains only Windows launchers; macOS/Linux shell launchers are not included.
+这个 Windows 压缩包只包含 Windows 启动文件，不再混入 macOS/Linux Shell 脚本。
 
 Browser extension / 浏览器扩展：
-lrc-editor-media-bridge-v0.4.5.zip
+lrc-editor-media-bridge-v0.4.6.zip
 
 Windows installation / Windows 安装：
 1. Extract the complete ZIP. / 完整解压 ZIP。
 2. Double-click install-ai-aligner.cmd. / 双击 install-ai-aligner.cmd。
 3. Choose 1 for the C drive default, 2 for D:\LRC Editor AI, or 3 for a custom directory.
    选择 1 使用 C 盘默认目录、2 使用 D:\LRC Editor AI、3 输入自定义目录。
-4. Wait for installation and model verification to finish. / 等待安装与模型检测完成。
-5. Run start-ai-aligner.cmd from the chosen installation directory.
+4. Choose 1 for the official Hugging Face source or 2 for HF-Mirror. Mirror mode also downloads Demucs through Hugging Face and verifies all four official SHA-256 hashes.
+   选择 1 使用 Hugging Face 官方源，或选择 2 使用 HF-Mirror；镜像模式也会通过 Hugging Face 下载 Demucs，并校验四个官方 SHA-256。
+5. Wait for installation and model verification to finish. / 等待安装与模型检测完成。
+6. Run start-ai-aligner.cmd from the chosen installation directory.
    从所选安装目录运行 start-ai-aligner.cmd。
-6. Run stop-ai-aligner.cmd to stop the service.
+7. Run stop-ai-aligner.cmd to stop the service.
    使用 stop-ai-aligner.cmd 停止服务。
-7. Run uninstall-ai-aligner.cmd to remove the engine. It requires two confirmations.
+8. Run uninstall-ai-aligner.cmd to remove the engine. It requires two confirmations.
    使用 uninstall-ai-aligner.cmd 卸载；删除前必须完成两次确认。
 
 Python 3.11 is downloaded privately into the selected directory. A system Python is not required or reused.
 Python 3.11 会单独下载到所选目录，不要求也不会复用系统 Python。
 
 Chrome extension / Chrome 扩展安装：
-1. Extract lrc-editor-media-bridge-v0.4.5.zip. / 解压扩展 ZIP。
+1. Extract lrc-editor-media-bridge-v0.4.6.zip. / 解压扩展 ZIP。
 2. Open chrome://extensions. / 打开 chrome://extensions。
 3. Enable Developer mode. / 开启“开发者模式”。
 4. Select Load unpacked and choose the extracted folder. / 点击“加载已解压的扩展程序”并选择解压目录。

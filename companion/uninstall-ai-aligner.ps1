@@ -9,6 +9,9 @@ if (-not (Test-Path -LiteralPath $resolver)) {
 }
 . $resolver
 $resolvedInstallRoot = Resolve-AiAlignerInstallRoot -LauncherRoot $launcherRoot -RequestedRoot $InstallRoot
+if ([string]::IsNullOrWhiteSpace($resolvedInstallRoot)) {
+    throw "No complete LRC Editor AI Aligner installation was found."
+}
 $locationRegistry = Get-AiAlignerLocationRegistry
 $driveRoot = [System.IO.Path]::GetPathRoot($resolvedInstallRoot).TrimEnd([System.IO.Path]::DirectorySeparatorChar)
 $userProfile = [System.IO.Path]::GetFullPath([Environment]::GetFolderPath("UserProfile")).TrimEnd(

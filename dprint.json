@@ -8,7 +8,7 @@
         "**/node_modules",
         "**/*-lock.json",
         "build",
-        "companion/engine"
+        "companion/engine-bundle"
     ],
     "plugins": [
         "https://plugins.dprint.dev/typescript-0.95.4.wasm",

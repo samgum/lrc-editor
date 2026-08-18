@@ -64,11 +64,5 @@ lrc_ai_resolve_install_root() {
         printf '%s\n' "$candidate"
         return 0
     fi
-    if [[ -t 0 ]]; then
-        echo "The installed AI aligner directory could not be found automatically." >&2
-        read -r -p "Install directory: " candidate
-        printf '%s\n' "${candidate%/}"
-        return 0
-    fi
-    printf '%s\n' "$launcher_root"
+    return 1
 }

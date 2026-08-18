@@ -9,7 +9,7 @@ This optional companion runs the verified `lyrics-forced-aligner` engine entirel
 1. Download and extract the `lrc-editor-ai-aligner` package from the latest [LRC Editor release](https://github.com/samgum/lrc-editor/releases/latest).
 2. Double-click `install-ai-aligner.cmd`, choose 1 for the C drive default, 2 for `D:\LRC Editor AI`, or 3 for a custom directory, then allow the downloads to finish.
 3. Double-click `start-ai-aligner.cmd` only when AI alignment is needed. Keep its terminal open.
-4. Install or update LRC Editor Media Bridge to v0.4.5 or later.
+4. Install or update LRC Editor Media Bridge to v0.4.6 or later.
 5. In LRC Editor, turn on **Settings → Enable local AI alignment**, load media, open the editor, and select **AI align**.
 
 The installer uses WinGet when FFmpeg or uv is missing. The verified engine snapshot is already included in the release package, so no private repository access or Git installation is required. It always downloads a uv-managed Python 3.11 runtime into the chosen `python` directory and creates `environment` from that exact executable. It does not reuse, register, or add a system Python to `PATH`; no preinstalled Python or Python command is required. Removing the selected AI directory removes this private Python as well.
@@ -39,7 +39,7 @@ Choose another disk from the command line with:
 | AMD/Intel GPU or no discrete GPU, Windows/Linux   | CPU int8                    |            4–6 GB |                 8–12 GB |
 | Apple Silicon or Intel Mac                        | CPU int8                    |            4–6 GB |                 8–12 GB |
 
-Before downloading, the installer shows the detected GPU, VRAM, driver, selected backend, estimated network download, estimated installed size, and free-space recommendation. Use `-EstimateOnly` on Windows or `--estimate-only` on macOS/Linux to inspect the plan without changing files. Use `-CpuOnly` or `--cpu-only` to force the universal CPU path.
+Before downloading, the installer shows the detected GPU, VRAM, driver, selected backend, selected Hugging Face source, estimated network download, estimated installed size, and free-space recommendation. Use `-EstimateOnly` on Windows or `--estimate-only` on macOS/Linux to inspect the plan without changing files. Use `-CpuOnly` or `--cpu-only` to force the universal CPU path.
 
 CUDA acceleration is isolated from other machine-learning installations. NVIDIA runtime packages live under this companion's `environment` directory, and their library directories are added only to the local aligner process. The installer does not change the system CUDA path. PyTorch and CTranslate2 are both checked, and the full `large-v3-turbo` model is loaded once during installation; any CUDA, driver, VRAM, or library failure selects CPU mode automatically. CPU mode remains fully functional, though slower.
 
@@ -49,12 +49,13 @@ After every successful installation and model verification, the installer remove
 
 ## Model sources
 
-- `large-v3-turbo` is downloaded with faster-whisper's standard `download_model` API. The official faster-whisper model alias maps to [`mobiuslabsgmbh/faster-whisper-large-v3-turbo`](https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo) on Hugging Face.
-- `htdemucs_ft` is downloaded with Demucs' standard `demucs.pretrained.get_model` API from Meta's official [`dl.fbaipublicfiles.com/demucs`](https://dl.fbaipublicfiles.com/demucs/) model host.
+- The interactive installer offers **Official Hugging Face** and **HF-Mirror**. The default is official. Automation can use `-ModelSource official|hf-mirror` on Windows or `--model-source official|hf-mirror` on macOS/Linux. The selected fixed endpoint is stored in `install-state.json` and reused by the launcher.
+- `large-v3-turbo` is downloaded with faster-whisper's standard `download_model` API. Its model alias maps to [`mobiuslabsgmbh/faster-whisper-large-v3-turbo`](https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo); `HF_ENDPOINT` selects the official Hub or HF-Mirror before `huggingface_hub` is imported.
+- In official mode, `htdemucs_ft` uses Demucs' standard API and Meta's official [`dl.fbaipublicfiles.com/demucs`](https://dl.fbaipublicfiles.com/demucs/) host. In HF-Mirror mode, the four original `.th` files are fetched through the public `iBoostAI/Demucs-v4` Hugging Face repository. The installer verifies each complete SHA-256 against the known official file before copying it into the Demucs cache, then removes the temporary mirror cache. Mismatched files are never loaded.
 - PyTorch packages come from the official `download.pytorch.org` wheel index. Private CUDA libraries use NVIDIA-owned PyPI packages. FFmpeg and uv use their platform package manager or the pinned official uv installer.
 - CUDA mode pins NVIDIA's [`nvidia-cublas-cu12`](https://pypi.org/project/nvidia-cublas-cu12/) and [`nvidia-cudnn-cu12`](https://pypi.org/project/nvidia-cudnn-cu12/) runtime packages inside the selected installation directory.
 
-The installer prints each model source before downloading it. It does not use a project mirror, third-party cloud drive, or the LRC Editor site for model files.
+The installer prints each model source before downloading it. HF-Mirror is a third-party public mirror and remains an explicit user choice; the LRC Editor site does not proxy or store model files.
 
 ## Fixed directory layout
 
@@ -86,9 +87,9 @@ Use the same path when starting:
 ## Runtime behavior
 
 - The setting is off by default. When it is off, the page does not probe the local ports, upload media, or start a model task.
-- The browser extension cannot start an arbitrary local executable. Start the companion only when needed and stop it with `Ctrl+C` afterward.
+- The browser extension cannot start an arbitrary local executable without the broader `nativeMessaging` permission, which this project does not request. The website can stop an already-running service. When no complete installation exists, the downloaded start launcher offers to install first and continues starting automatically.
 - Starting the launcher twice detects the existing service and exits without creating a second process.
-- Downloaded start, stop, and uninstall launchers automatically resolve the location recorded by the installer. They also check the platform default and can ask for a custom directory.
+- Downloaded start, stop, and uninstall launchers automatically resolve the location recorded by the installer and then check the platform default. They do not ask users to locate a completed installation manually.
 - Use `stop-ai-aligner.cmd`, `stop-ai-aligner.command`, or `stop-ai-aligner.sh` to stop only the verified companion process.
 - Use the matching `uninstall-ai-aligner` command for removal. It requires `UNINSTALL` and the exact install path as two separate confirmations.
 - The extension refuses a second upload or job while one is being prepared, queued, or processed.
@@ -99,4 +100,4 @@ Use the same path when starting:
 - Results are accepted only when every lyric line remains in order and all timestamps are finite, non-negative, unique, and strictly increasing.
 - Applying an AI result is one undoable editor operation and preserves title, artist, and album metadata.
 
-The installer copies the minimal engine snapshot bundled in [`engine`](./engine/README.md), verified as revision `4898a3cbc569349c5db87bbc931c9d6fa124d64d`. It never clones the private development repository. The control, cancellation, service-stop, and cache APIs are supplied by the LRC Editor companion wrapper; the bundled engine remains unmodified.
+The installer copies the minimal engine snapshot bundled in [`engine-bundle`](./engine-bundle/README.md), verified as revision `4898a3cbc569349c5db87bbc931c9d6fa124d64d`. It keeps this small bundle beside an installation so the installed launcher can repair itself without network access. It never clones the private development repository. The control, cancellation, service-stop, and cache APIs are supplied by the LRC Editor companion wrapper; the bundled engine remains unmodified.

@@ -11,6 +11,23 @@ if (-not (Test-Path -LiteralPath $resolver)) {
 }
 . $resolver
 $resolvedInstallRoot = Resolve-AiAlignerInstallRoot -LauncherRoot $launcherRoot -RequestedRoot $InstallRoot
+if ([string]::IsNullOrWhiteSpace($resolvedInstallRoot)) {
+    $installer = Join-Path $launcherRoot "install-ai-aligner.ps1"
+    if (-not (Test-Path -LiteralPath $installer)) {
+        throw "No complete LRC Editor AI Aligner installation was found. Download the complete release package first."
+    }
+    Write-Host "No complete LRC Editor AI Aligner installation was found." -ForegroundColor Yellow
+    $installNow = Read-Host "Install it now, then start the service? [Y/n]"
+    if ($installNow -match "^[Nn]$") {
+        Write-Host "Start cancelled."
+        exit 0
+    }
+    & $installer
+    $resolvedInstallRoot = Resolve-AiAlignerInstallRoot -LauncherRoot $launcherRoot
+    if ([string]::IsNullOrWhiteSpace($resolvedInstallRoot)) {
+        throw "Installation completed without a usable location record."
+    }
+}
 $engineRoot = Join-Path $resolvedInstallRoot "engine"
 $environmentRoot = Join-Path $resolvedInstallRoot "environment"
 $modelRoot = Join-Path $resolvedInstallRoot "models"
@@ -106,10 +123,16 @@ if ($installState.acceleration -eq "cuda") {
     $env:CUDA_VISIBLE_DEVICES = "-1"
     Write-Host "Acceleration: CPU compatibility mode" -ForegroundColor Cyan
 }
+$modelEndpoint = [string]$installState.modelEndpoint
+if ($modelEndpoint -notin @("https://huggingface.co", "https://hf-mirror.com")) {
+    $modelEndpoint = "https://huggingface.co"
+}
 
 $env:PYTHONPATH = "$resolvedInstallRoot;$((Join-Path $engineRoot 'src'))"
 $env:TORCH_HOME = Join-Path $modelRoot "torch"
 $env:HF_HOME = Join-Path $modelRoot "huggingface"
+$env:HF_ENDPOINT = $modelEndpoint
+$env:HF_HUB_DISABLE_XET = if ($modelEndpoint -eq "https://hf-mirror.com") { "1" } else { "0" }
 $env:HF_HUB_DISABLE_SYMLINKS_WARNING = "1"
 $env:LYRICS_ALIGNER_PORT = [string]$selectedPort
 $warningFilter = "ignore:pkg_resources is deprecated as an API:UserWarning"

@@ -46,7 +46,7 @@ Chrome installation:
 
 1. Open `chrome://extensions`.
 2. Enable **Developer mode**.
-3. Select **Load unpacked** and choose the extracted `lrc-editor-media-bridge-v0.4.5` directory.
+3. Select **Load unpacked** and choose the extracted `lrc-editor-media-bridge-v0.4.6` directory.
 4. Reload LRC Editor after installing or replacing the extension.
 
 Microsoft Edge uses `edge://extensions` with the same **Developer mode** and **Load unpacked** steps. On Windows, `INSTALL-EXTENSION.cmd` opens the management page and extracted directory but cannot perform the final confirmation.
@@ -64,12 +64,12 @@ The YouTube resolver uses the private InnerTube interface through `youtubei.js`;
 
 AI alignment is disabled by default. The labeled **AI** button remains visible in the editor; clicking it enables the feature and starts the requested alignment. Before that click, the page does not probe local ports, transfer media, or create a model task. Repeated clicks reopen the same progress card, while the extension and local service reject concurrent duplicate jobs.
 
-Media Bridge v0.4.5 is the only browser extension: media resolution and local AI bridging are combined in the same package. The AI installer below is an optional local model engine, not a second browser extension.
+Media Bridge v0.4.6 is the only browser extension: media resolution and local AI bridging are combined in the same package. The AI installer below is an optional local model engine, not a second browser extension.
 
-Windows, macOS, and Linux companion installers keep the managed runtime, bundled verified engine snapshot, and models in one user-selected directory. They install an isolated uv-managed Python runtime internally, so users do not need a system Python installation or Python commands. NVIDIA CUDA is private to the companion on Windows/Linux; macOS and unsupported GPUs use the complete CPU path. Per-task audio, outputs, and analysis work are deleted after the selected LRC has reached the editor unless **Keep and reuse AI task cache** is explicitly enabled in Settings. Website cache and local AI task cache have separate controls; neither task cleanup nor the AI cache control removes model weights or the private runtime. See the [local AI alignment guide](./companion/README.md).
+Windows, macOS, and Linux companion installers keep the managed runtime, bundled verified engine snapshot, and models in one user-selected directory. They install an isolated uv-managed Python runtime internally, so users do not need a system Python installation or Python commands. NVIDIA CUDA is private to the companion on Windows/Linux; macOS and unsupported GPUs use the complete CPU path. Installation offers the official Hugging Face source or HF-Mirror; mirror-mode Demucs files must match all four complete official SHA-256 hashes before use. Per-task audio, outputs, and analysis work are deleted after the selected LRC has reached the editor unless **Keep and reuse AI task cache** is explicitly enabled in Settings. Website cache and local AI task cache have separate controls; neither task cleanup nor the AI cache control removes model weights or the private runtime. See the [local AI alignment guide](./companion/README.md).
 
 Every platform package includes matching start, stop, and uninstall commands. Uninstall requires typing `UNINSTALL` and then the complete installation path before it removes the engine, models, private runtime, and task data.
-The website downloads the correct Windows or macOS/Linux engine archive directly. Launchers in a downloaded package resolve the recorded installation directory, the platform default, or a manually entered custom path; users do not need to hunt for the copied launcher after installation.
+The website downloads the correct platform-specific Windows or macOS/Linux engine archive directly. Launchers in a downloaded package resolve the recorded installation directory or platform default without asking for a path. If no complete installation exists, the start launcher offers to install first and then continues starting automatically. The website can stop an already-running service through the extension, but it cannot launch an executable after the service has closed without the broader `nativeMessaging` permission, which this project does not request.
 
 ## Development
 
@@ -139,7 +139,7 @@ The implementation studies and adapts MIT-licensed work from:
 - [lrc-maker-cdgz](https://github.com/CDGZ-ofc/lrc-maker-cdgz), by 重叠广州 / CDGZ-ofc
 - [lrc-utils](https://github.com/magic-akari/lrc-utils), by magic-akari
 - [lyrics-tools](https://github.com/samgum/lyrics-tools), by samgum
-- [Bundled local AI alignment engine](./companion/engine/README.md), by 伤感咩吖
+- [Bundled local AI alignment engine](./companion/engine-bundle/README.md), by 伤感咩吖
 
 The media companion bundles [YouTube.js](https://github.com/LuanRT/YouTube.js), by LuanRT and contributors, under the MIT license. Local codec fallback uses [ffmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm), also under the MIT license.
 

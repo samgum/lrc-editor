@@ -53,12 +53,5 @@ function Resolve-AiAlignerInstallRoot {
     if (Test-AiAlignerInstallation -Candidate $defaultRoot) {
         return [System.IO.Path]::GetFullPath($defaultRoot).TrimEnd([System.IO.Path]::DirectorySeparatorChar)
     }
-    Write-Host "The installed AI aligner directory could not be found automatically." -ForegroundColor Yellow
-    $enteredRoot = Read-Host "Install directory"
-    if (-not [string]::IsNullOrWhiteSpace($enteredRoot)) {
-        return [System.IO.Path]::GetFullPath($enteredRoot.Trim().Trim('"')).TrimEnd(
-            [System.IO.Path]::DirectorySeparatorChar
-        )
-    }
-    return [System.IO.Path]::GetFullPath($LauncherRoot).TrimEnd([System.IO.Path]::DirectorySeparatorChar)
+    return $null
 }

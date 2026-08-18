@@ -94,7 +94,7 @@
         "interactiveSeek": "选中已有时间戳的歌词时跳转音频",
         "allowBackgroundAudio": "允许音频后台播放",
         "aiAlignment": "启用本机 AI 对轴",
-        "aiGpuAcceleration": "本机 AI 可用时使用 GPU 加速",
+        "aiGpuAcceleration": "本机 AI 可用时自动使用 GPU 加速",
         "keepAiTaskCache": "保留并复用 AI 对轴任务缓存",
         "aiClearCache": "清除本机 AI 对轴缓存",
         "aiClearCacheTitle": "清除本机 AI 对轴缓存？",

@@ -9,7 +9,7 @@
 1. 从最新 [LRC Editor Release](https://github.com/samgum/lrc-editor/releases/latest) 下载并解压 `lrc-editor-ai-aligner` 安装包。
 2. 双击 `install-ai-aligner.cmd`；选择 1 使用 C 盘默认目录、2 使用 `D:\LRC Editor AI`、3 输入自定义目录，然后等待全部下载完成。
 3. 只在需要 AI 对轴时双击 `start-ai-aligner.cmd`，并保持终端窗口开启。
-4. 安装或更新到 LRC Editor Media Bridge v0.4.5 或更高版本。
+4. 安装或更新到 LRC Editor Media Bridge v0.4.6 或更高版本。
 5. 在 LRC Editor 中开启“设置 → 启用本机 AI 对轴”，载入媒体、打开编辑器，再点击“AI 对轴”。
 
 缺少 FFmpeg 或 uv 时，安装脚本会通过 WinGet 自动安装。固定引擎快照已经随 Release 安装包提供，不需要访问私有仓库，也不要求安装 Git。安装器始终把 uv 管理的 Python 3.11 下载到所选目录内的 `python`，并只用这个解释器创建 `environment`；不会复用、注册或加入系统 PATH，用户无需预装 Python。删除整个 AI 安装目录即可一并移除这套私有 Python。
@@ -39,7 +39,7 @@
 | AMD／Intel GPU 或无独显，Windows/Linux     | CPU int8                 |   4–6 GB |        8–12 GB |
 | Apple Silicon 或 Intel Mac                 | CPU int8                 |   4–6 GB |        8–12 GB |
 
-下载前会显示检测到的 GPU、显存、驱动、最终后端、预计网络下载量、预计安装占用和建议可用空间。Windows 可用 `-EstimateOnly`，macOS/Linux 可用 `--estimate-only`，只查看方案而不写入文件；`-CpuOnly`／`--cpu-only` 可强制使用通用 CPU 模式。
+下载前会显示检测到的 GPU、显存、驱动、最终后端、Hugging Face 下载源、预计网络下载量、预计安装占用和建议可用空间。Windows 可用 `-EstimateOnly`，macOS/Linux 可用 `--estimate-only`，只查看方案而不写入文件；`-CpuOnly`／`--cpu-only` 可强制使用通用 CPU 模式。
 
 GPU 加速与本机其他机器学习环境完全隔离。NVIDIA 运行库只放在本组件的 `environment` 目录，启动时也只临时加入当前对齐服务进程，不修改系统 CUDA 路径。安装器会同时检测 PyTorch 与 CTranslate2，并实际加载一次 `large-v3-turbo`；CUDA、驱动、显存或动态库任一检查失败都会自动切换到 CPU。CPU 模式功能完整，只是处理速度较慢。
 
@@ -49,12 +49,13 @@ CPU 模式请预留至少 15 GB，CUDA 模式请预留至少 22 GB。下载中�
 
 ## 模型来源
 
-- `large-v3-turbo` 使用 faster-whisper 标准的 `download_model` 接口下载。faster-whisper 官方模型别名指向 Hugging Face 上的 [`mobiuslabsgmbh/faster-whisper-large-v3-turbo`](https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo)。
-- `htdemucs_ft` 使用 Demucs 标准的 `demucs.pretrained.get_model` 接口，从 Meta 官方 [`dl.fbaipublicfiles.com/demucs`](https://dl.fbaipublicfiles.com/demucs/) 模型站点下载。
+- 交互安装时可选择 **Hugging Face 官方源**或 **HF-Mirror**，默认官方源。自动安装可在 Windows 使用 `-ModelSource official|hf-mirror`，在 macOS/Linux 使用 `--model-source official|hf-mirror`。选择会写入 `install-state.json`，后续启动继续沿用。
+- `large-v3-turbo` 使用 faster-whisper 标准的 `download_model` 接口；模型别名指向 [`mobiuslabsgmbh/faster-whisper-large-v3-turbo`](https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo)。安装器会在导入 `huggingface_hub` 前通过 `HF_ENDPOINT` 选择官方 Hub 或 HF-Mirror。
+- 官方模式下，`htdemucs_ft` 使用 Demucs 标准接口和 Meta 官方 [`dl.fbaipublicfiles.com/demucs`](https://dl.fbaipublicfiles.com/demucs/) 地址。HF-Mirror 模式下，四个原格式 `.th` 文件经 Hugging Face 上的公共 `iBoostAI/Demucs-v4` 仓库下载；安装器会将每个文件的完整 SHA-256 与已知官方文件逐一核对，校验后才放入 Demucs 缓存，并删除镜像临时缓存。任何哈希不一致的文件都不会加载。
 - PyTorch 来自官方 `download.pytorch.org` wheel 索引；独立 CUDA 运行库使用 NVIDIA 自有的 PyPI 软件包；FFmpeg 和 uv 使用平台包管理器或固定版本的 uv 官方安装器。
 - CUDA 模式会把 NVIDIA 的 [`nvidia-cublas-cu12`](https://pypi.org/project/nvidia-cublas-cu12/) 与 [`nvidia-cudnn-cu12`](https://pypi.org/project/nvidia-cudnn-cu12/) 固定版本安装在用户选择的目录内部。
 
-安装器会在下载前显示每个模型的来源，不使用项目自建镜像、第三方网盘或 LRC Editor 站点分发模型。
+安装器会在下载前显示每个模型的来源。HF-Mirror 是第三方公益镜像，只会在用户明确选择时使用；LRC Editor 站点不会中转或保存模型文件。
 
 ## 固定目录
 
@@ -86,9 +87,9 @@ Windows 默认安装位置为 `%LOCALAPPDATA%\LRC Editor\AI Aligner`。安装提
 ## 运行规则
 
 - 功能默认关闭。关闭时页面不会探测本机端口、传输媒体或创建模型任务。
-- 浏览器扩展不能直接启动任意本机程序，因此只在需要时启动组件，用完后按 `Ctrl+C` 停止。
+- 浏览器扩展若不申请权限范围更大的 `nativeMessaging`，就不能直接启动任意本机程序；本项目不会申请这项权限。网页可以停止已经运行的服务；如果尚未完整安装，下载目录中的启动器会询问是否先安装，并在安装成功后自动继续启动。
 - 重复运行启动器时会识别已有服务并直接退出，不会创建第二个进程。
-- 下载目录中的启动、停止和卸载入口会自动读取安装器记录的位置，并检查系统默认目录；自定义目录未被记录时会要求用户输入。
+- 下载目录中的启动、停止和卸载入口会自动读取安装器记录的位置，并检查系统默认目录，不再要求用户手动查找已经完成的安装目录。
 - 使用 `stop-ai-aligner.cmd`、`stop-ai-aligner.command` 或 `stop-ai-aligner.sh`，只停止经过校验的本项目服务进程。
 - 使用对应系统的 `uninstall-ai-aligner` 命令卸载；必须分别输入 `UNINSTALL` 和完整安装路径两次确认。
 - 一个任务在准备、排队或处理期间，扩展会拒绝第二次上传和第二个任务。
@@ -99,4 +100,4 @@ Windows 默认安装位置为 `%LOCALAPPDATA%\LRC Editor\AI Aligner`。安装提
 - 只有歌词行顺序完全不变，且全部时间戳均为有限、非负、唯一并严格递增时，结果才会应用。
 - AI 结果作为一次可撤销操作写入编辑器，并保留歌曲名、艺人和专辑信息。
 
-安装器会复制 [`engine`](./engine/README-zh.md) 内置的最小引擎快照，并核对版本 `4898a3cbc569349c5db87bbc931c9d6fa124d64d`；不会克隆私有开发仓库。任务取消、服务停止与缓存清理接口均由 LRC Editor 自己的本机包装层提供，不会修改内置引擎源码。
+安装器会复制 [`engine-bundle`](./engine-bundle/README-zh.md) 内置的最小引擎快照，并核对版本 `4898a3cbc569349c5db87bbc931c9d6fa124d64d`。这份小型快照也会保留在安装目录旁，方便已安装的启动器在不联网的情况下修复引擎；安装器不会克隆私有开发仓库。任务取消、服务停止与缓存清理接口均由 LRC Editor 自己的本机包装层提供，不会修改内置引擎源码。

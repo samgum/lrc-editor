@@ -46,7 +46,7 @@ Chrome 安装步骤：
 
 1. 打开 `chrome://extensions`。
 2. 开启“开发者模式”。
-3. 点击“加载已解压的扩展程序”，选择解压后的 `lrc-editor-media-bridge-v0.4.5` 目录。
+3. 点击“加载已解压的扩展程序”，选择解压后的 `lrc-editor-media-bridge-v0.4.6` 目录。
 4. 首次安装或替换扩展后刷新 LRC Editor。
 
 Microsoft Edge 打开 `edge://extensions`，其余“开发者模式”和“加载已解压的扩展程序”步骤相同。Windows 可双击 `INSTALL-EXTENSION.cmd` 自动打开管理页与解压目录，但不能代替最后的人工确认。
@@ -64,12 +64,12 @@ YouTube 解析器通过 `youtubei.js` 使用非公开 InnerTube 接口；哔哩�
 
 AI 对轴默认关闭，但编辑器会始终显示带文字的“AI”按钮；点击按钮会启用功能并开始本次对轴。在点击前，页面不会探测本机端口、传输媒体或创建模型任务。重复点击只会重新显示同一个进度卡，扩展和本机服务还会拒绝并行的重复任务。
 
-Media Bridge v0.4.5 是唯一需要安装的浏览器扩展：媒体解析和本机 AI 桥接已经合并在同一个包里。下方 AI 安装器是可选的本机模型引擎，不是第二个浏览器扩展。
+Media Bridge v0.4.6 是唯一需要安装的浏览器扩展：媒体解析和本机 AI 桥接已经合并在同一个包里。下方 AI 安装器是可选的本机模型引擎，不是第二个浏览器扩展。
 
-Windows、macOS 和 Linux 安装器会把隔离运行环境、内置的固定引擎快照与模型统一放在用户选择的一个目录中。安装器会在内部准备 uv 管理的 Python 运行环境，用户无需安装系统 Python，也不需要使用 Python 命令。Windows/Linux 的 NVIDIA CUDA 只在组件目录内生效；macOS 和不受支持的显卡使用功能完整的 CPU 路径。默认会在选定 LRC 返回编辑器后删除本次音频、输出和分析工作文件；只有在设置中明确开启“保留并复用 AI 对轴任务缓存”才会保留。网站缓存与本机 AI 缓存使用两个独立入口；任务清理和 AI 缓存清理都不会删除模型权重或私有运行环境。具体步骤见[本机 AI 对轴指南](./companion/README-zh.md)。
+Windows、macOS 和 Linux 安装器会把隔离运行环境、内置的固定引擎快照与模型统一放在用户选择的一个目录中。安装器会在内部准备 uv 管理的 Python 运行环境，用户无需安装系统 Python，也不需要使用 Python 命令。Windows/Linux 的 NVIDIA CUDA 只在组件目录内生效；macOS 和不受支持的显卡使用功能完整的 CPU 路径。安装时可选择 Hugging Face 官方源或 HF-Mirror；镜像模式下载的四个 Demucs 文件必须全部通过完整官方 SHA-256 校验才会使用。默认会在选定 LRC 返回编辑器后删除本次音频、输出和分析工作文件；只有在设置中明确开启“保留并复用 AI 对轴任务缓存”才会保留。网站缓存与本机 AI 缓存使用两个独立入口；任务清理和 AI 缓存清理都不会删除模型权重或私有运行环境。具体步骤见[本机 AI 对轴指南](./companion/README-zh.md)。
 
 各平台安装包都提供对应的启动、停止和卸载命令。卸载时必须先输入 `UNINSTALL`，再完整输入安装路径，确认两次后才会删除引擎、模型、私有运行环境和任务数据。
-网页会按 Windows 或 macOS/Linux 直接下载正确的引擎压缩包。下载目录中的启动器会自动查找安装器记录的位置、系统默认位置或用户输入的自定义目录；安装后不必再寻找被复制到其他目录的启动器。
+网页会直接下载真正按平台拆分的 Windows 或 macOS/Linux 引擎压缩包。下载目录中的启动器会自动查找安装器记录的位置或系统默认位置，不再要求手动输入路径；如果没有完整安装，启动器会询问是否先安装，并在安装成功后自动继续启动。网页可通过扩展停止已经运行的服务，但服务关闭后若不申请权限范围更大的 `nativeMessaging`，浏览器就不能直接启动本机程序；本项目不会申请这项权限。
 
 ## 本地开发
 
@@ -139,7 +139,7 @@ LRC Editor 由[伤感咩吖](https://github.com/samgum)开发和维护。
 - [lrc-maker-cdgz](https://github.com/CDGZ-ofc/lrc-maker-cdgz)，作者 重叠广州 / CDGZ-ofc
 - [lrc-utils](https://github.com/magic-akari/lrc-utils)，作者 magic-akari
 - [lyrics-tools](https://github.com/samgum/lyrics-tools)，作者 samgum
-- [内置本机 AI 对轴引擎](./companion/engine/README-zh.md)，作者伤感咩吖
+- [内置本机 AI 对轴引擎](./companion/engine-bundle/README-zh.md)，作者伤感咩吖
 
 媒体配套扩展内置 MIT 许可的 [YouTube.js](https://github.com/LuanRT/YouTube.js)，作者 LuanRT 及贡献者。本地编码兜底使用同为 MIT 许可的 [ffmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm)。
 

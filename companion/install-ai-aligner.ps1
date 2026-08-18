@@ -4,7 +4,8 @@ param(
     [switch]$CpuOnly,
     [switch]$SkipPrerequisiteInstall,
     [switch]$SkipModelDownload,
-    [switch]$EstimateOnly
+    [switch]$EstimateOnly,
+    [ValidateSet("official", "hf-mirror")][string]$ModelSource
 )
 
 $ErrorActionPreference = "Stop"
@@ -51,6 +52,19 @@ if ([string]::IsNullOrWhiteSpace($InstallRoot)) {
     }
 }
 
+if ([string]::IsNullOrWhiteSpace($ModelSource)) {
+    if ($EstimateOnly) {
+        $ModelSource = "official"
+    } else {
+        Write-Host "Choose the Hugging Face model download source."
+        Write-Host "1. Official: https://huggingface.co"
+        Write-Host "2. HF-Mirror: https://hf-mirror.com (third-party public mirror; Demucs hashes are verified)"
+        $modelSourceChoice = Read-Host "Choose model source [1/2]"
+        $ModelSource = if ($modelSourceChoice.Trim() -eq "2") { "hf-mirror" } else { "official" }
+    }
+}
+$modelEndpoint = if ($ModelSource -eq "hf-mirror") { "https://hf-mirror.com" } else { "https://huggingface.co" }
+
 $resolvedInstallRoot = [System.IO.Path]::GetFullPath($InstallRoot)
 if ($resolvedInstallRoot -eq [System.IO.Path]::GetPathRoot($resolvedInstallRoot)) {
     throw "InstallRoot cannot be a drive root."
@@ -80,14 +94,15 @@ function Invoke-Checked {
         [Parameter(Mandatory = $true)][string[]]$Arguments,
         [Parameter(Mandatory = $true)][string]$FailureMessage
     )
-    $savedPreference = $ErrorActionPreference
-    try {
-        $ErrorActionPreference = "Continue"
-        & $FilePath @Arguments
-        $nativeExitCode = $LASTEXITCODE
-    } finally {
-        $ErrorActionPreference = $savedPreference
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $FilePath
+    $startInfo.UseShellExecute = $false
+    foreach ($argument in $Arguments) {
+        $startInfo.ArgumentList.Add($argument)
     }
+    $process = [System.Diagnostics.Process]::Start($startInfo)
+    $process.WaitForExit()
+    $nativeExitCode = $process.ExitCode
     if ($nativeExitCode -ne 0) {
         throw "$FailureMessage (exit code $nativeExitCode)."
     }
@@ -153,7 +168,7 @@ function Ensure-Junction {
 }
 
 function Install-BundledEngine {
-    $bundleRoot = Join-Path $PSScriptRoot "engine"
+    $bundleRoot = Join-Path $PSScriptRoot "engine-bundle"
     $bundleRoot = [System.IO.Path]::GetFullPath($bundleRoot)
     $bundleRevisionPath = Join-Path $bundleRoot "ENGINE_REVISION"
     if (-not (Test-Path -LiteralPath $bundleRevisionPath) -or
@@ -206,6 +221,27 @@ function Install-BundledEngine {
         Copy-Item -LiteralPath $entry.FullName -Destination $resolvedEngineRoot -Recurse -Force
     }
     return $bundleRevision
+}
+
+function Save-BundledEngineForRepair {
+    $bundleRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "engine-bundle"))
+    $savedBundleRoot = [System.IO.Path]::GetFullPath((Join-Path $resolvedInstallRoot "engine-bundle"))
+    if ($bundleRoot -eq $savedBundleRoot) {
+        return
+    }
+    $installPrefix = $resolvedInstallRoot.TrimEnd([System.IO.Path]::DirectorySeparatorChar) +
+        [System.IO.Path]::DirectorySeparatorChar
+    if (-not $savedBundleRoot.StartsWith($installPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "The saved engine bundle destination is unsafe."
+    }
+    if (Test-Path -LiteralPath $savedBundleRoot) {
+        $savedRevision = Join-Path $savedBundleRoot "ENGINE_REVISION"
+        if (-not (Test-Path -LiteralPath $savedRevision)) {
+            throw "$savedBundleRoot is not a managed engine bundle and will not be replaced."
+        }
+        Remove-Item -LiteralPath $savedBundleRoot -Recurse -Force
+    }
+    Copy-Item -LiteralPath $bundleRoot -Destination $savedBundleRoot -Recurse
 }
 
 function Add-PrivateNvidiaRuntimePath {
@@ -300,6 +336,7 @@ if ($null -ne $physicalMemoryGb) {
     }
 }
 Write-Host "Selected acceleration: $computeMode"
+Write-Host "Hugging Face source:     $ModelSource ($modelEndpoint)"
 Write-Host "Expected network download: $expectedDownload"
 Write-Host "Expected installed size:    $expectedInstalled"
 Write-Host "Required free space:        at least 15 GB (CPU) or 22 GB (CUDA)"
@@ -333,6 +370,7 @@ $null = Resolve-CommandWithPackage -CommandName "ffprobe" -PackageId "Gyan.FFmpe
 
 Write-Host "Installing the verified bundled alignment engine..." -ForegroundColor Cyan
 $installedRevision = Install-BundledEngine
+Save-BundledEngineForRepair
 
 Ensure-Junction -Path (Join-Path $engineRoot ".cache") -Target $modelRoot
 Ensure-Junction -Path (Join-Path $engineRoot "runtime") -Target $runtimeRoot
@@ -416,9 +454,11 @@ if (-not $useCuda) {
     )
     Invoke-Checked -FilePath $uv -Arguments $cpuTorchArguments -FailureMessage "Unable to install CPU PyTorch"
 }
+$constraintsUri = [System.Uri]::new([System.IO.Path]::GetFullPath($constraintsPath)).AbsoluteUri
+$engineUri = [System.Uri]::new([System.IO.Path]::GetFullPath($engineRoot)).AbsoluteUri
 Invoke-Checked -FilePath $uv -Arguments @(
     "pip", "install", "--upgrade", "--python", $venvPython,
-    "--constraints", $constraintsPath, "-e", $engineRoot
+    "--constraints", $constraintsUri, "-e", $engineUri
 ) -FailureMessage "Unable to install Lyrics Forced Aligner"
 
 $dependencyVerification = @"
@@ -434,19 +474,70 @@ Invoke-Checked -FilePath $venvPython -Arguments @("-c", $dependencyVerification)
 $env:PYTHONPATH = Join-Path $engineRoot "src"
 $env:TORCH_HOME = Join-Path $modelRoot "torch"
 $env:HF_HOME = Join-Path $modelRoot "huggingface"
+$env:HF_ENDPOINT = $modelEndpoint
+$env:HF_HUB_DISABLE_XET = if ($ModelSource -eq "hf-mirror") { "1" } else { "0" }
 $env:HF_HUB_DISABLE_SYMLINKS_WARNING = "1"
 $env:LRC_EDITOR_MODEL_ROOT = $modelRoot
 
 if (-not $SkipModelDownload) {
     Write-Host "Downloading the htdemucs_ft vocal model..." -ForegroundColor Cyan
-    Write-Host "Source: https://dl.fbaipublicfiles.com/demucs/"
-    Invoke-Checked -FilePath $venvPython -Arguments @(
-        "-c",
-        "from demucs.pretrained import get_model; get_model('htdemucs_ft'); print('htdemucs_ft ready')"
-    ) -FailureMessage "Unable to download htdemucs_ft"
+    if ($ModelSource -eq "hf-mirror") {
+        Write-Host "Source: https://hf-mirror.com/iBoostAI/Demucs-v4 (byte-identical official weights)"
+        $env:LRC_EDITOR_DEMUCS_STAGING = Join-Path $downloadCacheRoot "demucs-hf"
+        $demucsMirrorDownload = @"
+import hashlib
+import os
+import shutil
+from pathlib import Path
+from huggingface_hub import hf_hub_download
+
+files = {
+    '04573f0d-f3cf25b2.th': 'f3cf25b222c4eed7cd49dd8b2c9597d50c18bd154090f7b919cfa5f93cf22c49',
+    '92cfc3b6-ef3bcb9c.th': 'ef3bcb9c8b40d14ae5d51b6db2587339cc12c6b77c0be151ce6d69002e087bf2',
+    'd12395a8-e57c48e6.th': 'e57c48e6b0e38af4f7118d7bd08c49f0a0c0edf7d09143bdd902ea0d237303e6',
+    'f7e0c4bc-ba3fe64a.th': 'ba3fe64ae8ef66ac9a4857222ce48efbdc5eb3ad375cb79dd13debee5aaa4066',
+}
+def sha256(path):
+    digest = hashlib.sha256()
+    with path.open('rb') as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b''):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+target_root = Path(os.environ['TORCH_HOME']) / 'hub' / 'checkpoints'
+staging_root = Path(os.environ['LRC_EDITOR_DEMUCS_STAGING'])
+target_root.mkdir(parents=True, exist_ok=True)
+try:
+    for filename, expected in files.items():
+        target = target_root / filename
+        if target.is_file() and sha256(target) == expected:
+            continue
+        target.unlink(missing_ok=True)
+        downloaded = Path(hf_hub_download(
+            repo_id='iBoostAI/Demucs-v4',
+            filename=filename,
+            local_dir=staging_root,
+        ))
+        actual = sha256(downloaded)
+        if actual != expected:
+            raise RuntimeError(f'Demucs checksum mismatch for {filename}: {actual}')
+        shutil.copy2(downloaded, target)
+finally:
+    shutil.rmtree(staging_root, ignore_errors=True)
+print('htdemucs_ft ready; all four official SHA-256 checks passed')
+"@
+        Invoke-Checked -FilePath $venvPython -Arguments @("-c", $demucsMirrorDownload) `
+            -FailureMessage "Unable to download verified htdemucs_ft weights through HF-Mirror"
+    } else {
+        Write-Host "Source: https://dl.fbaipublicfiles.com/demucs/"
+        Invoke-Checked -FilePath $venvPython -Arguments @(
+            "-c",
+            "from demucs.pretrained import get_model; get_model('htdemucs_ft'); print('htdemucs_ft ready')"
+        ) -FailureMessage "Unable to download htdemucs_ft"
+    }
 
     Write-Host "Downloading the large-v3-turbo speech model..." -ForegroundColor Cyan
-    Write-Host "Source: https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo"
+    Write-Host "Source: $modelEndpoint/mobiuslabsgmbh/faster-whisper-large-v3-turbo"
     $whisperDownload = @"
 import os
 from faster_whisper import download_model
@@ -570,6 +661,8 @@ $state = [ordered]@{
     modelsDownloaded = -not [bool]$SkipModelDownload
     expectedDownload = $expectedDownload
     expectedInstalledSize = $expectedInstalled
+    modelSource = $ModelSource
+    modelEndpoint = $modelEndpoint
 }
 $state | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $resolvedInstallRoot "install-state.json") -Encoding UTF8
 

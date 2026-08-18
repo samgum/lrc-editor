@@ -8,6 +8,7 @@ cpu_only=0
 skip_prerequisites=0
 skip_models=0
 estimate_only=0
+model_source=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -30,6 +31,14 @@ while [[ $# -gt 0 ]]; do
         --estimate-only)
             estimate_only=1
             shift
+            ;;
+        --model-source)
+            model_source="${2:-}"
+            if [[ "$model_source" != "official" && "$model_source" != "hf-mirror" ]]; then
+                echo "--model-source must be official or hf-mirror." >&2
+                exit 2
+            fi
+            shift 2
             ;;
         *)
             echo "Unknown option: $1" >&2
@@ -70,6 +79,27 @@ fi
 if [[ "$install_root" == "/" ]]; then
     echo "Install directory cannot be the filesystem root." >&2
     exit 1
+fi
+
+if [[ -z "$model_source" ]]; then
+    if [[ "$estimate_only" -eq 1 || ! -t 0 ]]; then
+        model_source="official"
+    else
+        echo "Choose the Hugging Face model download source."
+        echo "1. Official: https://huggingface.co"
+        echo "2. HF-Mirror: https://hf-mirror.com (third-party public mirror; Demucs hashes are verified)"
+        read -r -p "Choose model source [1/2]: " model_source_choice
+        if [[ "$model_source_choice" == "2" ]]; then
+            model_source="hf-mirror"
+        else
+            model_source="official"
+        fi
+    fi
+fi
+if [[ "$model_source" == "hf-mirror" ]]; then
+    model_endpoint="https://hf-mirror.com"
+else
+    model_endpoint="https://huggingface.co"
 fi
 
 engine_root="$install_root/engine"
@@ -143,6 +173,7 @@ if [[ "$cpu_only" -eq 1 ]]; then
     echo "CPU mode was explicitly requested."
 fi
 echo "Selected acceleration: $compute_mode"
+echo "Hugging Face source:     $model_source ($model_endpoint)"
 echo "Expected network download: $expected_download"
 echo "Expected installed size:    $expected_installed"
 echo "Required free space:        $required_space"
@@ -229,13 +260,14 @@ if [[ "$installed_uv_version" != "$uv_version" ]]; then
     exit 1
 fi
 
-bundled_engine_root="$script_root/engine"
+bundled_engine_root="$script_root/engine-bundle"
 if [[ ! -f "$bundled_engine_root/ENGINE_REVISION" || \
       ! -f "$bundled_engine_root/src/lyrics_aligner/server.py" || \
       ! -f "$bundled_engine_root/pyproject.toml" ]]; then
     echo "The verified engine bundle is missing or incomplete. Download the complete AI aligner package again." >&2
     exit 1
 fi
+bundled_engine_root="$(cd "$bundled_engine_root" && pwd -P)"
 installed_revision="$(tr -d '[:space:]' < "$bundled_engine_root/ENGINE_REVISION")"
 if [[ "$installed_revision" != "$engine_revision" ]]; then
     echo "The bundled aligner revision could not be verified." >&2
@@ -274,6 +306,25 @@ fi
 echo "Installing the verified bundled alignment engine"
 mkdir -p "$engine_root"
 cp -R "$bundled_engine_root"/. "$engine_root"/
+
+saved_bundle_root="$(cd "$install_root" && pwd -P)/engine-bundle"
+if [[ "$bundled_engine_root" != "$saved_bundle_root" ]]; then
+    case "$saved_bundle_root" in
+        "$install_root"/*) ;;
+        *)
+            echo "The saved engine bundle destination is unsafe." >&2
+            exit 1
+            ;;
+    esac
+    if [[ -e "$saved_bundle_root" || -L "$saved_bundle_root" ]]; then
+        if [[ ! -f "$saved_bundle_root/ENGINE_REVISION" ]]; then
+            echo "$saved_bundle_root is not a managed engine bundle and will not be replaced." >&2
+            exit 1
+        fi
+        rm -rf -- "$saved_bundle_root"
+    fi
+    cp -R "$bundled_engine_root" "$saved_bundle_root"
+fi
 
 ensure_symlink() {
     local link_path="$1"
@@ -374,15 +425,69 @@ fi
 export PYTHONPATH="$engine_root/src"
 export TORCH_HOME="$model_root/torch"
 export HF_HOME="$model_root/huggingface"
+export HF_ENDPOINT="$model_endpoint"
+if [[ "$model_source" == "hf-mirror" ]]; then
+    export HF_HUB_DISABLE_XET=1
+else
+    export HF_HUB_DISABLE_XET=0
+fi
 export HF_HUB_DISABLE_SYMLINKS_WARNING=1
 export LRC_EDITOR_MODEL_ROOT="$model_root"
 
 if [[ "$skip_models" -eq 0 ]]; then
     echo "Downloading htdemucs_ft"
-    echo "Source: https://dl.fbaipublicfiles.com/demucs/"
-    "$venv_python" -c "from demucs.pretrained import get_model; get_model('htdemucs_ft'); print('htdemucs_ft ready')"
+    if [[ "$model_source" == "hf-mirror" ]]; then
+        echo "Source: https://hf-mirror.com/iBoostAI/Demucs-v4 (byte-identical official weights)"
+        export LRC_EDITOR_DEMUCS_STAGING="$download_cache_root/demucs-hf"
+        "$venv_python" - <<'PY'
+import hashlib
+import os
+import shutil
+from pathlib import Path
+from huggingface_hub import hf_hub_download
+
+files = {
+    "04573f0d-f3cf25b2.th": "f3cf25b222c4eed7cd49dd8b2c9597d50c18bd154090f7b919cfa5f93cf22c49",
+    "92cfc3b6-ef3bcb9c.th": "ef3bcb9c8b40d14ae5d51b6db2587339cc12c6b77c0be151ce6d69002e087bf2",
+    "d12395a8-e57c48e6.th": "e57c48e6b0e38af4f7118d7bd08c49f0a0c0edf7d09143bdd902ea0d237303e6",
+    "f7e0c4bc-ba3fe64a.th": "ba3fe64ae8ef66ac9a4857222ce48efbdc5eb3ad375cb79dd13debee5aaa4066",
+}
+
+def sha256(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+target_root = Path(os.environ["TORCH_HOME"]) / "hub" / "checkpoints"
+staging_root = Path(os.environ["LRC_EDITOR_DEMUCS_STAGING"])
+target_root.mkdir(parents=True, exist_ok=True)
+try:
+    for filename, expected in files.items():
+        target = target_root / filename
+        if target.is_file() and sha256(target) == expected:
+            continue
+        target.unlink(missing_ok=True)
+        downloaded = Path(hf_hub_download(
+            repo_id="iBoostAI/Demucs-v4",
+            filename=filename,
+            local_dir=staging_root,
+        ))
+        actual = sha256(downloaded)
+        if actual != expected:
+            raise RuntimeError(f"Demucs checksum mismatch for {filename}: {actual}")
+        shutil.copy2(downloaded, target)
+finally:
+    shutil.rmtree(staging_root, ignore_errors=True)
+print("htdemucs_ft ready; all four official SHA-256 checks passed")
+PY
+    else
+        echo "Source: https://dl.fbaipublicfiles.com/demucs/"
+        "$venv_python" -c "from demucs.pretrained import get_model; get_model('htdemucs_ft'); print('htdemucs_ft ready')"
+    fi
     echo "Downloading large-v3-turbo"
-    echo "Source: https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo"
+    echo "Source: $model_endpoint/mobiuslabsgmbh/faster-whisper-large-v3-turbo"
     "$venv_python" -c 'import os; from faster_whisper import download_model; download_model("large-v3-turbo", cache_dir=os.path.join(os.environ["LRC_EDITOR_MODEL_ROOT"], "faster-whisper")); print("large-v3-turbo ready")'
 fi
 
@@ -443,6 +548,8 @@ export LRC_STATE_MODEL_BYTES="$model_bytes"
 export LRC_STATE_MODELS_DOWNLOADED="$((1 - skip_models))"
 export LRC_STATE_EXPECTED_DOWNLOAD="$expected_download"
 export LRC_STATE_EXPECTED_INSTALLED="$expected_installed"
+export LRC_STATE_MODEL_SOURCE="$model_source"
+export LRC_STATE_MODEL_ENDPOINT="$model_endpoint"
 "$venv_python" - <<'PY'
 import json
 import os
@@ -465,6 +572,8 @@ state = {
     "modelsDownloaded": os.environ["LRC_STATE_MODELS_DOWNLOADED"] == "1",
     "expectedDownload": os.environ["LRC_STATE_EXPECTED_DOWNLOAD"],
     "expectedInstalledSize": os.environ["LRC_STATE_EXPECTED_INSTALLED"],
+    "modelSource": os.environ["LRC_STATE_MODEL_SOURCE"],
+    "modelEndpoint": os.environ["LRC_STATE_MODEL_ENDPOINT"],
 }
 with open(os.environ["LRC_STATE_PATH"], "w", encoding="utf-8") as handle:
     json.dump(state, handle, ensure_ascii=False, indent=2)
@@ -502,6 +611,7 @@ fi
 echo
 echo "Installation complete."
 echo "Acceleration: $compute_mode"
+echo "Hugging Face: $model_source ($model_endpoint)"
 echo "Models:      $model_root"
 echo "Start:       $install_root/start-ai-aligner.sh"
 echo "Stop:        $install_root/stop-ai-aligner.sh"

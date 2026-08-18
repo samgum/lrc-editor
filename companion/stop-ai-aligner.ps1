@@ -12,6 +12,10 @@ if (-not (Test-Path -LiteralPath $resolver)) {
 }
 . $resolver
 $resolvedInstallRoot = Resolve-AiAlignerInstallRoot -LauncherRoot $launcherRoot -RequestedRoot $InstallRoot
+if ([string]::IsNullOrWhiteSpace($resolvedInstallRoot)) {
+    Write-Host "No complete LRC Editor AI Aligner installation was found."
+    exit 0
+}
 $pidPath = Join-Path $resolvedInstallRoot "runtime\service.pid"
 $ports = @(8765) + @(8876..8895)
 

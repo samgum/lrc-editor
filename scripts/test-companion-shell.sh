@@ -27,4 +27,11 @@ source companion/resolve-ai-aligner-install.sh
 resolved_root="$(lrc_ai_resolve_install_root "$launcher_root" "")"
 [[ "$resolved_root" == "$installed_root" ]]
 
+missing_root="$test_root/Missing Package"
+mkdir -p "$missing_root"
+if lrc_ai_resolve_install_root "$missing_root" "" >/dev/null; then
+    echo "Resolver unexpectedly accepted a missing installation" >&2
+    exit 1
+fi
+
 bash -n companion/*.sh companion/*.command

@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const companionRoot = resolve("companion");
-const engineRoot = resolve("companion", "engine");
+const engineRoot = resolve("companion", "engine-bundle");
 
 describe("local AI companion package", () => {
     it("ships a self-contained Windows installer and launcher", () => {
@@ -62,9 +62,16 @@ describe("local AI companion package", () => {
         for (const resolver of [unixResolver, windowsResolver]) {
             expect(resolver).toContain("install-location.txt");
             expect(resolver).toContain("install-state.json");
+            expect(resolver).not.toContain("Install directory:");
         }
         expect(unixInstaller).toContain("lrc_ai_location_registry");
         expect(windowsInstaller).toContain("ai-aligner-location.txt");
+        expect(readFileSync(resolve(companionRoot, "start-ai-aligner.sh"), "utf8")).toContain(
+            "Install it now, then start the service?",
+        );
+        expect(readFileSync(resolve(companionRoot, "start-ai-aligner.ps1"), "utf8")).toContain(
+            "Install it now, then start the service?",
+        );
     });
 
     it("ships operating-system-specific guides and lifecycle commands", () => {
@@ -92,6 +99,8 @@ describe("local AI companion package", () => {
         expect(installer).toContain("LRC Editor\\AI Aligner");
         expect(installer).toContain("4898a3cbc569349c5db87bbc931c9d6fa124d64d");
         expect(installer).toContain("Install-BundledEngine");
+        expect(installer).toContain("Save-BundledEngineForRepair");
+        expect(installer).toContain("engine-bundle");
         expect(installer).not.toContain("github.com/samgum/lyrics-forced-aligner");
         expect(installer).toContain("Join-Path $resolvedInstallRoot \"models\"");
         expect(installer).toContain("Join-Path $resolvedInstallRoot \"runtime\"");
@@ -100,6 +109,9 @@ describe("local AI companion package", () => {
         expect(installer).toContain("\"--managed-python\", \"--no-bin\", \"--no-registry\"");
         expect(installer).toContain("UV_MANAGED_PYTHON");
         expect(installer).toContain("--constraints");
+        expect(installer).toContain("$constraintsUri");
+        expect(installer).toContain("$engineUri");
+        expect(installer).toContain("[System.Uri]::new");
         expect(installer).toContain("\"cache\", \"clean\"");
     });
 
@@ -124,7 +136,17 @@ describe("local AI companion package", () => {
         }
         const unixInstaller = readFileSync(resolve(companionRoot, "install-ai-aligner.sh"), "utf8");
         expect(unixInstaller).toContain("bundled_engine_root");
+        expect(unixInstaller).toContain("saved_bundle_root");
         expect(unixInstaller).not.toContain("git clone");
+    });
+
+    it("packages platform-specific companion files", () => {
+        const packager = readFileSync(resolve("scripts/package-release.ps1"), "utf8");
+        expect(packager).toContain("\":(exclude,glob)*.sh\"");
+        expect(packager).toContain("\":(exclude,glob)*.command\"");
+        expect(packager).toContain("\":(exclude,glob)*.ps1\"");
+        expect(packager).toContain("\":(exclude,glob)*.cmd\"");
+        expect(packager).toContain("/engine-bundle/ENGINE_REVISION$");
     });
 
     it("runs the LRC Editor wrapper and exposes task cache cleanup", () => {
@@ -146,7 +168,21 @@ describe("local AI companion package", () => {
         expect(installer).toContain("from demucs.pretrained import get_model");
         expect(installer).toContain("https://dl.fbaipublicfiles.com/demucs/");
         expect(installer).toContain("from faster_whisper import download_model");
-        expect(installer).toContain("https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo");
+        expect(installer).toContain("mobiuslabsgmbh/faster-whisper-large-v3-turbo");
+    });
+
+    it("offers official and hash-verified HF-Mirror model sources", () => {
+        const windowsInstaller = readFileSync(resolve(companionRoot, "install-ai-aligner.ps1"), "utf8");
+        const unixInstaller = readFileSync(resolve(companionRoot, "install-ai-aligner.sh"), "utf8");
+        for (const installer of [windowsInstaller, unixInstaller]) {
+            expect(installer).toContain("https://huggingface.co");
+            expect(installer).toContain("https://hf-mirror.com");
+            expect(installer).toContain("iBoostAI/Demucs-v4");
+            expect(installer).toContain("f3cf25b222c4eed7cd49dd8b2c9597d50c18bd154090f7b919cfa5f93cf22c49");
+            expect(installer).toContain("ba3fe64ae8ef66ac9a4857222ce48efbdc5eb3ad375cb79dd13debee5aaa4066");
+            expect(installer).toContain("HF_ENDPOINT");
+            expect(installer).toContain("modelEndpoint");
+        }
     });
 
     it("keeps CUDA private and preserves a CPU fallback", () => {

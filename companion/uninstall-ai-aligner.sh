@@ -12,7 +12,10 @@ if [[ ! -f "$resolver" ]]; then
     exit 1
 fi
 source "$resolver"
-install_root="$(lrc_ai_resolve_install_root "$launcher_root" "$requested_root")"
+if ! install_root="$(lrc_ai_resolve_install_root "$launcher_root" "$requested_root")"; then
+    echo "No complete LRC Editor AI Aligner installation was found." >&2
+    exit 1
+fi
 location_registry="$(lrc_ai_location_registry || true)"
 if [[ "$install_root" != /* ]]; then
     echo "Install directory must be an absolute path." >&2

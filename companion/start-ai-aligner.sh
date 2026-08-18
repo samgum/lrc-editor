@@ -12,7 +12,25 @@ if [[ ! -f "$resolver" ]]; then
     exit 1
 fi
 source "$resolver"
-install_root="$(lrc_ai_resolve_install_root "$launcher_root" "$requested_root")"
+if ! install_root="$(lrc_ai_resolve_install_root "$launcher_root" "$requested_root")"; then
+    installer="$launcher_root/install-ai-aligner.sh"
+    if [[ ! -t 0 || ! -f "$installer" ]]; then
+        echo "No complete LRC Editor AI Aligner installation was found." >&2
+        echo "Run install-ai-aligner.command from the complete release package first." >&2
+        exit 1
+    fi
+    echo "No complete LRC Editor AI Aligner installation was found."
+    read -r -p "Install it now, then start the service? [Y/n] " install_now
+    if [[ "$install_now" =~ ^[Nn]$ ]]; then
+        echo "Start cancelled."
+        exit 0
+    fi
+    "$installer"
+    if ! install_root="$(lrc_ai_resolve_install_root "$launcher_root" "")"; then
+        echo "Installation completed without a usable location record." >&2
+        exit 1
+    fi
+fi
 engine_root="$install_root/engine"
 environment_root="$install_root/environment"
 model_root="$install_root/models"
@@ -62,10 +80,12 @@ fi
 acceleration="cpu"
 cuda_device=""
 gpu_name=""
+model_endpoint="https://huggingface.co"
 if [[ -f "$state_path" ]]; then
     acceleration="$("$venv_python" -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("acceleration", "cpu"))' "$state_path")"
     cuda_device="$("$venv_python" -c 'import json,sys; value=json.load(open(sys.argv[1], encoding="utf-8")).get("cudaDevice"); print("" if value is None else value)' "$state_path")"
     gpu_name="$("$venv_python" -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("gpuName") or "")' "$state_path")"
+    model_endpoint="$("$venv_python" -c 'import json,sys; value=json.load(open(sys.argv[1], encoding="utf-8")).get("modelEndpoint", "https://huggingface.co"); print(value if value in {"https://huggingface.co", "https://hf-mirror.com"} else "https://huggingface.co")' "$state_path")"
 fi
 if [[ "$acceleration" == "cuda" ]]; then
     site_packages="$("$venv_python" -c 'import site; print(site.getsitepackages()[0])')"
@@ -81,6 +101,12 @@ fi
 export PYTHONPATH="$install_root:$engine_root/src"
 export TORCH_HOME="$model_root/torch"
 export HF_HOME="$model_root/huggingface"
+export HF_ENDPOINT="$model_endpoint"
+if [[ "$model_endpoint" == "https://hf-mirror.com" ]]; then
+    export HF_HUB_DISABLE_XET=1
+else
+    export HF_HUB_DISABLE_XET=0
+fi
 export HF_HUB_DISABLE_SYMLINKS_WARNING=1
 export LYRICS_ALIGNER_PORT="$selected_port"
 export PYTHONWARNINGS="ignore:pkg_resources is deprecated as an API:UserWarning${PYTHONWARNINGS:+,$PYTHONWARNINGS}"
