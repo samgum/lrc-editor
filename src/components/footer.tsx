@@ -9,6 +9,7 @@ import { getMatchedAction } from "../utils/keybindings.js";
 import { isLocalMediaFile, needsCodecFallback, shouldCreateCompressedAlignmentMedia } from "../utils/local-media.js";
 import { MediaExtensionError } from "../utils/media-extension-bridge.js";
 import {
+    extractMediaUrl,
     extractSharedMediaUrl,
     materializeExtensionMedia,
     parseMediaInput,
@@ -76,22 +77,26 @@ export const Footer: React.FC = () => {
             localFileRef.current = null;
             fallbackAttemptedRef.current = false;
             clearAlignmentMediaSource();
-            let provider: "bilibili" | "youtube" | null = null;
+            let provider: "bilibili" | "netease" | "youtube" | null = null;
             try {
                 const parsed = parseMediaInput(value);
-                if (parsed.kind === "youtube" || parsed.kind === "bilibili") {
-                    provider = parsed.kind;
+                if (parsed.kind === "youtube" || parsed.kind === "bilibili" || parsed.kind === "netease-short") {
+                    provider = parsed.kind === "netease-short" ? "netease" : parsed.kind;
                     toastPubSub.pub({
                         type: "info",
-                        text: provider === "youtube" ? lang.notify.youtubeResolving : lang.notify.bilibiliResolving,
+                        text: provider === "youtube"
+                            ? lang.notify.youtubeResolving
+                            : provider === "bilibili"
+                            ? lang.notify.bilibiliResolving
+                            : lang.notify.neteaseResolving,
                     });
                 }
                 const source = await resolveMediaInput(value);
                 const playableSrc = await materializeExtensionMedia(source);
-                const displayInput = value.trim();
+                const displayInput = extractMediaUrl(value);
                 sessionStorage.setItem(SSK.mediaInputDisplay, displayInput);
                 setRememberedMediaUrl(displayInput);
-                if (parsed.kind === "youtube" || parsed.kind === "bilibili") {
+                if (parsed.kind !== "direct") {
                     sessionStorage.setItem(SSK.mediaInput, parsed.originalUrl);
                 } else {
                     sessionStorage.removeItem(SSK.mediaInput);
@@ -122,6 +127,8 @@ export const Footer: React.FC = () => {
                     : error instanceof MediaExtensionError
                     ? provider === "bilibili"
                         ? lang.notify.bilibiliResolveFailed
+                        : provider === "netease"
+                        ? lang.notify.neteaseResolveFailed
                         : lang.notify.youtubeResolveFailed
                     : lang.notify.invalidMediaUrl;
                 toastPubSub.pub({ type: "warning", text: message });
@@ -134,6 +141,8 @@ export const Footer: React.FC = () => {
             lang.notify.bilibiliResolving,
             lang.notify.mediaExtensionMissing,
             lang.notify.mediaExtensionOutdated,
+            lang.notify.neteaseResolveFailed,
+            lang.notify.neteaseResolving,
             lang.notify.youtubeResolveFailed,
             lang.notify.youtubeResolving,
         ],

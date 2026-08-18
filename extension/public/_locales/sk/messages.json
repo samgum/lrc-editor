@@ -1,7 +1,10 @@
 {
     "extensionName": { "message": "LRC Editor Media Bridge" },
-    "extensionDescription": { "message": "Lokálne rozpozná zvuk YouTube a Bilibili pre LRC Editor." },
+    "extensionDescription": {
+        "message": "Lokálne spracuje YouTube, Bilibili a zdieľané odkazy NetEase pre LRC Editor."
+    },
     "supportedSources": { "message": "Podporované zdroje" },
+    "neteaseShareLinks": { "message": "Zdieľané odkazy NetEase" },
     "localAiAlignment": { "message": "Lokálne zarovnanie AI" },
     "openEditor": { "message": "Otvoriť LRC Editor" }
 }

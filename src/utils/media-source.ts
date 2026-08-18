@@ -1,9 +1,16 @@
-import { MediaExtensionError, requestBilibiliAudio, requestYouTubeAudio } from "./media-extension-bridge.js";
+import { extractNeteaseSongId, isNeteaseShortUrl } from "../shared/media-extension-protocol.js";
+import {
+    MediaExtensionError,
+    requestBilibiliAudio,
+    requestNeteaseSongId,
+    requestYouTubeAudio,
+} from "./media-extension-bridge.js";
 
 export type ParsedMediaInput =
     | { kind: "direct"; url: string; persist: boolean }
     | { kind: "youtube"; originalUrl: string; videoId: string }
-    | { kind: "bilibili"; originalUrl: string };
+    | { kind: "bilibili"; originalUrl: string }
+    | { kind: "netease-short"; originalUrl: string };
 
 export interface ResolvedMediaSource {
     data?: string;
@@ -14,7 +21,7 @@ export interface ResolvedMediaSource {
 }
 
 export const parseMediaInput = (value: string): ParsedMediaInput => {
-    const url = new URL(value.trim());
+    const url = new URL(extractMediaUrl(value));
     if (url.protocol !== "https:" && url.protocol !== "http:") {
         throw new TypeError("Only HTTP(S) media URLs are supported");
     }
@@ -32,6 +39,10 @@ export const parseMediaInput = (value: string): ParsedMediaInput => {
             throw new TypeError("The Bilibili URL does not identify a video");
         }
         return { kind: "bilibili", originalUrl: url.href };
+    }
+
+    if (isNeteaseShortUrl(url.href)) {
+        return { kind: "netease-short", originalUrl: url.href };
     }
 
     const neteaseId = extractNeteaseSongId(url);
@@ -61,6 +72,14 @@ export const resolveMediaInput = async (value: string): Promise<ResolvedMediaSou
     if (parsed.kind === "bilibili") {
         const audio = await requestBilibiliAudio(parsed.originalUrl);
         return { src: audio.url, mimeType: audio.mimeType, persist: false, provider: "bilibili-extension" };
+    }
+    if (parsed.kind === "netease-short") {
+        const songId = await requestNeteaseSongId(parsed.originalUrl);
+        return {
+            src: `https://music.163.com/song/media/outer/url?id=${songId}.mp3`,
+            persist: true,
+            provider: "netease",
+        };
     }
 
     return {
@@ -130,17 +149,28 @@ export const materializeExtensionMedia = async (source: ResolvedMediaSource): Pr
 export const extractSharedMediaUrl = (url: URL): string | null => {
     const search = url.searchParams;
     const explicit = search.get("url");
-    if (explicit) {
-        return explicit;
+    const sharedText = explicit || search.get("text") || search.get("title") || "";
+    try {
+        return extractMediaUrl(sharedText);
+    } catch {
+        return null;
     }
+};
 
-    const sharedText = search.get("text") || search.get("title") || "";
-    return /https?:\/\/\S+/i.exec(sharedText)?.[0] || null;
+export const extractMediaUrl = (value: string): string => {
+    const match = /https?:\/\/[^\s<>"']+/iu.exec(value.trim());
+    if (!match) throw new TypeError("The media input does not contain an HTTP(S) URL");
+    const candidate = match[0].replace(/[.,!?;:，。！？；：、)\]}】》”’]+$/u, "");
+    const url = new URL(candidate);
+    if (url.protocol !== "https:" && url.protocol !== "http:") {
+        throw new TypeError("Only HTTP(S) media URLs are supported");
+    }
+    return url.href;
 };
 
 export const toDirectMediaUrl = (value: string): string => {
     const parsed = parseMediaInput(value);
-    return parsed.kind === "direct" ? parsed.url : value;
+    return parsed.kind === "direct" ? parsed.url : parsed.originalUrl;
 };
 
 const isYouTubeHost = (hostname: string): boolean => {
@@ -179,16 +209,6 @@ const extractYouTubeVideoId = (url: URL): string | null => {
     }
 
     return candidate && /^[A-Za-z0-9_-]{11}$/.test(candidate) ? candidate : null;
-};
-
-const extractNeteaseSongId = (url: URL): string | null => {
-    const host = url.hostname.toLowerCase();
-    if (host !== "music.163.com" && !host.endsWith(".music.163.com")) {
-        return null;
-    }
-
-    const candidate = url.searchParams.get("id") || /\b(\d{4,})\b/.exec(`${url.pathname}${url.hash}`)?.[1];
-    return candidate && /^\d{4,}$/.test(candidate) ? candidate : null;
 };
 
 const isEphemeralUrl = (url: URL): boolean => {

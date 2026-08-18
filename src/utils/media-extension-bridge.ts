@@ -1,11 +1,14 @@
 import {
     bilibiliExtensionRequestType,
     isBilibiliUrl,
+    isNeteaseShortUrl,
     isYouTubeVideoId,
     mediaExtensionAckType,
     type MediaExtensionRequest,
     type MediaExtensionResponse,
     mediaExtensionResponseType,
+    type NeteaseExtensionRequest,
+    neteaseExtensionRequestType,
     type YouTubeExtensionRequest,
     youtubeExtensionRequestType,
 } from "../shared/media-extension-protocol.js";
@@ -49,11 +52,55 @@ export const requestBilibiliAudio = (url: string, timeoutMs = 20_000): Promise<R
     );
 };
 
+export const requestNeteaseSongId = (url: string, timeoutMs = 20_000): Promise<string> => {
+    if (!isNeteaseShortUrl(url)) {
+        return Promise.reject(new MediaExtensionError("failed", "Invalid NetEase short URL"));
+    }
+    const request: NeteaseExtensionRequest = {
+        type: neteaseExtensionRequestType,
+        requestId: crypto.randomUUID(),
+        url,
+    };
+    return requestExtension(request, timeoutMs).then((response) => {
+        if (!response.ok) throw new MediaExtensionError("failed", response.error);
+        if (response.provider !== "netease" || !/^\d{4,}$/.test(response.songId)) {
+            throw new MediaExtensionError("failed", "Invalid NetEase link response");
+        }
+        return response.songId;
+    });
+};
+
 const requestExtensionAudio = (
     request: MediaExtensionRequest,
     provider: "youtube" | "bilibili",
     timeoutMs: number,
 ): Promise<ResolvedExtensionAudio> =>
+    requestExtension(request, timeoutMs).then((response) => {
+        if (!response.ok) throw new MediaExtensionError("failed", response.error);
+        if (response.provider === "netease") throw new MediaExtensionError("failed", "Unexpected extension response");
+        try {
+            const url = new URL(response.audioUrl);
+            if (
+                response.provider !== provider || url.protocol !== "https:"
+                || !response.mimeType.startsWith("audio/") || !isProviderMediaHost(provider, url.hostname)
+            ) {
+                throw new Error("Unexpected extension response");
+            }
+            return {
+                url: url.href,
+                data: response.audioData,
+                mimeType: response.mimeType,
+                bitrate: response.bitrate,
+            };
+        } catch {
+            throw new MediaExtensionError("failed", "Invalid media response");
+        }
+    });
+
+const requestExtension = (
+    request: MediaExtensionRequest,
+    timeoutMs: number,
+): Promise<MediaExtensionResponse> =>
     new Promise((resolve, reject) => {
         let responseTimeout = 0;
         const extensionTimeout = window.setTimeout(() => {
@@ -89,28 +136,7 @@ const requestExtensionAudio = (
             }
 
             finish();
-            if (!event.data.ok) {
-                reject(new MediaExtensionError("failed", event.data.error));
-                return;
-            }
-
-            try {
-                const url = new URL(event.data.audioUrl);
-                if (
-                    event.data.provider !== provider || url.protocol !== "https:"
-                    || !event.data.mimeType.startsWith("audio/") || !isProviderMediaHost(provider, url.hostname)
-                ) {
-                    throw new Error("Unexpected extension response");
-                }
-                resolve({
-                    url: url.href,
-                    data: event.data.audioData,
-                    mimeType: event.data.mimeType,
-                    bitrate: event.data.bitrate,
-                });
-            } catch {
-                reject(new MediaExtensionError("failed", "Invalid media response"));
-            }
+            resolve(event.data);
         };
 
         window.addEventListener("message", onMessage);

@@ -2,6 +2,7 @@ import type { LocalAlignerRequest } from "../../src/shared/local-aligner-protoco
 
 const youtubeRequestType = "LRC_EDITOR_RESOLVE_YOUTUBE";
 const bilibiliRequestType = "LRC_EDITOR_RESOLVE_BILIBILI";
+const neteaseRequestType = "LRC_EDITOR_RESOLVE_NETEASE";
 const ackType = "LRC_EDITOR_MEDIA_ACK";
 const responseType = "LRC_EDITOR_MEDIA_RESULT";
 const alignerResponseType = "LRC_EDITOR_ALIGNER_RESULT";
@@ -61,7 +62,9 @@ const isRequest = (
     if (request.type === youtubeRequestType) {
         return typeof request.videoId === "string" && /^[A-Za-z0-9_-]{11}$/.test(request.videoId);
     }
-    return request.type === bilibiliRequestType && isBilibiliUrl(request.url);
+    return request.type === bilibiliRequestType
+        ? isBilibiliUrl(request.url)
+        : request.type === neteaseRequestType && isNeteaseShortUrl(request.url);
 };
 
 const isLocalAlignerRequest = (value: unknown): value is LocalAlignerRequest => {
@@ -82,6 +85,19 @@ const isBilibiliUrl = (value: unknown): boolean => {
             ? url.pathname.length > 1
             : (host === "bilibili.com" || host.endsWith(".bilibili.com"))
                 && /^\/video\/(?:BV[A-Za-z0-9]+|av\d+)/i.test(url.pathname);
+    } catch {
+        return false;
+    }
+};
+
+const isNeteaseShortUrl = (value: unknown): boolean => {
+    if (typeof value !== "string") return false;
+    if (!/^https:\/\/163cn\.tv\/[A-Za-z0-9_-]{3,64}\/?(?:[?#].*)?$/i.test(value)) return false;
+    try {
+        const url = new URL(value);
+        return url.protocol === "https:" && url.hostname.toLowerCase() === "163cn.tv" && url.port === ""
+            && /^\/[A-Za-z0-9_-]{3,64}\/?$/.test(url.pathname)
+            && url.username === "" && url.password === "";
     } catch {
         return false;
     }

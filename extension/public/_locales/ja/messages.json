@@ -1,7 +1,10 @@
 {
     "extensionName": { "message": "LRC Editor Media Bridge" },
-    "extensionDescription": { "message": "YouTube と Bilibili の音声を端末上で LRC Editor 用に解析します。" },
+    "extensionDescription": {
+        "message": "YouTube、Bilibili、NetEase の共有リンクを端末上で LRC Editor 用に解析します。"
+    },
     "supportedSources": { "message": "対応サービス" },
+    "neteaseShareLinks": { "message": "NetEase 共有リンク" },
     "localAiAlignment": { "message": "ローカル AI タイミング調整" },
     "openEditor": { "message": "LRC Editor を開く" }
 }

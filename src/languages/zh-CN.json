@@ -118,6 +118,8 @@
         "youtubeResolving": "正在通过配套扩展解析 YouTube 音频…",
         "bilibiliResolving": "正在通过配套扩展解析哔哩哔哩音频…",
         "bilibiliResolveFailed": "无法解析这个哔哩哔哩音频。",
+        "neteaseResolving": "正在通过配套扩展展开网易云分享链接…",
+        "neteaseResolveFailed": "无法展开这个网易云分享链接。",
         "mediaExtensionMissing": "媒体扩展未连接。请安装或更新扩展，然后刷新本页面。",
         "mediaExtensionOutdated": "媒体扩展版本过旧。请替换为最新版本，在扩展管理页重新加载，然后刷新本页面。",
         "youtubeResolveFailed": "无法解析这个 YouTube 音频。",

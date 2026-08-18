@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractSharedMediaUrl, materializeExtensionMedia, parseMediaInput } from "./media-source.js";
+import { extractMediaUrl, extractSharedMediaUrl, materializeExtensionMedia, parseMediaInput } from "./media-source.js";
 
 describe("parseMediaInput", () => {
     it("converts NetEase song links to the public media endpoint", () => {
@@ -8,6 +8,21 @@ describe("parseMediaInput", () => {
             url: "https://music.163.com/song/media/outer/url?id=123456789.mp3",
             persist: true,
         });
+    });
+
+    it("extracts and recognizes a NetEase short link from a complete share message", () => {
+        const shared = "分享Troye Sivan的单曲《She’s the Best》https://163cn.tv/bdlP6XHD (@网易云音乐)";
+        expect(parseMediaInput(shared)).toEqual({
+            kind: "netease-short",
+            originalUrl: "https://163cn.tv/bdlP6XHD",
+        });
+    });
+
+    it("extracts HTTP links and removes trailing share punctuation", () => {
+        expect(extractMediaUrl("请听：https://music.163.com/song?id=3421081743。"))
+            .toBe("https://music.163.com/song?id=3421081743");
+        expect(() => extractMediaUrl("这里没有链接"))
+            .toThrow("does not contain");
     });
 
     it.each([
@@ -54,6 +69,13 @@ describe("extractSharedMediaUrl", () => {
             extractSharedMediaUrl(new URL("https://lrc.sgmy.org/?text=Listen%20https%3A%2F%2Fyoutu.be%2FM7lc1UVf-VE")),
         )
             .toBe("https://youtu.be/M7lc1UVf-VE");
+        expect(
+            extractSharedMediaUrl(
+                new URL(
+                    "https://lrc.sgmy.org/?title=%E5%88%86%E4%BA%AB%E6%AD%8C%E6%9B%B2%20https%3A%2F%2F163cn.tv%2FbdlP6XHD%20(%40%E7%BD%91%E6%98%93%E4%BA%91%E9%9F%B3%E4%B9%90)",
+                ),
+            ),
+        ).toBe("https://163cn.tv/bdlP6XHD");
     });
 });
 

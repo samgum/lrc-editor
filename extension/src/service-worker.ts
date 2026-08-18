@@ -8,14 +8,18 @@ import {
     type BilibiliExtensionRequest,
     bilibiliExtensionRequestType,
     isBilibiliUrl,
+    isNeteaseShortUrl,
     isYouTubeVideoId,
     type MediaExtensionRequest,
     type MediaExtensionResponse,
     mediaExtensionResponseType,
+    type NeteaseExtensionRequest,
+    neteaseExtensionRequestType,
     type YouTubeExtensionRequest,
     youtubeExtensionRequestType,
 } from "../../src/shared/media-extension-protocol.js";
 import { LocalAlignerClient, LocalAlignerClientError } from "./local-aligner-client.js";
+import { resolveNeteaseShortLink } from "./netease-link.js";
 
 interface YouTubeClientSession {
     client: Innertube;
@@ -66,7 +70,11 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
 });
 
 const resolveAudio = (request: MediaExtensionRequest, siteOrigin: string): Promise<MediaExtensionResponse> =>
-    request.type === youtubeExtensionRequestType ? resolveYouTube(request, siteOrigin) : resolveBilibili(request);
+    request.type === youtubeExtensionRequestType
+        ? resolveYouTube(request, siteOrigin)
+        : request.type === bilibiliExtensionRequestType
+        ? resolveBilibili(request)
+        : resolveNetease(request);
 
 const resolveYouTube = async (
     request: YouTubeExtensionRequest,
@@ -259,6 +267,20 @@ const resolveBilibili = async (request: BilibiliExtensionRequest): Promise<Media
     }
 };
 
+const resolveNetease = async (request: NeteaseExtensionRequest): Promise<MediaExtensionResponse> => {
+    try {
+        return {
+            type: mediaExtensionResponseType,
+            requestId: request.requestId,
+            ok: true,
+            provider: "netease",
+            songId: await resolveNeteaseShortLink(request.url),
+        };
+    } catch {
+        return failure(request.requestId, "RESOLVE_FAILED");
+    }
+};
+
 const expandBilibiliUrl = async (value: string): Promise<URL> => {
     const url = new URL(value);
     if (url.hostname.toLowerCase() !== "b23.tv") {
@@ -332,7 +354,9 @@ const isResolveRequest = (value: unknown): value is MediaExtensionRequest => {
     }
     return request.type === youtubeExtensionRequestType
         ? isYouTubeVideoId(request.videoId)
-        : request.type === bilibiliExtensionRequestType && isBilibiliUrl(request.url);
+        : request.type === bilibiliExtensionRequestType
+        ? isBilibiliUrl(request.url)
+        : request.type === neteaseExtensionRequestType && isNeteaseShortUrl(request.url);
 };
 
 const isGoogleVideoHost = (hostname: string): boolean =>

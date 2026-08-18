@@ -124,6 +124,8 @@
         "youtubeResolving": "Resolving YouTube audio with the companion extension…",
         "bilibiliResolving": "Resolving Bilibili audio with the companion extension…",
         "bilibiliResolveFailed": "Unable to resolve this Bilibili audio.",
+        "neteaseResolving": "Expanding the NetEase share link with the companion extension…",
+        "neteaseResolveFailed": "Unable to expand this NetEase share link.",
         "mediaExtensionMissing": "The Media Bridge is not connected. Install or update it, then refresh this page.",
         "mediaExtensionOutdated": "The Media Bridge is outdated. Replace it with the latest release, reload the extension, then refresh this page.",
         "youtubeResolveFailed": "Unable to resolve this YouTube audio.",

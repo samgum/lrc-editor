@@ -51,6 +51,7 @@ describe("extension package", () => {
             "extensionDescription",
             "extensionName",
             "localAiAlignment",
+            "neteaseShareLinks",
             "openEditor",
             "supportedSources",
         ];
@@ -76,6 +77,9 @@ describe("extension package", () => {
             "https://www.bilibili.com/*",
             "https://b23.tv/*",
             "https://*.bilivideo.com/*",
+            "https://163cn.tv/*",
+            "https://music.163.com/*",
+            "https://*.music.163.com/*",
             "https://lrc.sgmy.org/*",
             "http://localhost/*",
             "http://127.0.0.1/*",

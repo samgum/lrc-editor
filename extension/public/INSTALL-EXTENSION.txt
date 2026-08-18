@@ -2,6 +2,8 @@ LRC Editor Media Bridge v0.4.6
 
 This is the browser extension package.
 这是浏览器扩展安装包。
+It resolves YouTube, Bilibili, and NetEase 163cn.tv share links for LRC Editor.
+它为 LRC Editor 解析 YouTube、哔哩哔哩和网易云 163cn.tv 分享链接。
 
 Windows:
 1. Extract the complete ZIP. / 完整解压 ZIP。

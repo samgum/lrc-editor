@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { requestYouTubeAudio } from "./media-extension-bridge.js";
+import { requestNeteaseSongId, requestYouTubeAudio } from "./media-extension-bridge.js";
 
 describe("YouTube extension bridge", () => {
     afterEach(() => {
@@ -49,5 +49,41 @@ describe("YouTube extension bridge", () => {
         events.dispatchEvent(event);
 
         await expect(pending).rejects.toMatchObject({ code: "outdated" });
+    });
+
+    it("returns a validated song id for a NetEase short link", async () => {
+        const events = new EventTarget();
+        const postMessage = vi.fn();
+        const windowStub = {
+            addEventListener: events.addEventListener.bind(events),
+            removeEventListener: events.removeEventListener.bind(events),
+            postMessage,
+            setTimeout,
+            clearTimeout,
+        };
+        vi.stubGlobal("location", { origin: "https://lrc.sgmy.org" });
+        vi.stubGlobal("window", windowStub);
+
+        const pending = requestNeteaseSongId("https://163cn.tv/bdlP6XHD");
+        const request = postMessage.mock.calls[0][0] as { requestId: string };
+        const dispatch = (data: unknown): void => {
+            const event = new Event("message");
+            Object.defineProperties(event, {
+                source: { value: windowStub },
+                origin: { value: "https://lrc.sgmy.org" },
+                data: { value: data },
+            });
+            events.dispatchEvent(event);
+        };
+        dispatch({ type: "LRC_EDITOR_MEDIA_ACK", requestId: request.requestId, version: "0.4.6" });
+        dispatch({
+            type: "LRC_EDITOR_MEDIA_RESULT",
+            requestId: request.requestId,
+            ok: true,
+            provider: "netease",
+            songId: "3421081743",
+        });
+
+        await expect(pending).resolves.toBe("3421081743");
     });
 });
