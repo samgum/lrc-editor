@@ -91,6 +91,13 @@ pnpm build:all
 
 把 `build/` 中的内容部署到任意静态 HTTPS 主机即可。仓库内的 Dockerfile 会构建站点并使用 nginx 提供服务。
 
+生产项目使用不带 Worker 运行时的 Cloudflare Pages：
+
+```bash
+pnpm build
+pnpm exec wrangler pages deploy build --project-name lrc-editor
+```
+
 扩展单独打包。运行 `pnpm build:extension` 后，可分发 `extension-dist/`，或用同一份打包代码提交至 Chromium 扩展商店。
 
 ## 目录结构

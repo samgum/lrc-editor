@@ -91,6 +91,13 @@ To test the extension locally, open the browser's extension management page, ena
 
 Deploy the contents of `build/` to any static HTTPS host. The included Dockerfile builds the web application and serves it with nginx.
 
+The production project uses Cloudflare Pages without a Worker runtime:
+
+```bash
+pnpm build
+pnpm exec wrangler pages deploy build --project-name lrc-editor
+```
+
 The extension is packaged separately. Build it with `pnpm build:extension`, then distribute the resulting `extension-dist/` directory or submit the same packaged code to a Chromium extension store.
 
 ## Project structure
