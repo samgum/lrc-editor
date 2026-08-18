@@ -1,7 +1,7 @@
 /*
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
-  Referrer-Policy: no-referrer
+  Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
   Strict-Transport-Security: max-age=31536000
 
@@ -13,6 +13,10 @@
 
 /site.webmanifest
   Cache-Control: public, max-age=3600
+
+/youtube-token.html
+  ! X-Frame-Options
+  Content-Security-Policy: frame-ancestors chrome-extension:
 
 /assets/*
   Cache-Control: public, max-age=31536000, immutable

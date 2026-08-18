@@ -2,7 +2,6 @@ import { parser } from "@lrc-maker/lrc-parser";
 import { describe, expect, it } from "vitest";
 import {
     cleanGeniusTracklist,
-    compressTags,
     convertLyricsCase,
     overwriteLyrics,
     removeEmptyLines,
@@ -17,10 +16,6 @@ const options = { fixed: 3 as const, spaceStart: 0, spaceEnd: 0 };
 const source = parser("[ti: Demo]\n[00:01.000]Hello / 你好\n[00:02.000]\n[00:03.000]Hello / 你好");
 
 describe("LRC tools", () => {
-    it("compresses repeated lyric text into multiple tags", () => {
-        expect(compressTags(source, options)).toContain("[00:01.000][00:03.000]Hello / 你好");
-    });
-
     it("removes tags and empty lines", () => {
         expect(removeTags(source, options)).toBe("Hello / 你好\r\n\r\nHello / 你好");
         expect(removeEmptyLines(source, options)).not.toContain("[00:02.000]");
@@ -29,6 +24,7 @@ describe("LRC tools", () => {
     it("applies a linear time transform", () => {
         const result = transformTimes(source, 2, 500, options);
         expect(result).toContain("[00:02.500]Hello / 你好");
+        expect(transformTimes(source, 1, -500, options)).toContain("[00:00.500]Hello / 你好");
     });
 
     it("splits translation text into two LRC blocks", () => {

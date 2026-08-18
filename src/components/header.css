@@ -131,7 +131,7 @@
 
 .app-tab[aria-current="page"] {
     color: var(--theme-color) !important;
-    background: rgb(var(--theme-rgb) / 10%);
+    background: rgba(var(--theme-rgb), 0.1);
 }
 
 .app-tab[aria-current="page"]::after {

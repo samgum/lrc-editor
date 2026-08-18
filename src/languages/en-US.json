@@ -136,7 +136,6 @@
         "apply": "Apply to editor",
         "copy": "Copy result",
         "download": "Download result",
-        "compressTags": "Compress repeated lines",
         "removeTags": "Remove tags",
         "removeEmpty": "Remove empty lines",
         "changeOffset": "Transform time",

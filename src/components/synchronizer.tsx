@@ -387,7 +387,9 @@ const LyricLine: React.FC<ILyricLineProps> = ({ line, index, select, className, 
     return (
         <li key={index} data-key={index} className={className}>
             <span className="line-index">{index + 1}</span>
-            {select ? <Curser fixed={prefState.fixed} /> : <time className="line-time">{lineTime}</time>}
+            {select && line.time === undefined
+                ? <Curser fixed={prefState.fixed} />
+                : <time className="line-time">{lineTime}</time>}
             <span className="line-text">{lineText}</span>
         </li>
     );

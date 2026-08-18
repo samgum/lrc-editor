@@ -19,6 +19,7 @@ export default defineConfig({
         rollupOptions: {
             input: {
                 bridge: resolve("extension/src/bridge.ts"),
+                offscreen: resolve("extension/offscreen.html"),
                 popup: resolve("extension/popup.html"),
                 "service-worker": resolve("extension/src/service-worker.ts"),
             },

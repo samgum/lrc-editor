@@ -7,7 +7,6 @@ import { ActionType } from "../hooks/useLrc.js";
 import { lrcFileName } from "../utils/lrc-file-name.js";
 import {
     cleanGeniusTracklist,
-    compressTags,
     convertLyricsCase,
     type LyricsCaseMode,
     overwriteLyrics,
@@ -22,7 +21,6 @@ import { appContext } from "./app.context.js";
 import { toastPubSub } from "./toast.js";
 
 type Tool =
-    | "compress"
     | "remove-tags"
     | "remove-empty"
     | "time"
@@ -56,9 +54,9 @@ export const Tools: React.FC<{
     const { lang, prefState, trimOptions } = useContext(appContext);
     const serialized = useMemo(() => stringify(state, prefState), [prefState, state]);
     const [source, setSource] = useState(serialized);
-    const [tool, setTool] = useState<Tool>("compress");
-    const [multiplier, setMultiplier] = useState(1);
-    const [constantMs, setConstantMs] = useState(0);
+    const [tool, setTool] = useState<Tool>("overwrite");
+    const [multiplier, setMultiplier] = useState("1");
+    const [constantMs, setConstantMs] = useState("0");
     const [splitPattern, setSplitPattern] = useState<string>(splitPatterns[0].value);
     const [customPattern, setCustomPattern] = useState("");
     const [replacement, setReplacement] = useState(() => sessionStorage.getItem(SSK.overwriteText) || "");
@@ -140,14 +138,19 @@ export const Tools: React.FC<{
             }
             const parsed = parser(source, trimOptions);
             switch (tool) {
-                case "compress":
-                    return { text: compressTags(parsed, prefState) };
                 case "remove-tags":
                     return { text: removeTags(parsed, prefState) };
                 case "remove-empty":
                     return { text: removeEmptyLines(parsed, prefState) };
                 case "time":
-                    return { text: transformTimes(parsed, multiplier, constantMs, prefState) };
+                    return {
+                        text: transformTimes(
+                            parsed,
+                            Number.parseFloat(multiplier),
+                            Number.parseFloat(constantMs),
+                            prefState,
+                        ),
+                    };
                 case "split": {
                     const expression = new RegExp(customPattern || splitPattern);
                     return { text: splitTranslation(parsed, expression, prefState) };
@@ -222,12 +225,11 @@ export const Tools: React.FC<{
     }, []);
 
     const toolButtons: Array<{ id: Tool; label: string }> = [
-        { id: "compress", label: lang.tools.compressTags },
+        { id: "overwrite", label: lang.tools.overwrite },
         { id: "remove-tags", label: lang.tools.removeTags },
         { id: "remove-empty", label: lang.tools.removeEmpty },
         { id: "time", label: lang.tools.changeOffset },
         { id: "split", label: lang.tools.splitTranslation },
-        { id: "overwrite", label: lang.tools.overwrite },
         { id: "sections", label: lang.tools.sections },
         { id: "tracklist", label: lang.tools.tracklist },
         { id: "replace", label: lang.tools.replaceText },
@@ -261,7 +263,7 @@ export const Tools: React.FC<{
                                 type="number"
                                 step="0.01"
                                 value={multiplier}
-                                onChange={(ev) => setMultiplier(ev.target.valueAsNumber)}
+                                onChange={(ev) => setMultiplier(ev.target.value)}
                             />
                         </label>
                         <label>
@@ -270,7 +272,7 @@ export const Tools: React.FC<{
                                 type="number"
                                 step="10"
                                 value={constantMs}
-                                onChange={(ev) => setConstantMs(ev.target.valueAsNumber)}
+                                onChange={(ev) => setConstantMs(ev.target.value)}
                             />
                         </label>
                     </>

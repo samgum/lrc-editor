@@ -7,7 +7,12 @@ import { isKeyboardElement } from "../utils/is-keyboard-element.js";
 import { getMatchedAction } from "../utils/keybindings.js";
 import { isLocalMediaFile, needsCodecFallback } from "../utils/local-media.js";
 import { MediaExtensionError } from "../utils/media-extension-bridge.js";
-import { extractSharedMediaUrl, parseMediaInput, resolveMediaInput } from "../utils/media-source.js";
+import {
+    extractSharedMediaUrl,
+    materializeExtensionMedia,
+    parseMediaInput,
+    resolveMediaInput,
+} from "../utils/media-source.js";
 import { appContext, ChangBits } from "./app.context.js";
 import { LrcAudio } from "./audio.js";
 import { LoadAudio } from "./loadaudio.js";
@@ -77,6 +82,7 @@ export const Footer: React.FC = () => {
                     });
                 }
                 const source = await resolveMediaInput(value);
+                const playableSrc = await materializeExtensionMedia(source);
                 if (parsed.kind === "youtube" || parsed.kind === "bilibili") {
                     sessionStorage.setItem(SSK.mediaInput, parsed.originalUrl);
                 } else {
@@ -87,7 +93,7 @@ export const Footer: React.FC = () => {
                 } else {
                     sessionStorage.removeItem(SSK.audioSrc);
                 }
-                setAudioSrc(source.src);
+                setAudioSrc(playableSrc);
             } catch (error) {
                 const message = error instanceof MediaExtensionError && error.code === "missing"
                     ? lang.notify.mediaExtensionMissing

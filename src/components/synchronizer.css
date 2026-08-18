@@ -200,11 +200,12 @@
 
 .line.highlight {
     border-left-color: var(--theme-color);
-    background: linear-gradient(90deg, rgb(var(--theme-rgb) / 25%), rgb(var(--theme-rgb) / 11%));
+    background: linear-gradient(90deg, rgba(var(--theme-rgb), 0.34), rgba(var(--theme-rgb), 0.17));
     box-shadow:
-        inset 4px 0 0 var(--theme-color),
-        inset 0 1px rgb(var(--theme-rgb) / 18%),
-        inset 0 -1px rgb(var(--theme-rgb) / 18%);
+        inset 5px 0 0 var(--theme-color),
+        inset 0 1px rgba(var(--theme-rgb), 0.36),
+        inset 0 -1px rgba(var(--theme-rgb), 0.36),
+        0 2px 10px rgba(var(--theme-rgb), 0.12);
 }
 
 .line.highlight .line-text {
@@ -214,6 +215,18 @@
 .line.highlight .line-index, .line.highlight .line-time {
     color: var(--theme-color);
     font-weight: 700;
+}
+
+.line.highlight .line-index {
+    display: grid;
+    place-items: center;
+    width: 1.65rem;
+    height: 1.65rem;
+    place-self: center;
+    color: var(--theme-contrast-color);
+    background: var(--theme-color);
+    border-radius: 999px;
+    box-shadow: 0 2px 7px rgba(var(--theme-rgb), 0.3);
 }
 
 .error {

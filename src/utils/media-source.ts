@@ -1,4 +1,4 @@
-import { requestBilibiliAudio, requestYouTubeAudio } from "./media-extension-bridge.js";
+import { MediaExtensionError, requestBilibiliAudio, requestYouTubeAudio } from "./media-extension-bridge.js";
 
 export type ParsedMediaInput =
     | { kind: "direct"; url: string; persist: boolean }
@@ -6,6 +6,8 @@ export type ParsedMediaInput =
     | { kind: "bilibili"; originalUrl: string };
 
 export interface ResolvedMediaSource {
+    data?: string;
+    mimeType?: string;
     src: string;
     persist: boolean;
     provider: "bilibili-extension" | "direct" | "netease" | "youtube-extension";
@@ -48,11 +50,17 @@ export const resolveMediaInput = async (value: string): Promise<ResolvedMediaSou
     const parsed = parseMediaInput(value);
     if (parsed.kind === "youtube") {
         const audio = await requestYouTubeAudio(parsed.videoId);
-        return { src: audio.url, persist: false, provider: "youtube-extension" };
+        return {
+            src: audio.url,
+            data: audio.data,
+            mimeType: audio.mimeType,
+            persist: false,
+            provider: "youtube-extension",
+        };
     }
     if (parsed.kind === "bilibili") {
         const audio = await requestBilibiliAudio(parsed.originalUrl);
-        return { src: audio.url, persist: false, provider: "bilibili-extension" };
+        return { src: audio.url, mimeType: audio.mimeType, persist: false, provider: "bilibili-extension" };
     }
 
     return {
@@ -60,6 +68,63 @@ export const resolveMediaInput = async (value: string): Promise<ResolvedMediaSou
         persist: parsed.persist,
         provider: parsed.url.includes("music.163.com/song/media/outer/url") ? "netease" : "direct",
     };
+};
+
+export const materializeExtensionMedia = async (source: ResolvedMediaSource): Promise<string> => {
+    if (source.provider !== "youtube-extension" && source.provider !== "bilibili-extension") {
+        return source.src;
+    }
+    try {
+        if (source.data) {
+            const binary = atob(source.data);
+            const bytes = new Uint8Array(binary.length);
+            for (let index = 0; index < binary.length; index += 1) {
+                bytes[index] = binary.charCodeAt(index);
+            }
+            return URL.createObjectURL(new Blob([bytes], { type: source.mimeType }));
+        }
+        const url = new URL(source.src);
+        let mediaLength = Number.parseInt(url.searchParams.get("clen") || "", 10);
+        if (!Number.isSafeInteger(mediaLength) || mediaLength <= 0) {
+            const probe = await fetch(source.src, {
+                credentials: "omit",
+                headers: { Range: "bytes=0-0" },
+            });
+            const total = /\/(\d+)$/.exec(probe.headers.get("Content-Range") || "")?.[1];
+            mediaLength = Number.parseInt(total || "", 10);
+            if (!probe.ok || !Number.isSafeInteger(mediaLength) || mediaLength <= 0) {
+                throw new Error(`Media size request failed with status ${probe.status}`);
+            }
+        }
+        const parts: ArrayBuffer[] = [];
+        const chunkSize = 1024 * 1024;
+        for (let start = 0; start < mediaLength; start += chunkSize) {
+            const end = Math.min(start + chunkSize - 1, mediaLength - 1);
+            const response = await fetch(source.src, {
+                credentials: "omit",
+                headers: { Range: `bytes=${start}-${end}` },
+            });
+            if (!response.ok) {
+                throw new Error(`Media request failed with status ${response.status}`);
+            }
+            const part = await response.arrayBuffer();
+            if (response.status === 200) {
+                parts.splice(0, parts.length, part);
+                break;
+            }
+            parts.push(part);
+        }
+        const media = new Blob(parts, { type: source.mimeType });
+        if (media.size === 0) {
+            throw new Error("Media response was empty");
+        }
+        return URL.createObjectURL(media);
+    } catch (error) {
+        throw new MediaExtensionError(
+            "failed",
+            error instanceof Error ? error.message : "Resolved media could not be loaded",
+        );
+    }
 };
 
 export const extractSharedMediaUrl = (url: URL): string | null => {

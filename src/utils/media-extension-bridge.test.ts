@@ -44,7 +44,7 @@ describe("YouTube extension bridge", () => {
         Object.defineProperties(event, {
             source: { value: windowStub },
             origin: { value: "https://lrc.sgmy.org" },
-            data: { value: { type: "LRC_EDITOR_MEDIA_ACK", requestId: request.requestId, version: "0.2.0" } },
+            data: { value: { type: "LRC_EDITOR_MEDIA_ACK", requestId: request.requestId, version: "0.3.0" } },
         });
         events.dispatchEvent(event);
 

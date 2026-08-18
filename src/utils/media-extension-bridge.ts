@@ -17,15 +17,16 @@ export class MediaExtensionError extends Error {
     }
 }
 
-const minimumMediaExtensionVersion = [0, 3, 0] as const;
+const minimumMediaExtensionVersion = [0, 3, 1] as const;
 
 export interface ResolvedExtensionAudio {
+    data?: string;
     url: string;
     mimeType: string;
     bitrate?: number;
 }
 
-export const requestYouTubeAudio = (videoId: string, timeoutMs = 45_000): Promise<ResolvedExtensionAudio> => {
+export const requestYouTubeAudio = (videoId: string, timeoutMs = 90_000): Promise<ResolvedExtensionAudio> => {
     if (!isYouTubeVideoId(videoId)) {
         return Promise.reject(new MediaExtensionError("failed", "Invalid YouTube video id"));
     }
@@ -101,7 +102,12 @@ const requestExtensionAudio = (
                 ) {
                     throw new Error("Unexpected extension response");
                 }
-                resolve({ url: url.href, mimeType: event.data.mimeType, bitrate: event.data.bitrate });
+                resolve({
+                    url: url.href,
+                    data: event.data.audioData,
+                    mimeType: event.data.mimeType,
+                    bitrate: event.data.bitrate,
+                });
             } catch {
                 reject(new MediaExtensionError("failed", "Invalid media response"));
             }

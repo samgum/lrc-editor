@@ -19,6 +19,11 @@
             "name": "lrc-utils",
             "author": "magic-akari",
             "url": "https://github.com/magic-akari/lrc-utils"
+        },
+        {
+            "name": "lyrics-tools",
+            "author": "samgum",
+            "url": "https://github.com/samgum/lyrics-tools"
         }
     ]
 }

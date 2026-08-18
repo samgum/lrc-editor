@@ -1,21 +1,24 @@
 .toast-queue {
     position: fixed;
-    top: 60px;
-    right: 0;
-    width: 100%;
-    max-width: 320px;
+    top: 76px;
+    left: 50%;
+    z-index: 1200;
+    width: min(440px, calc(100vw - 32px));
+    pointer-events: none;
+    transform: translateX(-50%);
 }
 
 .toast {
     display: flex;
     max-height: 320px;
-    margin: 1rem;
+    margin: 0 0 12px;
     color: var(--black);
     background-color: var(--semi-white-color);
     background-color: #ffffffdd;
     border: 1px solid var(--theme-color);
     border-radius: var(--border-radius);
     box-shadow: 0 0 1rem var(--theme-color);
+    pointer-events: auto;
     animation:
         height-change var(--animation-duration) ease forwards,
         slide-in-right var(--animation-duration) ease-in forwards,

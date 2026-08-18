@@ -54,7 +54,7 @@
 
 @media (hover: hover) {
     .keybinding-row:hover {
-        background-color: rgb(var(--theme-rgb) / 8%);
+        background-color: rgba(var(--theme-rgb), 0.08);
     }
 }
 

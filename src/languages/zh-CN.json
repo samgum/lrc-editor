@@ -130,7 +130,6 @@
         "apply": "应用到编辑器",
         "copy": "复制结果",
         "download": "下载结果",
-        "compressTags": "压缩重复歌词标签",
         "removeTags": "移除全部标签",
         "removeEmpty": "移除空行",
         "changeOffset": "时间变换",

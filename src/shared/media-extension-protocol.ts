@@ -24,6 +24,7 @@ export type MediaExtensionResponse =
         ok: true;
         provider: "youtube" | "bilibili";
         audioUrl: string;
+        audioData?: string;
         mimeType: string;
         bitrate?: number;
     }

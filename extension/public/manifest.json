@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "__MSG_extensionName__",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "description": "__MSG_extensionDescription__",
     "default_locale": "en",
     "minimum_chrome_version": "120",
@@ -14,11 +14,14 @@
         "default_popup": "popup.html"
     },
     "permissions": [
-        "declarativeNetRequestWithHostAccess"
+        "declarativeNetRequestWithHostAccess",
+        "offscreen",
+        "webRequest"
     ],
     "host_permissions": [
         "https://www.youtube.com/*",
         "https://youtubei.googleapis.com/*",
+        "https://*.googlevideo.com/*",
         "https://api.bilibili.com/*",
         "https://www.bilibili.com/*",
         "https://b23.tv/*",

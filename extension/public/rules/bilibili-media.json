@@ -20,7 +20,39 @@
                 "127.0.0.1"
             ],
             "resourceTypes": [
-                "media"
+                "media",
+                "xmlhttprequest"
+            ]
+        }
+    },
+    {
+        "id": 2,
+        "priority": 1,
+        "action": {
+            "type": "modifyHeaders",
+            "responseHeaders": [
+                {
+                    "header": "Access-Control-Allow-Origin",
+                    "operation": "set",
+                    "value": "*"
+                },
+                {
+                    "header": "Access-Control-Expose-Headers",
+                    "operation": "set",
+                    "value": "Accept-Ranges, Content-Length, Content-Range"
+                }
+            ]
+        },
+        "condition": {
+            "regexFilter": "^https://[^/]+\\.googlevideo\\.com/",
+            "initiatorDomains": [
+                "lrc.sgmy.org",
+                "localhost",
+                "127.0.0.1"
+            ],
+            "resourceTypes": [
+                "media",
+                "xmlhttprequest"
             ]
         }
     }

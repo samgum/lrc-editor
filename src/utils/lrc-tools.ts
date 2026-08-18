@@ -1,31 +1,4 @@
-import {
-    convertTimeToTag,
-    formatText,
-    type IFormatOptions,
-    type ILyric,
-    type State,
-    stringify,
-} from "@lrc-maker/lrc-parser";
-
-export const compressTags = (state: State, options: IFormatOptions): string => {
-    const { endOfLine = "\r\n", fixed, spaceEnd, spaceStart } = options;
-    const info = [...state.info].map(([name, value]) => `[${name}: ${value}]`);
-    const records = new Map<string, number[]>();
-
-    for (const line of state.lyric) {
-        if (line.time === undefined) {
-            continue;
-        }
-        const times = records.get(line.text) || [];
-        records.set(line.text, [...times, line.time]);
-    }
-
-    const lyric = [...records].map(([text, times]) => {
-        const tags = times.map((time) => convertTimeToTag(time, fixed)).join("");
-        return `${tags}${formatText(text, spaceStart, spaceEnd)}`;
-    });
-    return [...info, ...lyric].join(endOfLine);
-};
+import { type IFormatOptions, type ILyric, type State, stringify } from "@lrc-maker/lrc-parser";
 
 export const removeTags = (state: State, options: IFormatOptions): string =>
     stringify(

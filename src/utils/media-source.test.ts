@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractSharedMediaUrl, parseMediaInput } from "./media-source.js";
+import { extractSharedMediaUrl, materializeExtensionMedia, parseMediaInput } from "./media-source.js";
 
 describe("parseMediaInput", () => {
     it("converts NetEase song links to the public media endpoint", () => {
@@ -54,5 +54,24 @@ describe("extractSharedMediaUrl", () => {
             extractSharedMediaUrl(new URL("https://lrc.sgmy.org/?text=Listen%20https%3A%2F%2Fyoutu.be%2FM7lc1UVf-VE")),
         )
             .toBe("https://youtu.be/M7lc1UVf-VE");
+    });
+});
+
+describe("materializeExtensionMedia", () => {
+    it("turns extension-provided audio data into an in-memory blob", async () => {
+        const src = await materializeExtensionMedia({
+            src: "https://example.googlevideo.com/videoplayback",
+            data: btoa(String.fromCharCode(0, 1, 2, 3)),
+            mimeType: "audio/mp4",
+            persist: false,
+            provider: "youtube-extension",
+        });
+        try {
+            const blob = await fetch(src).then((response) => response.blob());
+            expect(blob.type).toBe("audio/mp4");
+            expect([...new Uint8Array(await blob.arrayBuffer())]).toEqual([0, 1, 2, 3]);
+        } finally {
+            URL.revokeObjectURL(src);
+        }
     });
 });

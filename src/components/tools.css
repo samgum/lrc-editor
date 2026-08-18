@@ -131,7 +131,7 @@
 
 .tools-options input:focus, .tools-options select:focus, .tools-editors textarea:focus {
     border-color: var(--theme-color);
-    box-shadow: 0 0 0 3px rgb(var(--theme-rgb) / 10%);
+    box-shadow: 0 0 0 3px rgba(var(--theme-rgb), 0.1);
 }
 
 .tools-error {
@@ -152,7 +152,7 @@
 
 @media (hover: hover) {
     .tools-actions .button:hover {
-        box-shadow: 0 6px 16px rgb(var(--theme-rgb) / 20%);
+        box-shadow: 0 6px 16px rgba(var(--theme-rgb), 0.2);
     }
 }
 

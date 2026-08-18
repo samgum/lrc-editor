@@ -18,12 +18,12 @@ The web application is static and keeps lyric text, preferences, and local media
 - Copy or download LRC output with configurable timestamp precision and whitespace.
 - Load audio and video files, direct media URLs, NetEase Music song links, standard or Music YouTube links (including extra playlist parameters), and Bilibili or `b23.tv` links.
 - Play FLAC natively where supported and convert unsupported local ALAC/FLAC media to a browser-compatible lossless format with FFmpeg WebAssembly.
-- Display a waveform for local media, seek precisely, change playback speed, and continue playback in the background when enabled.
+- Display a waveform for local or extension-resolved media, seek precisely, change playback speed, and continue playback in the background when enabled.
 - Add, replace, delete, fine-tune, or batch-shift timestamps with keyboard or pointer controls. The default correction step is 100 ms; `Shift` halves it and `Alt` reduces it to one fifth for keyboard adjustments.
 - Keep the selected line centered, record from a persistent timing toolbar, and undo or redo timestamp edits.
 - Configure every timing and playback shortcut from the key-binding screen.
 - Keep editing state and preferences locally between sessions.
-- Use an original-style LRC utility workspace to compress repeated tags, remove tags or empty lines, transform timestamps, split translations, and build a translated LRC from an untimed translation while preserving the complete source axis.
+- Open the translation-axis workspace first to build a translated LRC from untimed lyrics while preserving the complete source axis; additional tools remove tags or empty lines, transform timestamps, and split translations.
 - Use the integrated Lyrics Tools functions to remove Genius section labels, clean copied tracklists, replace plain text or regular expressions in bulk, and convert lyric case without changing timestamps.
 - Switch between system, light, and dark themes; choose an accent color.
 - Use English, Japanese, Korean, Polish, Brazilian Portuguese, Slovak, Simplified Chinese, Traditional Chinese (Hong Kong), or Traditional Chinese (Taiwan).
@@ -33,12 +33,13 @@ GitHub Gist integration from the upstream project is intentionally not included.
 
 ## Media companion extension
 
-LRC Editor Media Bridge accepts only validated YouTube or Bilibili video identifiers from the LRC Editor page. Its service worker resolves a compatible audio stream locally and returns the temporary media URL through an extension message channel. A scoped browser rule supplies the Bilibili media referer required for playback.
+LRC Editor Media Bridge accepts only validated YouTube or Bilibili video identifiers from the LRC Editor page. It resolves the stream locally and transfers the required audio into an in-memory Blob. A scoped browser rule supplies the Bilibili media referer required for loading its audio.
 
 Download the current unpacked extension package from [GitHub Releases](https://github.com/samgum/lrc-editor/releases/latest).
 
 - The temporary URL and audio data are not added to browser history, storage, logs, or a project server. The original YouTube or Bilibili input is retained only for the current tab session so a refresh can request a new temporary URL.
 - The extension does not read site cookies, tabs, browsing history, or account data.
+- YouTube playback integrity data is obtained through an invisible muted embed, which is closed immediately without opening a tab or window.
 - The localized popup opens LRC Editor and shows the supported platforms.
 - Host permissions are limited to the YouTube, Bilibili, and media CDN endpoints used by the resolvers.
 - Direct media URLs remain available as a manual fallback.
@@ -102,6 +103,7 @@ The implementation studies and adapts MIT-licensed work from:
 - [lrc-maker](https://github.com/magic-akari/lrc-maker), by magic-akari
 - [lrc-maker-cdgz](https://github.com/CDGZ-ofc/lrc-maker-cdgz), by 重叠广州 / CDGZ-ofc
 - [lrc-utils](https://github.com/magic-akari/lrc-utils), by magic-akari
+- [lyrics-tools](https://github.com/samgum/lyrics-tools), by samgum
 
 The media companion bundles [YouTube.js](https://github.com/LuanRT/YouTube.js), by LuanRT and contributors, under the MIT license. Local codec fallback uses [ffmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm), also under the MIT license.
 

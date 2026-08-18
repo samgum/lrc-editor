@@ -143,7 +143,7 @@
     }
 
     :hover > .toggle-switch-label::after {
-        box-shadow: 0 0 8px #11111188, 0 0 0 14px rgb(var(--theme-rgb) / 20%);
+        box-shadow: 0 0 8px #11111188, 0 0 0 14px rgba(var(--theme-rgb), 0.2);
     }
 
     .toggle-switch-label {

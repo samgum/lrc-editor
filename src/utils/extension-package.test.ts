@@ -7,7 +7,9 @@ const manifest = JSON.parse(readFileSync(resolve(extensionRoot, "manifest.json")
     default_locale: string;
     icons: Record<string, string>;
     host_permissions: string[];
+    permissions: string[];
     declarative_net_request: { rule_resources: Array<{ path: string }> };
+    version: string;
 };
 
 describe("extension package", () => {
@@ -18,6 +20,20 @@ describe("extension package", () => {
         for (const resource of manifest.declarative_net_request.rule_resources) {
             expect(existsSync(resolve(extensionRoot, resource.path))).toBe(true);
         }
+    });
+
+    it("applies Bilibili media headers to playback and waveform requests", () => {
+        const rulePath = manifest.declarative_net_request.rule_resources[0].path;
+        const rules = JSON.parse(readFileSync(resolve(extensionRoot, rulePath), "utf8")) as Array<{
+            action: { responseHeaders?: Array<{ header: string }> };
+            condition: { resourceTypes: string[] };
+        }>;
+        expect(manifest.version).toBe("0.3.1");
+        expect(rules[0].condition.resourceTypes).toEqual(expect.arrayContaining(["media", "xmlhttprequest"]));
+        expect(rules[1].condition.resourceTypes).toEqual(expect.arrayContaining(["media", "xmlhttprequest"]));
+        expect(rules[1].action.responseHeaders?.map((header) => header.header)).toContain(
+            "Access-Control-Allow-Origin",
+        );
     });
 
     it("ships complete popup localization for every locale", () => {
@@ -39,6 +55,7 @@ describe("extension package", () => {
         expect(manifest.host_permissions).toEqual([
             "https://www.youtube.com/*",
             "https://youtubei.googleapis.com/*",
+            "https://*.googlevideo.com/*",
             "https://api.bilibili.com/*",
             "https://www.bilibili.com/*",
             "https://b23.tv/*",
@@ -46,6 +63,11 @@ describe("extension package", () => {
             "https://lrc.sgmy.org/*",
             "http://localhost/*",
             "http://127.0.0.1/*",
+        ]);
+        expect(manifest.permissions).toEqual([
+            "declarativeNetRequestWithHostAccess",
+            "offscreen",
+            "webRequest",
         ]);
     });
 });
