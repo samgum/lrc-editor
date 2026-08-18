@@ -63,6 +63,7 @@ export const Footer: React.FC = () => {
     );
     const localFileRef = useRef<File | null>(null);
     const fallbackAttemptedRef = useRef(false);
+    const restoredMediaRef = useRef<string | null>(null);
     const setAudioSrc = useCallback((newSrc: string): void => {
         setAudioSrcState((oldSrc) => {
             if (oldSrc) {
@@ -107,11 +108,13 @@ export const Footer: React.FC = () => {
                 setRememberedMediaUrl(displayInput);
                 if (parsed.kind !== "direct") {
                     sessionStorage.setItem(SSK.mediaInput, parsed.originalUrl);
+                    restoredMediaRef.current = `input:${parsed.originalUrl}`;
                 } else {
                     sessionStorage.removeItem(SSK.mediaInput);
                 }
                 if (source.persist) {
                     sessionStorage.setItem(SSK.audioSrc, source.src);
+                    restoredMediaRef.current = `audio:${source.src}`;
                 } else {
                     sessionStorage.removeItem(SSK.audioSrc);
                 }
@@ -167,16 +170,25 @@ export const Footer: React.FC = () => {
     useEffect(() => {
         const sharedUrl = extractSharedMediaUrl(new URL(location.href));
         if (sharedUrl !== null) {
+            const key = `input:${sharedUrl}`;
+            if (restoredMediaRef.current === key) return;
+            restoredMediaRef.current = key;
             void loadMediaUrl(sharedUrl).catch(() => undefined);
             return;
         }
         const rememberedInput = sessionStorage.getItem(SSK.mediaInput);
         if (rememberedInput) {
+            const key = `input:${rememberedInput}`;
+            if (restoredMediaRef.current === key) return;
+            restoredMediaRef.current = key;
             void loadMediaUrl(rememberedInput).catch(() => undefined);
             return;
         }
         const rememberedAudio = sessionStorage.getItem(SSK.audioSrc);
         if (rememberedAudio) {
+            const key = `audio:${rememberedAudio}`;
+            if (restoredMediaRef.current === key) return;
+            restoredMediaRef.current = key;
             setAlignmentMediaSource({ name: alignmentMediaName("remote"), url: rememberedAudio });
         }
     }, [loadMediaUrl]);
