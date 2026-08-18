@@ -1,4 +1,11 @@
 if ("serviceWorker" in navigator) {
+    let reloading = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (reloading) return;
+        reloading = true;
+        location.reload();
+    });
+
     navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" }).then(
         (registration) => {
             registration.update();
