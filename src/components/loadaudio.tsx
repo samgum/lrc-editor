@@ -116,7 +116,8 @@ export const LoadAudio: React.FC<ILoadAudioOptions> = ({ accept, rememberedUrl, 
                     <div>
                         <input
                             id="media-url"
-                            type="url"
+                            type="text"
+                            inputMode="url"
                             name="url"
                             required={true}
                             disabled={busy}

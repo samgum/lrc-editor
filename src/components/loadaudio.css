@@ -97,7 +97,7 @@
     gap: 8px;
 }
 
-.audio-input-form input[type="url"] {
+.audio-input-form input[name="url"] {
     flex: 1 1 auto;
     min-width: 0;
     padding: 10px 2px;
