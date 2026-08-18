@@ -3,6 +3,7 @@ set -euo pipefail
 
 engine_repository="https://github.com/samgum/lyrics-forced-aligner.git"
 engine_revision="4898a3cbc569349c5db87bbc931c9d6fa124d64d"
+uv_version="0.12.5"
 install_root=""
 cpu_only=0
 skip_prerequisites=0
@@ -201,17 +202,25 @@ fi
 
 mkdir -p "$install_root" "$model_root" "$runtime_root" "$python_root" "$download_cache_root"
 
-uv_command="$(command -v uv || true)"
-if [[ -z "$uv_command" ]]; then
-    uv_tools="$install_root/tools"
-    mkdir -p "$uv_tools"
-    echo "Installing private uv from https://astral.sh/uv/0.12.5/install.sh"
-    curl -LsSf "https://astral.sh/uv/0.12.5/install.sh" |
+uv_tools="$install_root/tools"
+uv_command="$uv_tools/uv"
+mkdir -p "$uv_tools"
+installed_uv_version=""
+if [[ -x "$uv_command" ]]; then
+    installed_uv_version="$($uv_command --version | awk '{ print $2 }')"
+fi
+if [[ "$installed_uv_version" != "$uv_version" ]]; then
+    echo "Installing private uv $uv_version from https://astral.sh/uv/$uv_version/install.sh"
+    curl -LsSf "https://astral.sh/uv/$uv_version/install.sh" |
         env UV_UNMANAGED_INSTALL="$uv_tools" sh
-    uv_command="$uv_tools/uv"
 fi
 if [[ ! -x "$uv_command" ]]; then
     echo "uv is unavailable after installation." >&2
+    exit 1
+fi
+installed_uv_version="$($uv_command --version | awk '{ print $2 }')"
+if [[ "$installed_uv_version" != "$uv_version" ]]; then
+    echo "Private uv version verification failed: expected $uv_version, found $installed_uv_version" >&2
     exit 1
 fi
 
@@ -266,8 +275,10 @@ export UV_PYTHON_INSTALL_DIR="$python_root"
 export UV_CACHE_DIR="$download_cache_root"
 export UV_NO_MODIFY_PATH=1
 export UV_MANAGED_PYTHON=1
+export UV_PYTHON_INSTALL_BIN=0
+export UV_PYTHON_BIN_DIR="$install_root/python-bin"
 echo "Installing private Python 3.11 inside the selected directory..."
-"$uv_command" python install 3.11 --install-dir "$python_root" --managed-python --no-bin
+"$uv_command" python install 3.11 --install-dir "$python_root" --managed-python
 managed_python="$("$uv_command" python find 3.11 --managed-python --no-project)"
 if [[ ! -x "$managed_python" || "$managed_python" != "$python_root"/* ]]; then
     echo "uv selected a Python runtime outside the chosen installation directory." >&2
@@ -360,12 +371,23 @@ if [[ "$use_cuda" -eq 0 && "$skip_models" -eq 0 ]]; then
 fi
 "$venv_python" -c 'from lyrics_aligner.server import app; assert app.title == "Lyrics Forced Aligner"; assert app.version == "0.2.27"; print("Engine API verified")'
 
-for file_name in install-ai-aligner.sh install-ai-aligner.command ai-constraints.txt lrc_editor_companion_server.py start-ai-aligner.sh start-ai-aligner.command README.md README-zh.md INSTALL.txt; do
+install_guide="INSTALL-Linux.txt"
+if [[ "$os_name" == "Darwin" ]]; then
+    install_guide="INSTALL-macOS.txt"
+fi
+for file_name in install-ai-aligner.sh install-ai-aligner.command ai-constraints.txt lrc_editor_companion_server.py start-ai-aligner.sh start-ai-aligner.command stop-ai-aligner.sh stop-ai-aligner.command uninstall-ai-aligner.sh uninstall-ai-aligner.command README.md README-zh.md "$install_guide"; do
     if [[ -f "$script_root/$file_name" && "$script_root/$file_name" != "$install_root/$file_name" ]]; then
-        cp "$script_root/$file_name" "$install_root/$file_name"
+        destination_name="$file_name"
+        if [[ "$file_name" == "$install_guide" ]]; then
+            destination_name="INSTALL.txt"
+        fi
+        cp "$script_root/$file_name" "$install_root/$destination_name"
     fi
 done
-chmod +x "$install_root/start-ai-aligner.sh" "$install_root/start-ai-aligner.command"
+chmod +x "$install_root/install-ai-aligner.sh" "$install_root/install-ai-aligner.command" \
+    "$install_root/start-ai-aligner.sh" "$install_root/start-ai-aligner.command" \
+    "$install_root/stop-ai-aligner.sh" "$install_root/stop-ai-aligner.command" \
+    "$install_root/uninstall-ai-aligner.sh" "$install_root/uninstall-ai-aligner.command"
 
 acceleration="cpu"
 if [[ "$use_cuda" -eq 1 ]]; then
@@ -426,4 +448,6 @@ echo "Installation complete."
 echo "Acceleration: $compute_mode"
 echo "Models:      $model_root"
 echo "Start:       $install_root/start-ai-aligner.sh"
-echo "Stop the foreground service with Ctrl+C. Repeated starts are safely ignored."
+echo "Stop:        $install_root/stop-ai-aligner.sh"
+echo "Uninstall:   $install_root/uninstall-ai-aligner.sh"
+echo "Repeated starts are safely ignored. Uninstall requires two interactive confirmations."

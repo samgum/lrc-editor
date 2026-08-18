@@ -4,7 +4,7 @@ This package is not a browser extension.
 这个安装包不是浏览器扩展，不能在 Chrome/Edge 的“扩展程序”页面加载。
 
 Browser extension / 浏览器扩展：
-lrc-editor-media-bridge-v0.4.2.zip
+lrc-editor-media-bridge-v0.4.3.zip
 
 Windows installation / Windows 安装：
 1. Extract the complete ZIP. / 完整解压 ZIP。
@@ -14,10 +14,23 @@ Windows installation / Windows 安装：
 4. Wait for installation and model verification to finish. / 等待安装与模型检测完成。
 5. Run start-ai-aligner.cmd from the chosen installation directory.
    从所选安装目录运行 start-ai-aligner.cmd。
+6. Run stop-ai-aligner.cmd to stop the service.
+   使用 stop-ai-aligner.cmd 停止服务。
+7. Run uninstall-ai-aligner.cmd to remove the engine. It requires two confirmations.
+   使用 uninstall-ai-aligner.cmd 卸载；删除前必须完成两次确认。
 
 Python 3.11 is downloaded privately into the selected directory. A system Python is not required or reused.
 Python 3.11 会单独下载到所选目录，不要求也不会复用系统 Python。
 
-macOS/Linux installation / macOS/Linux 安装：
-Use install-ai-aligner.command on macOS or install-ai-aligner.sh on Linux.
-macOS 运行 install-ai-aligner.command；Linux 运行 install-ai-aligner.sh。
+Chrome extension / Chrome 扩展安装：
+1. Extract lrc-editor-media-bridge-v0.4.3.zip. / 解压扩展 ZIP。
+2. Open chrome://extensions. / 打开 chrome://extensions。
+3. Enable Developer mode. / 开启“开发者模式”。
+4. Select Load unpacked and choose the extracted folder. / 点击“加载已解压的扩展程序”并选择解压目录。
+5. Reload LRC Editor after installing or updating. / 安装或更新后刷新 LRC Editor。
+
+Microsoft Edge uses edge://extensions and the same Developer mode / Load unpacked steps.
+Microsoft Edge 使用 edge://extensions，其他步骤相同。
+
+macOS and Linux packages contain separate INSTALL-macOS.txt and INSTALL-Linux.txt guides.
+macOS 与 Linux 安装包内分别提供 INSTALL-macOS.txt 和 INSTALL-Linux.txt。

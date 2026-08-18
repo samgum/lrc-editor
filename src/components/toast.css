@@ -33,15 +33,15 @@
 }
 
 .toast-info {
-    color: #1b95e0;
+    color: #176b9b;
 }
 
 .toast-success {
-    color: #19cf86;
+    color: #15764f;
 }
 
 .toast-warning {
-    color: #fab81e;
+    color: #80600d;
 }
 
 .toast-badge > svg {

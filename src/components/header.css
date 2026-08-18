@@ -39,11 +39,11 @@
     place-items: center;
     width: 40px;
     height: 40px;
-    color: #b65f79;
-    background: #fff3f6;
-    border: 1px solid #f1b4c5;
+    color: var(--theme-foreground-color);
+    background: rgba(var(--theme-rgb), 0.1);
+    border: 1px solid rgba(var(--theme-rgb), 0.42);
     border-radius: 9px;
-    box-shadow: inset 0 0 0 1px #ffffffb8, 0 3px 10px #9c49601f;
+    box-shadow: inset 0 0 0 1px #ffffff80, 0 3px 10px rgba(var(--theme-rgb), 0.16);
 }
 
 .app-brand-mark svg {
@@ -56,11 +56,11 @@
 }
 
 .app-brand-mark .brand-active-line {
-    stroke: #e85f86;
+    stroke: var(--theme-foreground-color);
 }
 
 .app-brand-mark .brand-cue {
-    color: #e85f86;
+    color: var(--theme-foreground-color);
 }
 
 .app-title-copy {
@@ -87,7 +87,7 @@
     gap: 7px;
     justify-content: center;
     padding: 0 11px !important;
-    color: #77737b !important;
+    color: var(--text-secondary-color) !important;
     white-space: nowrap;
 }
 
@@ -110,7 +110,7 @@
 .app-tab[aria-current="page"],
 .app-theme-toggle:hover,
 .app-theme-toggle:focus-visible {
-    color: var(--font-color) !important;
+    color: var(--theme-foreground-color) !important;
     background: #88888812;
 }
 
@@ -121,7 +121,7 @@
 }
 
 .app-tab[aria-current="page"] {
-    color: var(--theme-color) !important;
+    color: var(--theme-foreground-color) !important;
     background: rgba(var(--theme-rgb), 0.1);
 }
 
@@ -131,7 +131,7 @@
     bottom: -7px;
     left: 11px;
     height: 2px;
-    background: var(--theme-color);
+    background: var(--theme-foreground-color);
     border-radius: 2px 2px 0 0;
     content: "";
 }
@@ -141,7 +141,7 @@
     justify-content: center;
     width: 42px;
     padding: 0 !important;
-    color: #77737b;
+    color: var(--text-secondary-color);
 }
 
 @media (width <= 960px) {

@@ -36,14 +36,18 @@ export const loadAudioDialogRef: ILoadAudioDialogRef = {
 
 interface ILoadAudioOptions {
     accept: string;
+    rememberedUrl: string;
     onLoadFile: (file: File) => void;
     onLoadUrl: (url: string) => Promise<void>;
     lang: Language;
 }
 
-export const LoadAudio: React.FC<ILoadAudioOptions> = ({ accept, onLoadFile, onLoadUrl, lang }) => {
+export const LoadAudio: React.FC<ILoadAudioOptions> = ({ accept, rememberedUrl, onLoadFile, onLoadUrl, lang }) => {
     const self = useRef(Symbol(LoadAudio.name));
     const [busy, setBusy] = useState(false);
+    const [url, setUrl] = useState(rememberedUrl);
+
+    useEffect(() => setUrl(rememberedUrl), [rememberedUrl]);
 
     useEffect(() => {
         return audioStatePubSub.sub(self.current, (data) => {
@@ -57,20 +61,16 @@ export const LoadAudio: React.FC<ILoadAudioOptions> = ({ accept, onLoadFile, onL
         async (ev: React.FormEvent<HTMLFormElement>) => {
             ev.preventDefault();
 
-            const form = ev.target as HTMLFormElement;
-
-            const urlInput = form.elements.namedItem("url") as HTMLInputElement;
-
             setBusy(true);
             try {
-                await onLoadUrl(urlInput.value);
+                await onLoadUrl(url);
             } catch {
                 // The footer reports a localized error and the dialog remains open for correction.
             } finally {
                 setBusy(false);
             }
         },
-        [onLoadUrl],
+        [onLoadUrl, url],
     );
 
     const onFocus = useCallback((ev: React.FocusEvent<HTMLInputElement>) => {
@@ -120,6 +120,8 @@ export const LoadAudio: React.FC<ILoadAudioOptions> = ({ accept, onLoadFile, onL
                             name="url"
                             required={true}
                             disabled={busy}
+                            value={url}
+                            onChange={(event) => setUrl(event.currentTarget.value)}
                             placeholder={lang.loadAudio.urlPlaceholder}
                             autoCapitalize="none"
                             autoComplete="off"

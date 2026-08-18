@@ -118,7 +118,7 @@ if ([string]::IsNullOrWhiteSpace($env:PYTHONWARNINGS)) {
 
 $url = "http://127.0.0.1:$selectedPort"
 Write-Host "Lyrics Forced Aligner is starting at $url" -ForegroundColor Green
-Write-Host "Keep this window open while AI alignment is in use. Press Ctrl+C to stop."
+Write-Host "Keep this window open while AI alignment is in use. Press Ctrl+C or run stop-ai-aligner.cmd to stop."
 
 Push-Location -LiteralPath $engineRoot
 try {
@@ -130,7 +130,7 @@ try {
 } finally {
     Pop-Location
 }
-$expectedExitCodes = @(0, 130, -1073741510, 3221225786)
+$expectedExitCodes = @(0, -1, 130, -1073741510, 3221225786)
 if ([long]$serverExitCode -notin $expectedExitCodes) {
     throw "Lyrics Forced Aligner exited unexpectedly with code $serverExitCode."
 }

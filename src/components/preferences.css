@@ -70,7 +70,7 @@
 
 .about-version {
     margin-top: -0.75rem;
-    color: #888888;
+    color: var(--text-muted-color);
     font-size: 0.8rem;
 }
 
@@ -87,7 +87,7 @@
 }
 
 .about-dialog a {
-    color: var(--theme-color);
+    color: var(--theme-foreground-color);
     text-decoration: underline;
 }
 
@@ -250,7 +250,7 @@
     right: 2px;
     width: 7px;
     height: 7px;
-    color: var(--theme-color);
+    color: var(--theme-foreground-color);
     border-right: 1.5px solid currentColor;
     border-bottom: 1.5px solid currentColor;
     transform: translateY(-65%) rotate(45deg);
@@ -294,7 +294,7 @@ input[type="number"] {
     width: 7px;
     height: 7px;
     margin: 0 3px 3px 7px;
-    color: var(--theme-color);
+    color: var(--theme-foreground-color);
     vertical-align: middle;
     border-right: 1.5px solid currentColor;
     border-bottom: 1.5px solid currentColor;

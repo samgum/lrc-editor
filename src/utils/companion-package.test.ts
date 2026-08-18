@@ -16,9 +16,19 @@ describe("local AI companion package", () => {
                 "start-ai-aligner.sh",
                 "install-ai-aligner.command",
                 "start-ai-aligner.command",
+                "stop-ai-aligner.ps1",
+                "stop-ai-aligner.cmd",
+                "stop-ai-aligner.sh",
+                "stop-ai-aligner.command",
+                "uninstall-ai-aligner.ps1",
+                "uninstall-ai-aligner.cmd",
+                "uninstall-ai-aligner.sh",
+                "uninstall-ai-aligner.command",
                 "README.md",
                 "README-zh.md",
                 "INSTALL.txt",
+                "INSTALL-macOS.txt",
+                "INSTALL-Linux.txt",
                 "ai-constraints.txt",
                 "lrc_editor_companion_server.py",
             ]
@@ -28,6 +38,35 @@ describe("local AI companion package", () => {
         expect(readdirSync(companionRoot).filter((file) => file.endsWith(".py")).sort()).toEqual([
             "lrc_editor_companion_server.py",
         ]);
+    });
+
+    it("uses a pinned private uv and portable macOS Python arguments", () => {
+        const installer = readFileSync(resolve(companionRoot, "install-ai-aligner.sh"), "utf8");
+        expect(installer).toContain("uv_version=\"0.12.5\"");
+        expect(installer).toContain("uv_command=\"$uv_tools/uv\"");
+        expect(installer).toContain("UV_PYTHON_INSTALL_BIN=0");
+        expect(installer).not.toContain("--no-bin");
+        expect(installer).toContain("python install 3.11 --install-dir \"$python_root\" --managed-python");
+    });
+
+    it("ships operating-system-specific guides and lifecycle commands", () => {
+        const macGuide = readFileSync(resolve(companionRoot, "INSTALL-macOS.txt"), "utf8");
+        const windowsGuide = readFileSync(resolve(companionRoot, "INSTALL.txt"), "utf8");
+        const windowsUninstaller = readFileSync(resolve(companionRoot, "uninstall-ai-aligner.ps1"), "utf8");
+        const unixUninstaller = readFileSync(resolve(companionRoot, "uninstall-ai-aligner.sh"), "utf8");
+        expect(macGuide).toContain("Right-click install-ai-aligner.command and choose Open");
+        expect(macGuide).toContain("stop-ai-aligner.command");
+        expect(windowsGuide).toContain("install-ai-aligner.cmd");
+        for (const uninstaller of [windowsUninstaller, unixUninstaller]) {
+            expect(uninstaller).toContain("UNINSTALL");
+            expect(uninstaller).toContain("Second confirmation");
+        }
+    });
+
+    it("links the in-app installer prompt to the current release page", () => {
+        const editor = readFileSync(resolve("src/components/editor.tsx"), "utf8");
+        expect(editor).toContain("BRAND.extensionRelease");
+        expect(editor).not.toContain("tree/main/companion");
     });
 
     it("uses fixed local directories and the verified engine revision", () => {
@@ -50,6 +89,7 @@ describe("local AI companion package", () => {
         const unixLauncher = readFileSync(resolve(companionRoot, "start-ai-aligner.sh"), "utf8");
         expect(wrapper).toContain("@app.delete(\"/api/jobs/{job_id}/cache\")");
         expect(wrapper).toContain("reclaimed_bytes");
+        expect(wrapper).toContain("service.pid");
         expect(windowsLauncher).toContain("-m lrc_editor_companion_server");
         expect(unixLauncher).toContain("-m lrc_editor_companion_server");
     });

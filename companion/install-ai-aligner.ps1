@@ -500,6 +500,10 @@ foreach ($fileName in @(
     "lrc_editor_companion_server.py",
     "start-ai-aligner.ps1",
     "start-ai-aligner.cmd",
+    "stop-ai-aligner.ps1",
+    "stop-ai-aligner.cmd",
+    "uninstall-ai-aligner.ps1",
+    "uninstall-ai-aligner.cmd",
     "README.md",
     "README-zh.md",
     "INSTALL.txt"
@@ -548,4 +552,6 @@ Write-Host ""
 Write-Host "Installation complete." -ForegroundColor Green
 Write-Host "Models are stored only in: $modelRoot"
 Write-Host "Start on demand with:       $resolvedInstallRoot\start-ai-aligner.cmd"
-Write-Host "Stop the service with Ctrl+C. Starting it again while it is already running is safely ignored."
+Write-Host "Stop with:                  $resolvedInstallRoot\stop-ai-aligner.cmd"
+Write-Host "Uninstall with:             $resolvedInstallRoot\uninstall-ai-aligner.cmd"
+Write-Host "Starting it again while it is already running is safely ignored."

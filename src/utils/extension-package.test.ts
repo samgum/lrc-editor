@@ -38,7 +38,7 @@ describe("extension package", () => {
             action: { responseHeaders?: Array<{ header: string }> };
             condition: { resourceTypes: string[] };
         }>;
-        expect(manifest.version).toBe("0.4.2");
+        expect(manifest.version).toBe("0.4.3");
         expect(rules[0].condition.resourceTypes).toEqual(expect.arrayContaining(["media", "xmlhttprequest"]));
         expect(rules[1].condition.resourceTypes).toEqual(expect.arrayContaining(["media", "xmlhttprequest"]));
         expect(rules[1].action.responseHeaders?.map((header) => header.header)).toContain(

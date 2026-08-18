@@ -30,6 +30,7 @@ The web application is static and keeps lyric text, preferences, and local media
 - Switch between system, light, and dark themes; choose an accent color.
 - Use English, Japanese, Korean, Polish, Brazilian Portuguese, Slovak, Simplified Chinese, Traditional Chinese (Hong Kong), or Traditional Chinese (Taiwan).
 - Install the site as a PWA and receive shared media URLs through the Web Share Target API.
+- Reopen the editor, timing workspace, tools, settings, and bundled language interface without a network connection after the first successful online visit. Remote media and first-time model or codec downloads still require a connection.
 
 GitHub Gist integration from the upstream project is intentionally not included. LRC Editor never inserts a `[tool: ...]` metadata line.
 
@@ -39,7 +40,16 @@ LRC Editor Media Bridge accepts only validated YouTube or Bilibili video identif
 
 Download the current unpacked extension package from [GitHub Releases](https://github.com/samgum/lrc-editor/releases/latest).
 
-Extract the complete ZIP before loading it. On Windows, double-click `INSTALL-EXTENSION.cmd` to open the correct browser management page and extracted directory; browser security still requires the final **Load unpacked** confirmation.
+Extract the complete ZIP before loading it. Browser security always requires a manual **Load unpacked** confirmation.
+
+Chrome installation:
+
+1. Open `chrome://extensions`.
+2. Enable **Developer mode**.
+3. Select **Load unpacked** and choose the extracted `lrc-editor-media-bridge-v0.4.3` directory.
+4. Reload LRC Editor after installing or replacing the extension.
+
+Microsoft Edge uses `edge://extensions` with the same **Developer mode** and **Load unpacked** steps. On Windows, `INSTALL-EXTENSION.cmd` opens the management page and extracted directory but cannot perform the final confirmation.
 
 - The temporary URL and audio data are not added to browser history, storage, logs, or a project server. The original YouTube or Bilibili input is retained only for the current tab session so a refresh can request a new temporary URL.
 - The extension does not read site cookies, tabs, browsing history, or account data.
@@ -54,9 +64,11 @@ The YouTube resolver uses the private InnerTube interface through `youtubei.js`;
 
 AI alignment is disabled by default. The labeled **AI** button remains visible in the editor; clicking it enables the feature and starts the requested alignment. Before that click, the page does not probe local ports, transfer media, or create a model task. Repeated clicks reopen the same progress card, while the extension and local service reject concurrent duplicate jobs.
 
-Media Bridge v0.4.2 is the only browser extension: media resolution and local AI bridging are combined in the same package. The AI installer below is an optional local model engine, not a second browser extension.
+Media Bridge v0.4.3 is the only browser extension: media resolution and local AI bridging are combined in the same package. The AI installer below is an optional local model engine, not a second browser extension.
 
 Windows, macOS, and Linux companion installers keep the managed runtime, verified engine revision, and models in one user-selected directory. They install an isolated uv-managed Python runtime internally, so users do not need a system Python installation or Python commands. NVIDIA CUDA is private to the companion on Windows/Linux; macOS and unsupported GPUs use the complete CPU path. Per-task audio, outputs, and analysis work are deleted after the selected LRC has reached the editor unless **Keep and reuse AI task cache** is explicitly enabled in Settings. Model weights and the private runtime are never removed by task cleanup. See the [local AI alignment guide](./companion/README.md).
+
+Every platform package includes matching start, stop, and uninstall commands. Uninstall requires typing `UNINSTALL` and then the complete installation path before it removes the engine, models, private runtime, and task data.
 
 ## Development
 
@@ -99,6 +111,8 @@ The production project uses Cloudflare Pages without a Worker runtime:
 pnpm build
 pnpm exec wrangler pages deploy build --project-name lrc-editor
 ```
+
+The offline Service Worker runs in the visitor's browser and does not add a Pages Function or Cloudflare Worker. Cloudflare documents static asset requests on Pages as free and unlimited on both free and paid plans: [Pages pricing](https://developers.cloudflare.com/pages/functions/pricing/#static-asset-requests).
 
 The extension is packaged separately. Build it with `pnpm build:extension`, then distribute the resulting `extension-dist/` directory or submit the same packaged code to a Chromium extension store.
 

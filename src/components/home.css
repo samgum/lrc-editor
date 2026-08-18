@@ -46,7 +46,7 @@
 }
 
 .home-actions a:hover, .home-actions button:hover, .home-actions a:focus-visible, .home-actions button:focus-visible {
-    color: var(--theme-color);
+    color: var(--theme-foreground-color);
     background: #8888880c;
 }
 

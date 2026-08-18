@@ -1,3 +1,5 @@
+import { isExpectedOfflineResponse, isSafeOfflineAssetPath } from "./offline-cache.js";
+
 const swWorker = self as unknown as ServiceWorkerGlobalScope;
 
 const APP_NAME = "lrc-editor";
@@ -5,8 +7,8 @@ const VERSION = import.meta.env.app.version;
 const HASH = import.meta.env.app.hash;
 const CACHENAME = `${APP_NAME}-${VERSION}-${HASH}`;
 
-swWorker.addEventListener("install", () => {
-    swWorker.skipWaiting();
+swWorker.addEventListener("install", (event) => {
+    event.waitUntil(precacheOfflineShell().then(() => swWorker.skipWaiting()));
 });
 
 swWorker.addEventListener("activate", (event) => {
@@ -32,38 +34,72 @@ swWorker.addEventListener("fetch", (event) => {
     }
 
     const url = new URL(event.request.url);
-    const cacheableAsset = /\.(?:css|js|png|svg|webmanifest)$/i.test(url.pathname) && url.pathname !== "/sw.js";
+    if (url.origin !== swWorker.location.origin) return;
 
-    if (url.origin !== swWorker.location.origin || !cacheableAsset) {
+    if (event.request.mode === "navigate") {
+        event.respondWith(navigationResponse(event));
         return;
     }
 
+    const cacheableAsset = /\.(?:css|js|png|svg|ico|xml|webmanifest)$/i.test(url.pathname)
+        && url.pathname !== "/sw.js";
+
+    if (!cacheableAsset) return;
+
     event.respondWith(
         caches.open(CACHENAME).then(async (cache) => {
-            const match = await cache.match(event.request);
-            if (match && isExpectedAssetResponse(url, match)) {
+            const cacheKey = url.href;
+            const match = await cache.match(cacheKey);
+            if (match && isExpectedOfflineResponse(url, match)) {
                 return match;
             }
-            if (match) await cache.delete(event.request);
+            if (match) await cache.delete(cacheKey);
 
             const response = await fetch(event.request, { cache: "no-store" });
-            if (response.type === "basic" && isExpectedAssetResponse(url, response)) {
-                event.waitUntil(cache.put(event.request, response.clone()));
+            if (response.type === "basic" && isExpectedOfflineResponse(url, response)) {
+                event.waitUntil(cache.put(cacheKey, response.clone()));
             }
             return response;
         }),
     );
 });
 
-const isExpectedAssetResponse = (url: URL, response: Response): boolean => {
-    if (!response.ok) return false;
-    const contentType = (response.headers.get("Content-Type") || "").toLowerCase();
-    if (url.pathname.endsWith(".css")) return contentType.includes("text/css");
-    if (url.pathname.endsWith(".js")) return contentType.includes("javascript");
-    if (url.pathname.endsWith(".png")) return contentType.includes("image/png");
-    if (url.pathname.endsWith(".svg")) return contentType.includes("image/svg+xml");
-    if (url.pathname.endsWith(".webmanifest")) {
-        return contentType.includes("manifest+json") || contentType.includes("application/json");
+const precacheOfflineShell = async (): Promise<void> => {
+    const scopeUrl = new URL("./", swWorker.registration.scope);
+    const manifestUrl = new URL("offline-assets.json", scopeUrl);
+    const manifestResponse = await fetch(manifestUrl, { cache: "no-store" });
+    if (!manifestResponse.ok) throw new Error("Offline asset manifest is unavailable");
+    const manifest = await manifestResponse.json() as { assets?: unknown };
+    if (!Array.isArray(manifest.assets) || !manifest.assets.every(isSafeOfflineAssetPath)) {
+        throw new TypeError("Offline asset manifest is invalid");
     }
-    return false;
+
+    const cache = await caches.open(CACHENAME);
+    const paths = ["./", ...manifest.assets];
+    await Promise.all(paths.map(async (path) => {
+        const url = new URL(path, scopeUrl);
+        try {
+            const response = await fetch(url.href, { cache: "no-store" });
+            if (!isExpectedOfflineResponse(url, response)) {
+                throw new TypeError("Unexpected response type");
+            }
+            await cache.put(url.href, response.clone());
+        } catch (error) {
+            console.error(`Unable to precache offline asset: ${path}`, error);
+        }
+    }));
+};
+
+const navigationResponse = async (event: FetchEvent): Promise<Response> => {
+    const cache = await caches.open(CACHENAME);
+    const shellUrl = new URL("./", swWorker.registration.scope);
+    try {
+        const response = await fetch(event.request, { cache: "no-store" });
+        if (response.type === "basic" && isExpectedOfflineResponse(shellUrl, response)) {
+            event.waitUntil(cache.put(shellUrl.href, response.clone()));
+        }
+        return response;
+    } catch {
+        return await cache.match(shellUrl.href) || Response.error();
+    }
 };

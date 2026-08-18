@@ -59,9 +59,12 @@ export const AsidePanel: React.FC<{
         <aside className="aside-panel">
             <button
                 className={className}
+                type="button"
                 onClick={onSyncModeToggle}
                 title={syncMode === SyncMode.select ? lang.timing.followSelection : lang.timing.followPlayback}
                 aria-label={syncMode === SyncMode.select ? lang.timing.followSelection : lang.timing.followPlayback}
+                aria-pressed={syncMode === SyncMode.highlight}
+                data-follow={syncMode === SyncMode.highlight ? "playback" : "selection"}
             >
                 <LockSVG />
             </button>

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import os
 import shutil
 import threading
 import time
@@ -12,6 +13,7 @@ from lyrics_aligner import server as engine
 
 app = engine.app
 _runtime_root = engine.RUNTIME_ROOT.resolve()
+_pid_path = _runtime_root / "service.pid"
 _keep_marker = ".lrc-editor-keep-cache"
 _terminal_seen: dict[str, float] = {}
 
@@ -105,11 +107,29 @@ def _janitor() -> None:
                 pass
 
 
+def _write_pid() -> None:
+    temporary = _pid_path.with_suffix(".pid.tmp")
+    temporary.write_text(f"{os.getpid()}\n", encoding="ascii")
+    temporary.replace(_pid_path)
+
+
+def _remove_pid() -> None:
+    try:
+        if _pid_path.read_text(encoding="ascii").strip() == str(os.getpid()):
+            _pid_path.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
 def main() -> None:
     engine.RUNTIME_ROOT.mkdir(parents=True, exist_ok=True)
     _remove_abandoned_default_jobs()
     threading.Thread(target=_janitor, name="lrc-editor-cache-janitor", daemon=True).start()
-    uvicorn.run(app, host="127.0.0.1", port=engine._server_port(), reload=False)
+    _write_pid()
+    try:
+        uvicorn.run(app, host="127.0.0.1", port=engine._server_port(), reload=False)
+    finally:
+        _remove_pid()
 
 
 if __name__ == "__main__":

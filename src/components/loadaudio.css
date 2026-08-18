@@ -21,7 +21,7 @@
     width: 40px;
     height: 40px;
     padding: 0;
-    color: #888888;
+    color: var(--text-secondary-color);
     list-style: none;
     border-radius: 4px;
 }
@@ -79,7 +79,7 @@
 }
 
 .media-file-action span, .audio-input-form > label {
-    color: #888888;
+    color: var(--text-secondary-color);
     font-size: 0.8rem;
 }
 
@@ -115,7 +115,7 @@
 
 .media-extension-link {
     width: fit-content;
-    color: var(--theme-color);
+    color: var(--theme-foreground-color);
     font-size: 0.82rem;
     text-underline-offset: 3px;
 }

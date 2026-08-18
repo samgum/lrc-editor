@@ -1,3 +1,4 @@
+import BRAND from "#const/brand.json" assert { type: "json" };
 import ROUTER from "#const/router.json" assert { type: "json" };
 import SSK from "#const/session_key.json" assert { type: "json" };
 import { type State as LrcState, stringify } from "@lrc-maker/lrc-parser";
@@ -333,7 +334,7 @@ export const Editor: React.FC<{
                         {aiRemaining && <p className="ai-align-remaining">{aiRemaining}</p>}
                         {aiState.showInstall && (
                             <a
-                                href="https://github.com/samgum/lrc-editor/tree/main/companion"
+                                href={BRAND.extensionRelease}
                                 target="_blank"
                                 rel="noopener noreferrer"
                             >

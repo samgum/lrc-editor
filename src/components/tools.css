@@ -38,12 +38,12 @@
 }
 
 .tools-tabs button:hover, .tools-tabs button:focus-visible {
-    color: var(--theme-color);
+    color: var(--theme-foreground-color);
     background: #88888810;
 }
 
 .tools-tabs button[aria-pressed="true"] {
-    color: var(--theme-color);
+    color: var(--theme-foreground-color);
     border-color: currentColor;
 }
 

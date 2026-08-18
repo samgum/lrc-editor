@@ -30,6 +30,7 @@ LRC Editor 是用于编辑 LRC 歌词并配合音频或视频制作时间轴的�
 - 支持跟随系统、亮色和暗色模式，以及自定义强调色。
 - 支持英语、日语、韩语、波兰语、巴西葡萄牙语、斯洛伐克语、简体中文、繁体中文（香港）和繁体中文（台湾）。
 - 可安装为 PWA，并通过 Web Share Target 接收分享的媒体链接。
+- 首次联网成功访问后，断网仍可重新打开编辑、打轴、工具、设置及内置多语言界面；远程媒体、首次模型下载和首次编解码资源下载仍需联网。
 
 本项目明确不包含上游的 GitHub Gist 功能，也不会自动写入 `[tool: ...]` 元信息。
 
@@ -39,7 +40,16 @@ LRC Editor Media Bridge 只接收主站验证过的 YouTube 或哔哩哔哩视�
 
 可从 [GitHub Releases](https://github.com/samgum/lrc-editor/releases/latest) 下载当前版本的可解压安装扩展包。
 
-必须先完整解压 ZIP 再加载。Windows 可双击 `INSTALL-EXTENSION.cmd`，自动打开正确的扩展管理页和解压目录；受浏览器安全机制限制，最后仍需手动确认“加载已解压的扩展程序”。
+必须先完整解压 ZIP 再加载；受浏览器安全机制限制，最后一步始终需要手动确认。
+
+Chrome 安装步骤：
+
+1. 打开 `chrome://extensions`。
+2. 开启“开发者模式”。
+3. 点击“加载已解压的扩展程序”，选择解压后的 `lrc-editor-media-bridge-v0.4.3` 目录。
+4. 首次安装或替换扩展后刷新 LRC Editor。
+
+Microsoft Edge 打开 `edge://extensions`，其余“开发者模式”和“加载已解压的扩展程序”步骤相同。Windows 可双击 `INSTALL-EXTENSION.cmd` 自动打开管理页与解压目录，但不能代替最后的人工确认。
 
 - 临时媒体地址和音频数据不会写入浏览器历史、存储、日志或项目服务器；只在当前标签页会话中记录原始 YouTube／哔哩哔哩链接，以便刷新时重新申请临时地址。
 - 扩展不读取站点 Cookie、标签页、浏览历史或账号信息。
@@ -54,9 +64,11 @@ YouTube 解析器通过 `youtubei.js` 使用非公开 InnerTube 接口；哔哩�
 
 AI 对轴默认关闭，但编辑器会始终显示带文字的“AI”按钮；点击按钮会启用功能并开始本次对轴。在点击前，页面不会探测本机端口、传输媒体或创建模型任务。重复点击只会重新显示同一个进度卡，扩展和本机服务还会拒绝并行的重复任务。
 
-Media Bridge v0.4.2 是唯一需要安装的浏览器扩展：媒体解析和本机 AI 桥接已经合并在同一个包里。下方 AI 安装器是可选的本机模型引擎，不是第二个浏览器扩展。
+Media Bridge v0.4.3 是唯一需要安装的浏览器扩展：媒体解析和本机 AI 桥接已经合并在同一个包里。下方 AI 安装器是可选的本机模型引擎，不是第二个浏览器扩展。
 
 Windows、macOS 和 Linux 安装器会把隔离运行环境、固定版本的引擎与模型统一放在用户选择的一个目录中。安装器会在内部准备 uv 管理的 Python 运行环境，用户无需安装系统 Python，也不需要使用 Python 命令。Windows/Linux 的 NVIDIA CUDA 只在组件目录内生效；macOS 和不受支持的显卡使用功能完整的 CPU 路径。默认会在选定 LRC 返回编辑器后删除本次音频、输出和分析工作文件；只有在设置中明确开启“保留并复用 AI 对轴任务缓存”才会保留。模型权重和私有运行环境不会被任务清理删除。具体步骤见[本机 AI 对轴指南](./companion/README-zh.md)。
+
+各平台安装包都提供对应的启动、停止和卸载命令。卸载时必须先输入 `UNINSTALL`，再完整输入安装路径，确认两次后才会删除引擎、模型、私有运行环境和任务数据。
 
 ## 本地开发
 
@@ -99,6 +111,8 @@ pnpm build:all
 pnpm build
 pnpm exec wrangler pages deploy build --project-name lrc-editor
 ```
+
+离线 Service Worker 运行在访问者浏览器中，不会新增 Pages Function 或 Cloudflare Worker。Cloudflare 官方说明 Pages 静态资源请求在免费与付费计划中均免费且不限量：[Pages 计费说明](https://developers.cloudflare.com/pages/functions/pricing/#static-asset-requests)。
 
 扩展单独打包。运行 `pnpm build:extension` 后，可分发 `extension-dist/`，或用同一份打包代码提交至 Chromium 扩展商店。
 

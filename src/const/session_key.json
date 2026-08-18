@@ -1,6 +1,7 @@
 {
     "audioSrc": "audio-src",
     "mediaInput": "media-input",
+    "mediaInputDisplay": "media-input-display",
     "overwriteText": "overwrite-text",
     "editorDetailsOpen": "editor-details-open",
     "syncMode": "sync-mode",

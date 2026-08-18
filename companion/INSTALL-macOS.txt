@@ -1,0 +1,46 @@
+LRC Editor local AI engine for macOS / LRC Editor macOS 本机 AI 引擎
+
+This archive is not a browser extension. Do not load it on chrome://extensions.
+这个压缩包不是浏览器扩展，请勿在 chrome://extensions 中加载。
+
+Before installation / 安装前：
+- Apple Silicon and Intel Mac use CPU int8 mode; Metal acceleration is not available.
+  Apple Silicon 与 Intel Mac 均使用 CPU int8 模式，目前不支持 Metal 加速。
+- Keep at least 15 GB free. The expected download is approximately 4-6 GB.
+  请预留至少 15 GB 空间，预计下载约 4-6 GB。
+
+Install / 安装：
+1. Fully extract lrc-editor-ai-aligner-macos-linux-v0.4.3.tar.gz in Finder.
+   在 Finder 中完整解压 lrc-editor-ai-aligner-macos-linux-v0.4.3.tar.gz。
+2. Right-click install-ai-aligner.command and choose Open. Confirm Open if macOS asks.
+   右键 install-ai-aligner.command，选择“打开”；如 macOS 再次询问，请确认“打开”。
+3. Press Enter for the default directory, or enter an absolute path on another disk.
+   直接按 Enter 使用默认目录，也可输入其他磁盘上的绝对路径。
+4. Keep Terminal open until model verification and cache cleanup both finish.
+   保持终端开启，直到模型验证和下载缓存清理全部完成。
+
+Use / 使用：
+- Start: double-click start-ai-aligner.command and keep its Terminal window open.
+  启动：双击 start-ai-aligner.command，并保持终端窗口开启。
+- Stop: double-click stop-ai-aligner.command, or press Control+C in the start window.
+  停止：双击 stop-ai-aligner.command，或在启动窗口按 Control+C。
+- Uninstall: double-click uninstall-ai-aligner.command. It asks for UNINSTALL and then the exact install path.
+  卸载：双击 uninstall-ai-aligner.command；必须先输入 UNINSTALL，再完整输入安装路径。
+
+Chrome extension / Chrome 扩展：
+1. Download and fully extract lrc-editor-media-bridge-v0.4.3.zip.
+   下载并完整解压 lrc-editor-media-bridge-v0.4.3.zip。
+2. Open chrome://extensions and enable Developer mode.
+   打开 chrome://extensions，开启“开发者模式”。
+3. Select Load unpacked and choose the extracted extension folder.
+   点击“加载已解压的扩展程序”，选择扩展解压目录。
+4. Reload https://lrc.sgmy.org after installing or updating the extension.
+   安装或更新扩展后刷新 https://lrc.sgmy.org。
+
+Microsoft Edge uses edge://extensions with the same steps.
+Microsoft Edge 使用 edge://extensions，其他步骤相同。
+
+If Terminal prints a compdef error before this installer starts, it comes from a shell completion file such as
+~/.openclaw/completions/openclaw.zsh. It does not come from LRC Editor and does not affect this installer.
+如果安装器启动前出现 compdef 报错，它来自 ~/.openclaw/completions/openclaw.zsh 等 shell 补全文件，
+并非 LRC Editor 安装器输出，也不会影响本安装器。

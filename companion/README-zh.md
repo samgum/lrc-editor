@@ -9,7 +9,7 @@
 1. 从最新 [LRC Editor Release](https://github.com/samgum/lrc-editor/releases/latest) 下载并解压 `lrc-editor-ai-aligner` 安装包。
 2. 双击 `install-ai-aligner.cmd`；选择 1 使用 C 盘默认目录、2 使用 `D:\LRC Editor AI`、3 输入自定义目录，然后等待全部下载完成。
 3. 只在需要 AI 对轴时双击 `start-ai-aligner.cmd`，并保持终端窗口开启。
-4. 安装或更新到 LRC Editor Media Bridge v0.4.2 或更高版本。
+4. 安装或更新到 LRC Editor Media Bridge v0.4.3 或更高版本。
 5. 在 LRC Editor 中开启“设置 → 启用本机 AI 对轴”，载入媒体、打开编辑器，再点击“AI 对轴”。
 
 缺少 Git、FFmpeg 或 uv 时，安装脚本会通过 WinGet 自动安装。安装器始终把 uv 管理的 Python 3.11 下载到所选目录内的 `python`，并只用这个解释器创建 `environment`；不会复用、注册或加入系统 PATH，用户无需预装 Python。删除整个 AI 安装目录即可一并移除这套私有 Python。
@@ -20,6 +20,8 @@
 2. macOS 双击 `install-ai-aligner.command`；Linux 在终端运行 `./install-ai-aligner.sh`。
 3. 按提示选择安装目录。macOS 默认位置为 `~/Library/Application Support/LRC Editor/AI Aligner`，Linux 默认为 `${XDG_DATA_HOME:-~/.local/share}/LRC Editor/AI Aligner`。
 4. 需要时用 macOS 的 `start-ai-aligner.command` 或 Linux 的 `./start-ai-aligner.sh` 启动。
+
+压缩包内分别提供 `INSTALL-macOS.txt` 和 `INSTALL-Linux.txt`，请按当前系统阅读对应说明，不再共用 Windows 安装须知。
 
 如果 macOS 阻止打开下载的命令文件，可右键选择“打开”，或在终端执行一次 `chmod +x *.sh *.command`。缺少依赖时，macOS 优先使用 Homebrew；Linux 支持 `apt`、`dnf` 和 `pacman` 系列发行版。
 
@@ -86,6 +88,8 @@ Windows 默认安装位置为 `%LOCALAPPDATA%\LRC Editor\AI Aligner`。安装提
 - 功能默认关闭。关闭时页面不会探测本机端口、传输媒体或创建模型任务。
 - 浏览器扩展不能直接启动任意本机程序，因此只在需要时启动组件，用完后按 `Ctrl+C` 停止。
 - 重复运行启动器时会识别已有服务并直接退出，不会创建第二个进程。
+- 使用 `stop-ai-aligner.cmd`、`stop-ai-aligner.command` 或 `stop-ai-aligner.sh`，只停止经过校验的本项目服务进程。
+- 使用对应系统的 `uninstall-ai-aligner` 命令卸载；必须分别输入 `UNINSTALL` 和完整安装路径两次确认。
 - 一个任务在准备、排队或处理期间，扩展会拒绝第二次上传和第二个任务。
 - 输出精度跟随编辑器设置：两位小数请求 `lrc2`，其他设置请求 `lrc3`。
 - 剩余时间只由网页根据本机服务已经上报的进度采样估算，不会增加模型计算，也不会降低推理速度。

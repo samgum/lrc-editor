@@ -57,6 +57,9 @@ export const Footer: React.FC = () => {
     const [audioSrc, setAudioSrcState] = useState<string | undefined>(() =>
         sessionStorage.getItem(SSK.audioSrc) || undefined
     );
+    const [rememberedMediaUrl, setRememberedMediaUrl] = useState(() =>
+        sessionStorage.getItem(SSK.mediaInputDisplay) || ""
+    );
     const localFileRef = useRef<File | null>(null);
     const fallbackAttemptedRef = useRef(false);
     const setAudioSrc = useCallback((newSrc: string): void => {
@@ -85,6 +88,9 @@ export const Footer: React.FC = () => {
                 }
                 const source = await resolveMediaInput(value);
                 const playableSrc = await materializeExtensionMedia(source);
+                const displayInput = value.trim();
+                sessionStorage.setItem(SSK.mediaInputDisplay, displayInput);
+                setRememberedMediaUrl(displayInput);
                 if (parsed.kind === "youtube" || parsed.kind === "bilibili") {
                     sessionStorage.setItem(SSK.mediaInput, parsed.originalUrl);
                 } else {
@@ -201,6 +207,8 @@ export const Footer: React.FC = () => {
     const onAudioFile = useCallback((file: File) => {
         sessionStorage.removeItem(SSK.audioSrc);
         sessionStorage.removeItem(SSK.mediaInput);
+        sessionStorage.removeItem(SSK.mediaInputDisplay);
+        setRememberedMediaUrl("");
         localFileRef.current = isLocalMediaFile(file) ? file : null;
         fallbackAttemptedRef.current = false;
         clearAlignmentMediaSource();
@@ -345,7 +353,13 @@ export const Footer: React.FC = () => {
 
     return (
         <footer className="app-footer">
-            <LoadAudio accept={accept} onLoadFile={onAudioFile} onLoadUrl={loadMediaUrl} lang={lang} />
+            <LoadAudio
+                accept={accept}
+                rememberedUrl={rememberedMediaUrl}
+                onLoadFile={onAudioFile}
+                onLoadUrl={loadMediaUrl}
+                lang={lang}
+            />
             <audio
                 ref={audioRef}
                 src={audioSrc}

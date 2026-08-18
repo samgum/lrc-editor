@@ -68,7 +68,7 @@
     display: inline-flex;
     align-items: center;
     overflow: hidden;
-    color: var(--theme-color);
+    color: var(--theme-foreground-color);
     border: 1px solid currentColor;
     border-radius: 999px;
 }

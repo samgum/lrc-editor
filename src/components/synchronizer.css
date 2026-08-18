@@ -1,6 +1,8 @@
 .timing-page {
     width: min(1440px, 100%);
+    min-height: calc(100svh - 148px);
     margin: 0 auto;
+    padding-bottom: var(--timing-follow-end-space, 28svh);
 }
 
 .timing-toolbar {
@@ -31,7 +33,7 @@
 }
 
 .timing-selection > span {
-    color: #888888;
+    color: var(--text-muted-color);
     font-family: "Cascadia Mono", Consolas, monospace;
     font-size: 0.72rem;
 }
@@ -53,14 +55,14 @@
 .timing-fine-tune button {
     min-height: 31px;
     padding: 0 7px;
-    color: #77737b;
+    color: var(--text-secondary-color);
     border: 1px solid #88888832;
     border-radius: 4px;
     font-size: 0.68rem;
 }
 
 .timing-fine-tune button:hover:not(:disabled), .timing-fine-tune button:focus-visible {
-    color: var(--theme-color);
+    color: var(--theme-foreground-color);
     border-color: var(--theme-color);
 }
 
@@ -70,7 +72,7 @@
 
 .timing-fine-tune time {
     min-width: 0;
-    color: var(--theme-color);
+    color: var(--theme-foreground-color);
     font-family: "Cascadia Mono", Consolas, monospace;
     font-size: 0.76rem;
     font-weight: 650;
@@ -136,6 +138,10 @@
     user-select: none;
 }
 
+.follow-playback .lyric-list {
+    padding-top: max(0px, calc(var(--timing-follow-end-space, 28svh) - 25px));
+}
+
 .lyric-list.on-screen-button {
     margin-bottom: 96px;
 }
@@ -172,20 +178,20 @@
 }
 
 .line-index {
-    color: #88888875;
+    color: var(--text-muted-color);
     font-family: "Cascadia Mono", Consolas, monospace;
     font-size: 0.68rem;
     text-align: center;
 }
 
 .line-time, .curser {
-    color: #77737b;
+    color: var(--text-secondary-color);
     font-family: "Cascadia Mono", Consolas, monospace;
     font-size: 0.82rem;
 }
 
 .curser {
-    color: var(--theme-color);
+    color: var(--theme-foreground-color);
     font-weight: 700;
 }
 
@@ -213,7 +219,7 @@
 }
 
 .line.highlight .line-index, .line.highlight .line-time {
-    color: var(--theme-color);
+    color: var(--theme-foreground-color);
     font-weight: 700;
 }
 
@@ -296,6 +302,11 @@
 }
 
 @media (width <= 820px) {
+    .timing-page {
+        min-height: calc(100svh - 178px);
+        padding-bottom: var(--timing-follow-end-space, 34svh);
+    }
+
     .timing-toolbar {
         top: 68px;
         display: flex;

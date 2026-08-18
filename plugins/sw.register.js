@@ -8,7 +8,7 @@ if ("serviceWorker" in navigator) {
 
     navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" }).then(
         (registration) => {
-            registration.update();
+            void registration.update().catch(() => undefined);
             console.info("LRC Editor service worker registered:", registration.scope);
         },
         (err) => {

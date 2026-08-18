@@ -7,6 +7,7 @@ import type { IState } from "../hooks/useLrc.js";
 import { type Action, ActionType, guard } from "../hooks/useLrc.js";
 import { type State as PrefState } from "../hooks/usePref.js";
 import { AudioActionType, audioRef, audioStatePubSub, currentTimePubSub } from "../utils/audiomodule.js";
+import { centeredFollowOffset, followEndSpace } from "../utils/follow-scroll.js";
 import { InputAction } from "../utils/input-action.js";
 import { isKeyboardElement } from "../utils/is-keyboard-element.js";
 import { formatKeyBinding, getMatchedAction } from "../utils/keybindings.js";
@@ -54,11 +55,33 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({ state, dispatch }) 
     }, [syncMode]);
 
     const ul = useRef<HTMLUListElement>(null);
+    const page = useRef<HTMLElement>(null);
+    const [followLayoutRevision, setFollowLayoutRevision] = useState(0);
 
     const needScrollLine = {
         [SyncMode.select]: selectIndex,
         [SyncMode.highlight]: highlightIndex,
     }[syncMode];
+
+    useEffect(() => {
+        const updateLayout = (): void => setFollowLayoutRevision((revision) => revision + 1);
+        const resizeObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateLayout);
+        const toolbar = document.querySelector(".timing-toolbar");
+        const footer = document.querySelector(".app-footer");
+        const aside = document.querySelector(".aside-panel");
+        for (const element of [ul.current, toolbar, footer, aside]) {
+            if (element) resizeObserver?.observe(element);
+        }
+        window.addEventListener("resize", updateLayout);
+        window.addEventListener("orientationchange", updateLayout);
+        window.visualViewport?.addEventListener("resize", updateLayout);
+        return () => {
+            resizeObserver?.disconnect();
+            window.removeEventListener("resize", updateLayout);
+            window.removeEventListener("orientationchange", updateLayout);
+            window.visualViewport?.removeEventListener("resize", updateLayout);
+        };
+    }, []);
 
     useEffect(() => {
         const frameId = requestAnimationFrame(() => {
@@ -69,24 +92,31 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({ state, dispatch }) 
 
             const lineRect = line.getBoundingClientRect();
             const toolbarBottom = document.querySelector(".timing-toolbar")?.getBoundingClientRect().bottom ?? 0;
-            const footerTop = document.querySelector(".app-footer")?.getBoundingClientRect().top ?? window.innerHeight;
-            const safeTop = toolbarBottom + 12;
-            const safeBottom = footerTop - 12;
-
-            if (lineRect.top >= safeTop && lineRect.bottom <= safeBottom) {
-                return;
-            }
-
-            const availableHeight = Math.max(lineRect.height, safeBottom - safeTop);
-            const targetTop = safeTop + (availableHeight - lineRect.height) / 2;
+            page.current?.style.setProperty("--timing-controls-top", `${Math.round(toolbarBottom + 7)}px`);
+            const asideBottom = matchMedia("(width <= 820px)").matches
+                ? document.querySelector(".aside-panel")?.getBoundingClientRect().bottom ?? toolbarBottom
+                : toolbarBottom;
+            const viewportTop = window.visualViewport?.offsetTop ?? 0;
+            const viewportBottom = viewportTop + (window.visualViewport?.height ?? window.innerHeight);
+            const footerTop = document.querySelector(".app-footer")?.getBoundingClientRect().top ?? viewportBottom;
+            const safeTop = Math.max(viewportTop + 8, toolbarBottom + 12, asideBottom + 8);
+            const safeBottom = Math.min(viewportBottom - 8, footerTop - 12);
+            page.current?.style.setProperty("--timing-follow-end-space", `${followEndSpace(safeTop, safeBottom)}px`);
+            const top = centeredFollowOffset({
+                lineTop: lineRect.top,
+                lineHeight: lineRect.height,
+                safeTop,
+                safeBottom,
+            });
+            if (top === 0) return;
             window.scrollBy({
-                top: lineRect.top - targetTop,
+                top,
                 behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
             });
         });
 
         return () => cancelAnimationFrame(frameId);
-    }, [needScrollLine]);
+    }, [followLayoutRevision, needScrollLine, syncMode]);
 
     useEffect(() => {
         return currentTimePubSub.sub(self.current, (time) => {
@@ -306,7 +336,10 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({ state, dispatch }) 
         : convertTimeToTag(selectedTime, prefState.fixed).slice(1, -1);
 
     return (
-        <section className="timing-page">
+        <section
+            ref={page}
+            className={`timing-page ${syncMode === SyncMode.highlight ? "follow-playback" : "follow-selection"}`}
+        >
             <header className="timing-toolbar">
                 <div className="timing-selection">
                     <span>{selectIndex + 1} / {lyric.length}</span>

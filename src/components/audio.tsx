@@ -132,6 +132,7 @@ const TimeLine: React.FC<{ duration: number; paused: boolean }> = ({ duration, p
                     <div className="slider waveform-container">
                         <Waveform
                             source={waveformSource}
+                            themeColor={prefState.themeColor}
                             onSeek={onSeek}
                             onUnavailable={() => setWaveformFailed(true)}
                         />

@@ -9,7 +9,7 @@ This optional companion runs the verified `lyrics-forced-aligner` engine entirel
 1. Download and extract the `lrc-editor-ai-aligner` package from the latest [LRC Editor release](https://github.com/samgum/lrc-editor/releases/latest).
 2. Double-click `install-ai-aligner.cmd`, choose 1 for the C drive default, 2 for `D:\LRC Editor AI`, or 3 for a custom directory, then allow the downloads to finish.
 3. Double-click `start-ai-aligner.cmd` only when AI alignment is needed. Keep its terminal open.
-4. Install or update LRC Editor Media Bridge to v0.4.2 or later.
+4. Install or update LRC Editor Media Bridge to v0.4.3 or later.
 5. In LRC Editor, turn on **Settings → Enable local AI alignment**, load media, open the editor, and select **AI align**.
 
 The installer uses WinGet when Git, FFmpeg, or uv is missing. It always downloads a uv-managed Python 3.11 runtime into the chosen `python` directory and creates `environment` from that exact executable. It does not reuse, register, or add a system Python to `PATH`; no preinstalled Python or Python command is required. Removing the selected AI directory removes this private Python as well.
@@ -20,6 +20,8 @@ The installer uses WinGet when Git, FFmpeg, or uv is missing. It always download
 2. On macOS, double-click `install-ai-aligner.command`. On Linux, run `./install-ai-aligner.sh` in a terminal.
 3. Choose the installation directory when prompted. The macOS default is `~/Library/Application Support/LRC Editor/AI Aligner`; the Linux default is `${XDG_DATA_HOME:-~/.local/share}/LRC Editor/AI Aligner`.
 4. Start on demand with `start-ai-aligner.command` on macOS or `./start-ai-aligner.sh` on Linux.
+
+The archive contains `INSTALL-macOS.txt` and `INSTALL-Linux.txt`; follow the guide for the current operating system instead of the Windows instructions.
 
 If macOS blocks a downloaded command file, right-click it and choose **Open**, or run `chmod +x *.sh *.command` once in Terminal. Homebrew is used for missing macOS prerequisites when available. Linux supports `apt`, `dnf`, and `pacman` package families.
 
@@ -86,6 +88,8 @@ Use the same path when starting:
 - The setting is off by default. When it is off, the page does not probe the local ports, upload media, or start a model task.
 - The browser extension cannot start an arbitrary local executable. Start the companion only when needed and stop it with `Ctrl+C` afterward.
 - Starting the launcher twice detects the existing service and exits without creating a second process.
+- Use `stop-ai-aligner.cmd`, `stop-ai-aligner.command`, or `stop-ai-aligner.sh` to stop only the verified companion process.
+- Use the matching `uninstall-ai-aligner` command for removal. It requires `UNINSTALL` and the exact install path as two separate confirmations.
 - The extension refuses a second upload or job while one is being prepared, queued, or processed.
 - Output precision follows the editor setting: two-digit timestamps request `lrc2`; every other setting requests `lrc3`.
 - Remaining time is estimated in the web page from already reported progress samples; it does not add model work or reduce inference speed.

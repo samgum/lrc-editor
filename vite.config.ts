@@ -43,6 +43,7 @@ export default defineConfig({
         swc(),
         ffmpegCoreAssets(),
         sw_plugin(),
+        offlineAssetManifest(),
     ],
     base: "./",
     define: {
@@ -145,6 +146,35 @@ function ffmpegCoreAssets(): Plugin {
                     source: wasm.subarray(index * chunkSize, Math.min(wasm.byteLength, (index + 1) * chunkSize)),
                 });
             }
+        },
+    };
+}
+
+function offlineAssetManifest(): Plugin {
+    const staticAssets = [
+        "index.html",
+        "site.webmanifest",
+        "favicon.ico",
+        "favicons/lrc-editor.svg",
+        "favicons/apple-touch-icon.png",
+        "favicons/favicon-32x32.png",
+        "favicons/favicon-16x16.png",
+        "favicons/safari-pinned-tab.svg",
+        "favicons/browserconfig.xml",
+    ];
+    return {
+        name: "offline-asset-manifest",
+        generateBundle(_options, bundle) {
+            const generatedAssets = Object.keys(bundle)
+                .filter((fileName) =>
+                    /\.(?:css|js)$/i.test(fileName) && fileName !== "sw.js" && !fileName.startsWith("ffmpeg/")
+                )
+                .sort();
+            this.emitFile({
+                type: "asset",
+                fileName: "offline-assets.json",
+                source: JSON.stringify({ assets: [...staticAssets, ...generatedAssets] }),
+            });
         },
     };
 }

@@ -77,6 +77,6 @@ export LYRICS_ALIGNER_PORT="$selected_port"
 export PYTHONWARNINGS="ignore:pkg_resources is deprecated as an API:UserWarning${PYTHONWARNINGS:+,$PYTHONWARNINGS}"
 
 echo "Lyrics Forced Aligner is starting at http://127.0.0.1:$selected_port"
-echo "Keep this terminal open while AI alignment is in use. Press Ctrl+C to stop."
+echo "Keep this terminal open while AI alignment is in use. Press Ctrl+C or run stop-ai-aligner.sh to stop."
 cd "$engine_root"
 exec "$venv_python" -m lrc_editor_companion_server

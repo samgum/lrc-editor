@@ -6,9 +6,16 @@
     --theme-rgb: 245, 142, 168;
     --theme-color: rgb(var(--theme-rgb));
     --theme-contrast-color: var(--black);
+    --theme-foreground-light-rgb: 174, 75, 105;
+    --theme-foreground-dark-rgb: 245, 142, 168;
+    --theme-foreground-rgb: var(--theme-foreground-light-rgb);
+    --theme-foreground-color: rgb(var(--theme-foreground-rgb));
+    --theme-on-dark-color: rgb(var(--theme-foreground-dark-rgb));
 
     /* text color */
-    --font-color: #25262b;
+    --font-color: #202228;
+    --text-secondary-color: #515761;
+    --text-muted-color: #686e78;
     --background-color: #f3f4f6;
     --surface-color: #ffffff;
 
@@ -37,24 +44,33 @@
 @media (prefers-color-scheme: dark) {
     :root {
         --font-color: #f2f3f5;
+        --text-secondary-color: #c3c6ce;
+        --text-muted-color: #a4a8b2;
         --background-color: #101218;
         --surface-color: #191c23;
         --semi-white-color: #191c23f2;
+        --theme-foreground-rgb: var(--theme-foreground-dark-rgb);
     }
 }
 
 [data-theme="light"] {
-    --font-color: #25262b;
+    --font-color: #202228;
+    --text-secondary-color: #515761;
+    --text-muted-color: #686e78;
     --background-color: #f3f4f6;
     --surface-color: #ffffff;
     --semi-white-color: #fffffff2;
+    --theme-foreground-rgb: var(--theme-foreground-light-rgb);
 }
 
 [data-theme="dark"] {
     --font-color: #f2f3f5;
+    --text-secondary-color: #c3c6ce;
+    --text-muted-color: #a4a8b2;
     --background-color: #101218;
     --surface-color: #191c23;
     --semi-white-color: #191c23f2;
+    --theme-foreground-rgb: var(--theme-foreground-dark-rgb);
 }
 
 @media (prefers-reduced-motion: reduce) {
