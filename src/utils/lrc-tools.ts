@@ -1,13 +1,16 @@
 import { type IFormatOptions, type ILyric, type State, stringify } from "@lrc-maker/lrc-parser";
 
-export const removeTags = (state: State, options: IFormatOptions): string =>
-    stringify(
-        {
-            info: new Map(),
-            lyric: state.lyric.map((line) => ({ text: line.text })),
-        },
-        options,
-    );
+export const removeTags = (state: State, options: IFormatOptions): string => {
+    let seenContent = false;
+    const lyric = state.lyric.filter((line) => {
+        const trimmed = line.text.trim();
+        const firstContent = !seenContent && trimmed.length > 0;
+        if (trimmed) seenContent = true;
+        const bracket = getBracketLabel(line.text);
+        return !bracket || !(isSectionLabel(bracket, true) || firstContent && isLyricDocumentHeader(bracket));
+    }).map((line) => ({ text: line.text }));
+    return stringify({ info: new Map(), lyric }, options);
+};
 
 export const removeEmptyLines = (state: State, options: IFormatOptions): string =>
     stringify(
@@ -194,11 +197,16 @@ export interface SectionCleanupResult {
 export const stripGeniusSections = (text: string, options: SectionCleanupOptions): SectionCleanupResult => {
     const removed: string[] = [];
     let blankRemoved = 0;
+    let seenContent = false;
     const lines = splitLinesWithEndings(text);
     const kept = lines.filter((line) => {
         const trimmed = line.content.trim();
-        const bracket = /^\s*(?:\[|［|【)([^\]］】\r\n]+)(?:\]|］|】)\s*$/u.exec(line.content);
-        if (bracket && isSectionLabel(bracket[1], options.strictMode)) {
+        const firstContent = !seenContent && trimmed.length > 0;
+        if (trimmed) seenContent = true;
+        const bracket = getBracketLabel(line.content);
+        if (
+            bracket && (isSectionLabel(bracket, options.strictMode) || firstContent && isLyricDocumentHeader(bracket))
+        ) {
             removed.push(trimmed);
             return false;
         }
@@ -213,6 +221,18 @@ export const stripGeniusSections = (text: string, options: SectionCleanupOptions
         return true;
     });
     return { text: kept.map((line) => line.content + line.eol).join(""), removed, blankRemoved };
+};
+
+const getBracketLabel = (line: string): string | null =>
+    /^\s*(?:\[|［|【)([^\]］】\r\n]+)(?:\]|］|】)\s*$/u.exec(line)?.[1] || null;
+
+const isLyricDocumentHeader = (label: string): boolean => {
+    const value = label
+        .normalize("NFKC")
+        .replace(/[\u200B-\u200D\u2060\uFEFF]/g, "")
+        .trim();
+    const match = /^(.{2,}?)(?:\s+lyrics?|歌[詞词]|가사)$/iu.exec(value);
+    return Boolean(match && /[\p{L}\p{N}]/u.test(match[1]));
 };
 
 const splitLinesWithEndings = (text: string): Array<{ content: string; eol: string }> => {

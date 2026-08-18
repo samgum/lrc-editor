@@ -3,6 +3,7 @@
     "extensionDescription": { "message": "在本機為 LRC Editor 解析 YouTube、嗶哩嗶哩和網易雲分享連結。" },
     "supportedSources": { "message": "支援的來源" },
     "neteaseShareLinks": { "message": "網易雲分享連結" },
+    "qqMusicLinks": { "message": "QQ 音樂公開歌曲" },
     "localAiAlignment": { "message": "本機 AI 對軸" },
     "openEditor": { "message": "開啟 LRC Editor" }
 }

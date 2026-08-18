@@ -18,6 +18,23 @@ describe("parseMediaInput", () => {
         });
     });
 
+    it("extracts and recognizes a QQ Music short link from a complete share message", () => {
+        const shared = "The Hydrogen Dude《Intro》 https://c6.y.qq.com/base/fcgi-bin/u?__=LNIUcFeE9ZJc @QQ音乐";
+        expect(parseMediaInput(shared)).toEqual({
+            kind: "qqmusic-short",
+            originalUrl: "https://c6.y.qq.com/base/fcgi-bin/u?__=LNIUcFeE9ZJc",
+        });
+    });
+
+    it.each([
+        "https://y.qq.com/n/ryqq/songDetail/001qJBYN2lctpI",
+        "https://y.qq.com/n/ryqq_v2/songDetail/001qJBYN2lctpI",
+        "https://i.y.qq.com/v8/playsong.html?songmid=001qJBYN2lctpI&type=0",
+        "https://i2.y.qq.com/n3/other/pages/playsong/index.html?songmid=001qJBYN2lctpI&type=0",
+    ])("recognizes QQ Music long links: %s", (url) => {
+        expect(parseMediaInput(url)).toMatchObject({ kind: "qqmusic", songMid: "001qJBYN2lctpI" });
+    });
+
     it("extracts HTTP links and removes trailing share punctuation", () => {
         expect(extractMediaUrl("请听：https://music.163.com/song?id=3421081743。"))
             .toBe("https://music.163.com/song?id=3421081743");

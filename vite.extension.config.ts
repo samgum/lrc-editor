@@ -21,6 +21,7 @@ export default defineConfig({
                 bridge: resolve("extension/src/bridge.ts"),
                 offscreen: resolve("extension/offscreen.html"),
                 popup: resolve("extension/popup.html"),
+                "qqmusic-frame": resolve("extension/src/qqmusic-frame.ts"),
                 "service-worker": resolve("extension/src/service-worker.ts"),
             },
             output: {

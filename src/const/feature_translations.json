@@ -2,8 +2,8 @@
     "ja": {
         "loadAudio": {
             "loadFile": "ローカルの音声または動画を選択",
-            "urlPlaceholder": "音声、NetEase、YouTube、Bilibili の URL",
-            "installExtension": "YouTube・Bilibili 用メディア拡張機能を入手"
+            "urlPlaceholder": "音声、NetEase、QQ Music、YouTube、Bilibili の URL",
+            "installExtension": "メディア連携拡張機能を入手"
         },
         "workspace": {
             "title": "歌詞ワークスペース",
@@ -77,10 +77,13 @@
             "bilibiliResolveFailed": "Bilibili 音声を解析できませんでした。",
             "neteaseResolving": "拡張機能で NetEase 共有リンクを展開しています…",
             "neteaseResolveFailed": "NetEase 共有リンクを展開できませんでした。",
+            "qqmusicResolving": "拡張機能で QQ Music の完全な音声を解析しています…",
+            "qqmusicResolveFailed": "この QQ Music リンクを解析できませんでした。",
+            "qqmusicNotPlayable": "QQ Music でこの曲の完全な公開再生を利用できません。VIP 専用または試聴のみの音声は読み込めません。",
             "mediaExtensionMissing": "メディア拡張機能に接続できません。インストールまたは更新後、このページを再読み込みしてください。",
             "mediaExtensionOutdated": "メディア拡張機能が古すぎます。最新版に置き換え、拡張機能を再読み込みしてからページを更新してください。",
             "youtubeResolveFailed": "YouTube 音声を解析できませんでした。",
-            "invalidMediaUrl": "有効なメディア、NetEase、YouTube、または Bilibili の URL を入力してください。",
+            "invalidMediaUrl": "有効なメディア、NetEase、QQ Music、YouTube、または Bilibili の URL を入力してください。",
             "transcodingMedia": "再生と AI 同期用の AAC を端末上で作成中…",
             "mediaConverted": "AAC の準備ができました。",
             "mediaConversionFailed": "この音声コーデックをブラウザで変換できませんでした。",
@@ -147,8 +150,8 @@
     "ko-KR": {
         "loadAudio": {
             "loadFile": "로컬 오디오 또는 비디오 선택",
-            "urlPlaceholder": "오디오, NetEase, YouTube 또는 Bilibili URL",
-            "installExtension": "YouTube 및 Bilibili 미디어 확장 프로그램 받기"
+            "urlPlaceholder": "오디오, NetEase, QQ Music, YouTube 또는 Bilibili URL",
+            "installExtension": "미디어 연동 확장 프로그램 받기"
         },
         "workspace": {
             "title": "가사 작업 공간",
@@ -222,10 +225,13 @@
             "bilibiliResolveFailed": "Bilibili 오디오를 분석할 수 없습니다.",
             "neteaseResolving": "확장 프로그램에서 NetEase 공유 링크를 펼치는 중…",
             "neteaseResolveFailed": "NetEase 공유 링크를 펼칠 수 없습니다.",
+            "qqmusicResolving": "확장 프로그램에서 QQ Music 전체 오디오를 분석하는 중…",
+            "qqmusicResolveFailed": "이 QQ Music 링크를 분석할 수 없습니다.",
+            "qqmusicNotPlayable": "QQ Music에서 이 곡의 전체 공개 재생을 제공하지 않습니다. VIP 전용 또는 미리듣기 오디오는 불러올 수 없습니다.",
             "mediaExtensionMissing": "미디어 확장 프로그램이 연결되지 않았습니다. 설치하거나 업데이트한 뒤 이 페이지를 새로고침하세요.",
             "mediaExtensionOutdated": "미디어 확장 프로그램이 오래되었습니다. 최신 버전으로 교체하고 확장 프로그램을 다시 로드한 뒤 페이지를 새로고침하세요.",
             "youtubeResolveFailed": "YouTube 오디오를 분석할 수 없습니다.",
-            "invalidMediaUrl": "올바른 미디어, NetEase, YouTube 또는 Bilibili URL을 입력하세요.",
+            "invalidMediaUrl": "올바른 미디어, NetEase, QQ Music, YouTube 또는 Bilibili URL을 입력하세요.",
             "transcodingMedia": "재생 및 AI 싱크용 AAC 사본을 기기에서 만드는 중…",
             "mediaConverted": "AAC 오디오가 준비되었습니다.",
             "mediaConversionFailed": "브라우저에서 이 오디오 코덱을 변환할 수 없습니다.",
@@ -292,8 +298,8 @@
     "pl-PL": {
         "loadAudio": {
             "loadFile": "Wybierz lokalny plik audio lub wideo",
-            "urlPlaceholder": "Adres audio, NetEase, YouTube lub Bilibili",
-            "installExtension": "Pobierz rozszerzenie multimediów YouTube i Bilibili"
+            "urlPlaceholder": "Adres audio, NetEase, QQ Music, YouTube lub Bilibili",
+            "installExtension": "Pobierz rozszerzenie multimedialne"
         },
         "workspace": {
             "title": "Obszar roboczy napisów",
@@ -367,10 +373,13 @@
             "bilibiliResolveFailed": "Nie udało się rozpoznać dźwięku Bilibili.",
             "neteaseResolving": "Rozwijanie linku udostępniania NetEase przez rozszerzenie…",
             "neteaseResolveFailed": "Nie udało się rozwinąć linku udostępniania NetEase.",
+            "qqmusicResolving": "Rozpoznawanie pełnego dźwięku QQ Music przez rozszerzenie…",
+            "qqmusicResolveFailed": "Nie udało się rozpoznać tego linku QQ Music.",
+            "qqmusicNotPlayable": "QQ Music nie udostępnia pełnego publicznego odtwarzania tego utworu. Nie można wczytać nagrań VIP ani samych fragmentów.",
             "mediaExtensionMissing": "Rozszerzenie multimediów nie jest połączone. Zainstaluj je lub zaktualizuj, a następnie odśwież stronę.",
             "mediaExtensionOutdated": "Rozszerzenie multimediów jest nieaktualne. Zastąp je najnowszą wersją, przeładuj rozszerzenie i odśwież stronę.",
             "youtubeResolveFailed": "Nie udało się rozpoznać dźwięku YouTube.",
-            "invalidMediaUrl": "Wpisz prawidłowy adres multimediów, NetEase, YouTube lub Bilibili.",
+            "invalidMediaUrl": "Wpisz prawidłowy adres multimediów, NetEase, QQ Music, YouTube lub Bilibili.",
             "transcodingMedia": "Tworzenie lokalnej kopii AAC do odtwarzania i wyrównania AI…",
             "mediaConverted": "Kopia AAC jest gotowa.",
             "mediaConversionFailed": "Nie udało się przekonwertować tego kodeka w przeglądarce.",
@@ -437,8 +446,8 @@
     "pt-BR": {
         "loadAudio": {
             "loadFile": "Escolha um arquivo local de áudio ou vídeo",
-            "urlPlaceholder": "URL de áudio, NetEase, YouTube ou Bilibili",
-            "installExtension": "Obter a extensão de mídia para YouTube e Bilibili"
+            "urlPlaceholder": "URL de áudio, NetEase, QQ Music, YouTube ou Bilibili",
+            "installExtension": "Obter a extensão de mídia"
         },
         "workspace": {
             "title": "Área de trabalho de letras",
@@ -512,10 +521,13 @@
             "bilibiliResolveFailed": "Não foi possível resolver o áudio do Bilibili.",
             "neteaseResolving": "Expandindo o link compartilhado do NetEase pela extensão…",
             "neteaseResolveFailed": "Não foi possível expandir o link compartilhado do NetEase.",
+            "qqmusicResolving": "Resolvendo o áudio completo do QQ Music pela extensão…",
+            "qqmusicResolveFailed": "Não foi possível resolver este link do QQ Music.",
+            "qqmusicNotPlayable": "O QQ Music não oferece reprodução pública completa desta faixa. Áudios exclusivos para VIP ou apenas de prévia não podem ser carregados.",
             "mediaExtensionMissing": "A extensão de mídia não está conectada. Instale ou atualize e recarregue esta página.",
             "mediaExtensionOutdated": "A extensão de mídia está desatualizada. Substitua pela versão mais recente, recarregue a extensão e atualize esta página.",
             "youtubeResolveFailed": "Não foi possível resolver o áudio do YouTube.",
-            "invalidMediaUrl": "Informe uma URL válida de mídia, NetEase, YouTube ou Bilibili.",
+            "invalidMediaUrl": "Informe uma URL válida de mídia, NetEase, QQ Music, YouTube ou Bilibili.",
             "transcodingMedia": "Preparando uma cópia AAC local para reprodução e alinhamento por IA…",
             "mediaConverted": "O áudio AAC está pronto.",
             "mediaConversionFailed": "Não foi possível converter este codec no navegador.",
@@ -582,8 +594,8 @@
     "sk-SK": {
         "loadAudio": {
             "loadFile": "Vyberte miestny zvukový alebo video súbor",
-            "urlPlaceholder": "Adresa zvuku, NetEase, YouTube alebo Bilibili",
-            "installExtension": "Získať mediálne rozšírenie pre YouTube a Bilibili"
+            "urlPlaceholder": "Adresa zvuku, NetEase, QQ Music, YouTube alebo Bilibili",
+            "installExtension": "Získať mediálne rozšírenie"
         },
         "workspace": {
             "title": "Pracovný priestor textov",
@@ -657,10 +669,13 @@
             "bilibiliResolveFailed": "Zvuk Bilibili sa nepodarilo rozpoznať.",
             "neteaseResolving": "Rozbaľuje sa zdieľaný odkaz NetEase pomocou rozšírenia…",
             "neteaseResolveFailed": "Zdieľaný odkaz NetEase sa nepodarilo rozbaliť.",
+            "qqmusicResolving": "Rozpoznáva sa úplný zvuk QQ Music pomocou rozšírenia…",
+            "qqmusicResolveFailed": "Tento odkaz QQ Music sa nepodarilo rozpoznať.",
+            "qqmusicNotPlayable": "QQ Music neposkytuje úplné verejné prehrávanie tejto skladby. Zvuk iba pre VIP alebo ukážku nemožno načítať.",
             "mediaExtensionMissing": "Mediálne rozšírenie nie je pripojené. Nainštalujte ho alebo aktualizujte a obnovte stránku.",
             "mediaExtensionOutdated": "Mediálne rozšírenie je zastarané. Nahraďte ho najnovšou verziou, znovu ho načítajte a obnovte stránku.",
             "youtubeResolveFailed": "Zvuk YouTube sa nepodarilo rozpoznať.",
-            "invalidMediaUrl": "Zadajte platnú adresu média, NetEase, YouTube alebo Bilibili.",
+            "invalidMediaUrl": "Zadajte platnú adresu média, NetEase, QQ Music, YouTube alebo Bilibili.",
             "transcodingMedia": "Lokálne sa pripravuje kópia AAC na prehrávanie a zarovnanie AI…",
             "mediaConverted": "Zvuk AAC je pripravený.",
             "mediaConversionFailed": "Tento kodek sa nepodarilo previesť v prehliadači.",
@@ -727,8 +742,8 @@
     "zh-HK": {
         "loadAudio": {
             "loadFile": "選擇本機音訊或影片",
-            "urlPlaceholder": "音訊、網易雲、YouTube 或嗶哩嗶哩連結",
-            "installExtension": "取得 YouTube 與嗶哩嗶哩媒體擴充功能"
+            "urlPlaceholder": "音訊、網易雲、QQ 音樂、YouTube 或嗶哩嗶哩連結",
+            "installExtension": "取得媒體配套擴充功能"
         },
         "workspace": {
             "title": "歌詞工作台",
@@ -802,10 +817,13 @@
             "bilibiliResolveFailed": "無法解析嗶哩嗶哩音訊。",
             "neteaseResolving": "正在透過擴充功能展開網易雲分享連結…",
             "neteaseResolveFailed": "無法展開這個網易雲分享連結。",
+            "qqmusicResolving": "正在透過擴充功能解析 QQ 音樂完整音訊…",
+            "qqmusicResolveFailed": "無法解析這個 QQ 音樂連結。",
+            "qqmusicNotPlayable": "QQ 音樂未對這首歌提供公開完整播放；VIP 或僅試聽音訊無法載入。",
             "mediaExtensionMissing": "媒體擴充功能未連接。請安裝或更新後重新整理此頁面。",
             "mediaExtensionOutdated": "媒體擴充功能版本過舊。請替換為最新版本，在擴充功能管理頁重新載入後再重新整理此頁面。",
             "youtubeResolveFailed": "無法解析 YouTube 音訊。",
-            "invalidMediaUrl": "請輸入有效的媒體、網易雲、YouTube 或嗶哩嗶哩連結。",
+            "invalidMediaUrl": "請輸入有效的媒體、網易雲、QQ 音樂、YouTube 或嗶哩嗶哩連結。",
             "transcodingMedia": "正在本機建立供播放與 AI 對軸使用的 AAC 副本…",
             "mediaConverted": "AAC 音訊已準備完成。",
             "mediaConversionFailed": "瀏覽器無法轉換這個音訊編碼。",
@@ -872,8 +890,8 @@
     "zh-TW": {
         "loadAudio": {
             "loadFile": "選擇本機音訊或影片",
-            "urlPlaceholder": "音訊、網易雲、YouTube 或嗶哩嗶哩連結",
-            "installExtension": "取得 YouTube 與嗶哩嗶哩媒體擴充功能"
+            "urlPlaceholder": "音訊、網易雲、QQ 音樂、YouTube 或嗶哩嗶哩連結",
+            "installExtension": "取得媒體配套擴充功能"
         },
         "workspace": {
             "title": "歌詞工作區",
@@ -947,10 +965,13 @@
             "bilibiliResolveFailed": "無法解析嗶哩嗶哩音訊。",
             "neteaseResolving": "正在透過擴充功能展開網易雲分享連結…",
             "neteaseResolveFailed": "無法展開這個網易雲分享連結。",
+            "qqmusicResolving": "正在透過擴充功能解析 QQ 音樂完整音訊…",
+            "qqmusicResolveFailed": "無法解析這個 QQ 音樂連結。",
+            "qqmusicNotPlayable": "QQ 音樂未對這首歌提供公開完整播放；VIP 或僅試聽音訊無法載入。",
             "mediaExtensionMissing": "媒體擴充功能未連接。請安裝或更新後重新整理此頁面。",
             "mediaExtensionOutdated": "媒體擴充功能版本過舊。請替換為最新版本，在擴充功能管理頁重新載入後再重新整理此頁面。",
             "youtubeResolveFailed": "無法解析 YouTube 音訊。",
-            "invalidMediaUrl": "請輸入有效的媒體、網易雲、YouTube 或嗶哩嗶哩連結。",
+            "invalidMediaUrl": "請輸入有效的媒體、網易雲、QQ 音樂、YouTube 或嗶哩嗶哩連結。",
             "transcodingMedia": "正在本機建立供播放與 AI 對軸使用的 AAC 副本…",
             "mediaConverted": "AAC 音訊已準備完成。",
             "mediaConversionFailed": "瀏覽器無法轉換這個音訊編碼。",

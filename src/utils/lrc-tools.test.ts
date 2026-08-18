@@ -21,6 +21,21 @@ describe("LRC tools", () => {
         expect(removeEmptyLines(source, options)).not.toContain("[00:02.000]");
     });
 
+    it("removes a leading bracketed lyric title and known section tags", () => {
+        const text = [
+            "[YOASOBI「Biri-Biri」歌詞]",
+            "",
+            "[Verse 1]",
+            "xxx",
+            "[YOASOBI「Biri-Biri」歌詞]",
+        ].join("\n");
+        const result = removeTags(parser(text), options);
+        expect(result).not.toMatch(/^\[YOASOBI/u);
+        expect(result).not.toContain("[Verse 1]");
+        expect(result).toContain("xxx");
+        expect(result).toContain("[YOASOBI「Biri-Biri」歌詞]");
+    });
+
     it("applies a linear time transform", () => {
         const result = transformTimes(source, 2, 500, options);
         expect(result).toContain("[00:02.500]Hello / 你好");
@@ -238,6 +253,18 @@ describe("LRC tools", () => {
         expect(result.removed).toEqual(["[Intro: LISA]"]);
         expect(result.text).toContain("[00:01.000]Hello");
         expect(result.text).toContain("[ti: Chorus Song]");
+    });
+
+    it("removes a bracketed lyric document title only at the beginning", () => {
+        const title = "[YOASOBI「Biri-Biri」歌詞]";
+        const result = stripGeniusSections(`${title}\n\n[Verse 1]\nxxx\n${title}`, {
+            strictMode: true,
+            dropEmpty: false,
+            dropSuggestions: true,
+        });
+        expect(result.removed).toEqual([title, "[Verse 1]"]);
+        expect(result.text).toContain("xxx");
+        expect(result.text.trimEnd().endsWith(title)).toBe(true);
     });
 
     it("cleans Genius tracklists and featured artists", () => {

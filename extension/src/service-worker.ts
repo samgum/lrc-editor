@@ -7,19 +7,25 @@ import {
 import {
     type BilibiliExtensionRequest,
     bilibiliExtensionRequestType,
+    extractQQMusicSongMid,
     isBilibiliUrl,
     isNeteaseShortUrl,
+    isQQMusicSongMid,
+    isQQMusicUrl,
     isYouTubeVideoId,
     type MediaExtensionRequest,
     type MediaExtensionResponse,
     mediaExtensionResponseType,
     type NeteaseExtensionRequest,
     neteaseExtensionRequestType,
+    type QQMusicExtensionRequest,
+    qqMusicExtensionRequestType,
     type YouTubeExtensionRequest,
     youtubeExtensionRequestType,
 } from "../../src/shared/media-extension-protocol.js";
 import { LocalAlignerClient, LocalAlignerClientError } from "./local-aligner-client.js";
 import { resolveNeteaseAudioUrl, resolveNeteaseShortLink } from "./netease-link.js";
+import { parseQQMusicPlaybackPage, QQMusicNotPlayableError } from "./qqmusic-link.js";
 
 interface YouTubeClientSession {
     client: Innertube;
@@ -27,13 +33,33 @@ interface YouTubeClientSession {
 }
 
 let youtubeClientPromise: Promise<YouTubeClientSession> | undefined;
+let qqMusicHeaderRulePromise: Promise<void> | undefined;
+let qqMusicFrameQueue: Promise<void> = Promise.resolve();
+let qqMusicFramePending: {
+    expectedSongMid: string | null;
+    resolve: (value: { html: string; songMid: string }) => void;
+} | undefined;
+type QQMusicResolvedAudio = ReturnType<typeof parseQQMusicPlaybackPage> & { songMid: string };
+const qqMusicResolutionPromises = new Map<string, Promise<QQMusicResolvedAudio>>();
 
 const loadTokenFrameType = "LRC_EDITOR_LOAD_TOKEN_FRAME";
+const loadQQMusicFrameType = "LRC_EDITOR_LOAD_QQMUSIC_FRAME";
+const qqMusicFrameResultType = "LRC_EDITOR_QQMUSIC_FRAME_RESULT";
 const tokenVideoId = "jNQXAC9IVRw";
+const qqMusicHeaderRuleId = 90_046;
+const qqMusicMobileUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 "
+    + "(KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
 const localAligner = new LocalAlignerClient();
 
 chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
     if (sender.id !== chrome.runtime.id) return false;
+    if (isQQMusicFrameResult(message) && isQQMusicFrameSender(sender, message.songMid)) {
+        const pending = qqMusicFramePending;
+        if (pending && (!pending.expectedSongMid || pending.expectedSongMid === message.songMid)) {
+            pending.resolve({ html: message.html, songMid: message.songMid });
+        }
+        return false;
+    }
     const siteOrigin = sender.url ? getSiteOrigin(sender.url) : null;
     if (!siteOrigin) return false;
     if (isResolveRequest(message)) {
@@ -74,7 +100,9 @@ const resolveAudio = (request: MediaExtensionRequest, siteOrigin: string): Promi
         ? resolveYouTube(request, siteOrigin)
         : request.type === bilibiliExtensionRequestType
         ? resolveBilibili(request)
-        : resolveNetease(request);
+        : request.type === neteaseExtensionRequestType
+        ? resolveNetease(request)
+        : resolveQQMusic(request);
 
 const resolveYouTube = async (
     request: YouTubeExtensionRequest,
@@ -285,6 +313,140 @@ const resolveNetease = async (request: NeteaseExtensionRequest): Promise<MediaEx
     }
 };
 
+const resolveQQMusic = async (request: QQMusicExtensionRequest): Promise<MediaExtensionResponse> => {
+    const key = request.songMid || request.url || "";
+    try {
+        let pending = qqMusicResolutionPromises.get(key);
+        if (!pending) {
+            pending = resolveQQMusicFromFrame(request);
+            qqMusicResolutionPromises.set(key, pending);
+        }
+        const audio = await pending;
+        return {
+            type: mediaExtensionResponseType,
+            requestId: request.requestId,
+            ok: true,
+            provider: "qqmusic",
+            songMid: audio.songMid,
+            audioUrl: audio.url,
+            mimeType: audio.mimeType,
+            duration: audio.duration,
+        };
+    } catch (error) {
+        return failure(
+            request.requestId,
+            error instanceof QQMusicNotPlayableError ? "NOT_PLAYABLE" : "RESOLVE_FAILED",
+            error instanceof Error ? error.message : undefined,
+        );
+    } finally {
+        qqMusicResolutionPromises.delete(key);
+    }
+};
+
+const resolveQQMusicFromFrame = async (request: QQMusicExtensionRequest) => {
+    const expectedSongMid = request.songMid || extractQQMusicSongMid(request.url || "");
+    const frameUrl = expectedSongMid
+        ? `https://i2.y.qq.com/n3/other/pages/playsong/index.html?songmid=${expectedSongMid}&type=0&lrc_editor_bridge=1`
+        : request.url || "";
+    const frame = await queueQQMusicFrame(frameUrl, expectedSongMid);
+    return { ...parseQQMusicPlaybackPage(frame.html, frame.songMid), songMid: frame.songMid };
+};
+
+const queueQQMusicFrame = (
+    frameUrl: string,
+    expectedSongMid: string | null,
+): Promise<{ html: string; songMid: string }> => {
+    const task = qqMusicFrameQueue.then(() => loadQQMusicFrame(frameUrl, expectedSongMid));
+    qqMusicFrameQueue = task.then(() => undefined, () => undefined);
+    return task;
+};
+
+const loadQQMusicFrame = async (
+    frameUrl: string,
+    expectedSongMid: string | null,
+): Promise<{ html: string; songMid: string }> => {
+    await ensureQQMusicMobileUserAgent();
+    if (await chrome.offscreen.hasDocument()) await chrome.offscreen.closeDocument();
+    await chrome.offscreen.createDocument({
+        url: "offscreen.html",
+        reasons: [chrome.offscreen.Reason.DOM_SCRAPING],
+        justification: "Read the public QQ Music playback data selected by the user",
+    });
+    try {
+        return await new Promise((resolve, reject) => {
+            let settled = false;
+            const finish = (value?: { html: string; songMid: string }, error?: Error): void => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timeout);
+                qqMusicFramePending = undefined;
+                if (value) resolve(value);
+                else reject(error || new Error("QQ Music playback frame failed"));
+            };
+            const timeout = setTimeout(
+                () => finish(undefined, new Error("QQ Music playback frame timed out")),
+                15_000,
+            );
+            qqMusicFramePending = { expectedSongMid, resolve: (value) => finish(value) };
+            void chrome.runtime.sendMessage({ type: loadQQMusicFrameType, frameUrl }).then(
+                (response: unknown) => {
+                    if (!isSuccessfulFrameLoad(response)) {
+                        finish(undefined, new Error("QQ Music playback frame could not be opened"));
+                    }
+                },
+                (error: unknown) => finish(undefined, error instanceof Error ? error : new Error(String(error))),
+            );
+        });
+    } finally {
+        qqMusicFramePending = undefined;
+        if (await chrome.offscreen.hasDocument()) await chrome.offscreen.closeDocument();
+    }
+};
+
+const ensureQQMusicMobileUserAgent = async (): Promise<void> => {
+    if (!qqMusicHeaderRulePromise) {
+        qqMusicHeaderRulePromise = chrome.declarativeNetRequest.updateSessionRules({
+            removeRuleIds: [qqMusicHeaderRuleId],
+            addRules: [{
+                id: qqMusicHeaderRuleId,
+                priority: 1,
+                action: {
+                    type: chrome.declarativeNetRequest.RuleActionType.MODIFY_HEADERS,
+                    requestHeaders: [{
+                        header: "User-Agent",
+                        operation: chrome.declarativeNetRequest.HeaderOperation.SET,
+                        value: qqMusicMobileUserAgent,
+                    }],
+                },
+                condition: {
+                    regexFilter: "^https://i2\\.y\\.qq\\.com/n3/other/pages/playsong/index\\.html\\?",
+                    resourceTypes: [chrome.declarativeNetRequest.ResourceType.SUB_FRAME],
+                },
+            }],
+        }).catch((error: unknown) => {
+            qqMusicHeaderRulePromise = undefined;
+            throw error;
+        });
+    }
+    await qqMusicHeaderRulePromise;
+};
+
+const isQQMusicFrameResult = (
+    value: unknown,
+): value is { type: typeof qqMusicFrameResultType; html: string; songMid: string } => {
+    if (typeof value !== "object" || value === null) return false;
+    const result = value as Record<string, unknown>;
+    return result.type === qqMusicFrameResultType && isQQMusicSongMid(result.songMid)
+        && typeof result.html === "string" && result.html.length <= 200_000
+        && result.html.includes("__ssrFirstPageData__");
+};
+
+const isQQMusicFrameSender = (sender: chrome.runtime.MessageSender, songMid: string): boolean =>
+    extractQQMusicSongMid(sender.url || "") === songMid;
+
+const isSuccessfulFrameLoad = (value: unknown): value is { ok: true } =>
+    typeof value === "object" && value !== null && (value as Record<string, unknown>).ok === true;
+
 const expandBilibiliUrl = async (value: string): Promise<URL> => {
     const url = new URL(value);
     if (url.hostname.toLowerCase() !== "b23.tv") {
@@ -341,11 +503,13 @@ const success = (
 const failure = (
     requestId: string,
     error: "INVALID_LINK" | "INVALID_VIDEO" | "NOT_PLAYABLE" | "RESOLVE_FAILED",
+    message?: string,
 ): MediaExtensionResponse => ({
     type: mediaExtensionResponseType,
     requestId,
     ok: false,
     error,
+    ...(message ? { message } : {}),
 });
 
 const isResolveRequest = (value: unknown): value is MediaExtensionRequest => {
@@ -361,8 +525,10 @@ const isResolveRequest = (value: unknown): value is MediaExtensionRequest => {
         : request.type === bilibiliExtensionRequestType
         ? isBilibiliUrl(request.url)
         : request.type === neteaseExtensionRequestType
-            && (isNeteaseShortUrl(request.url)
-                || typeof request.songId === "string" && /^\d{4,}$/.test(request.songId));
+        ? isNeteaseShortUrl(request.url)
+            || typeof request.songId === "string" && /^\d{4,}$/.test(request.songId)
+        : request.type === qqMusicExtensionRequestType
+            && (isQQMusicUrl(request.url) || isQQMusicSongMid(request.songMid));
 };
 
 const isGoogleVideoHost = (hostname: string): boolean =>

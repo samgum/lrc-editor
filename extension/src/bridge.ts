@@ -3,6 +3,7 @@ import type { LocalAlignerRequest } from "../../src/shared/local-aligner-protoco
 const youtubeRequestType = "LRC_EDITOR_RESOLVE_YOUTUBE";
 const bilibiliRequestType = "LRC_EDITOR_RESOLVE_BILIBILI";
 const neteaseRequestType = "LRC_EDITOR_RESOLVE_NETEASE";
+const qqMusicRequestType = "LRC_EDITOR_RESOLVE_QQMUSIC";
 const ackType = "LRC_EDITOR_MEDIA_ACK";
 const responseType = "LRC_EDITOR_MEDIA_RESULT";
 const alignerResponseType = "LRC_EDITOR_ALIGNER_RESULT";
@@ -50,7 +51,14 @@ const postFailure = (requestId: string, type: string): void => {
 
 const isRequest = (
     value: unknown,
-): value is { type: string; requestId: string; videoId?: string; url?: string; songId?: string } => {
+): value is {
+    type: string;
+    requestId: string;
+    videoId?: string;
+    url?: string;
+    songId?: string;
+    songMid?: string;
+} => {
     if (typeof value !== "object" || value === null) {
         return false;
     }
@@ -65,8 +73,11 @@ const isRequest = (
     return request.type === bilibiliRequestType
         ? isBilibiliUrl(request.url)
         : request.type === neteaseRequestType
-            && (isNeteaseShortUrl(request.url)
-                || typeof request.songId === "string" && /^\d{4,}$/.test(request.songId));
+        ? isNeteaseShortUrl(request.url)
+            || typeof request.songId === "string" && /^\d{4,}$/.test(request.songId)
+        : request.type === qqMusicRequestType
+            && (isQQMusicUrl(request.url)
+                || typeof request.songMid === "string" && /^[A-Za-z0-9]{14}$/.test(request.songMid));
 };
 
 const isLocalAlignerRequest = (value: unknown): value is LocalAlignerRequest => {
@@ -100,6 +111,26 @@ const isNeteaseShortUrl = (value: unknown): boolean => {
         return url.protocol === "https:" && url.hostname.toLowerCase() === "163cn.tv" && url.port === ""
             && /^\/[A-Za-z0-9_-]{3,64}\/?$/.test(url.pathname)
             && url.username === "" && url.password === "";
+    } catch {
+        return false;
+    }
+};
+
+const isQQMusicUrl = (value: unknown): boolean => {
+    if (typeof value !== "string") return false;
+    try {
+        const url = new URL(value);
+        const host = url.hostname.toLowerCase();
+        if (host === "c6.y.qq.com") {
+            return url.protocol === "https:" && url.port === "" && url.pathname === "/base/fcgi-bin/u"
+                && /^[A-Za-z0-9_-]{6,64}$/.test(url.searchParams.get("__") || "");
+        }
+        if (host === "y.qq.com") {
+            return /^\/n\/ryqq(?:_v2)?\/songDetail\/[A-Za-z0-9]{14}\/?$/i.test(url.pathname);
+        }
+        return (host === "i.y.qq.com" && url.pathname === "/v8/playsong.html"
+            || host === "i2.y.qq.com" && url.pathname === "/n3/other/pages/playsong/index.html")
+            && /^[A-Za-z0-9]{14}$/.test(url.searchParams.get("songmid") || "");
     } catch {
         return false;
     }

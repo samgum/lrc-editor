@@ -21,8 +21,8 @@
         "file": "文件",
         "url": "外链",
         "loadFile": "点击这里或直接拖放音频、视频到这个页面",
-        "urlPlaceholder": "音频、网易云、YouTube 或哔哩哔哩链接",
-        "installExtension": "获取 YouTube 与哔哩哔哩媒体扩展"
+        "urlPlaceholder": "音频、网易云、QQ 音乐、YouTube 或哔哩哔哩链接",
+        "installExtension": "获取媒体配套扩展"
     },
     "workspace": {
         "title": "歌词工作台",
@@ -120,10 +120,13 @@
         "bilibiliResolveFailed": "无法解析这个哔哩哔哩音频。",
         "neteaseResolving": "正在通过配套扩展展开网易云分享链接…",
         "neteaseResolveFailed": "无法展开这个网易云分享链接。",
+        "qqmusicResolving": "正在通过配套扩展解析 QQ 音乐完整音频…",
+        "qqmusicResolveFailed": "无法解析这个 QQ 音乐链接。",
+        "qqmusicNotPlayable": "QQ 音乐未对这首歌提供公开完整播放；VIP 或仅试听音频无法载入。",
         "mediaExtensionMissing": "媒体扩展未连接。请安装或更新扩展，然后刷新本页面。",
         "mediaExtensionOutdated": "媒体扩展版本过旧。请替换为最新版本，在扩展管理页重新加载，然后刷新本页面。",
         "youtubeResolveFailed": "无法解析这个 YouTube 音频。",
-        "invalidMediaUrl": "请输入有效的媒体、网易云、YouTube 或哔哩哔哩链接。",
+        "invalidMediaUrl": "请输入有效的媒体、网易云、QQ 音乐、YouTube 或哔哩哔哩链接。",
         "transcodingMedia": "正在本机准备供播放和 AI 对轴使用的 AAC 副本…",
         "mediaConverted": "AAC 音频已就绪。",
         "mediaConversionFailed": "浏览器无法转换这个音频编码。",

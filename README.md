@@ -10,13 +10,13 @@
 
 LRC Editor is a browser-based workspace for editing LRC files and assigning timestamps while audio or video is playing. The production site is intended for `lrc.sgmy.org`.
 
-The web application is static and keeps lyric text, preferences, and local media processing in the browser. YouTube, Bilibili, and NetEase short-share links are handled by an optional Manifest V3 companion extension, so the site does not require a media-resolution backend. Optional AI alignment runs through a separate local engine only when the user enables and starts it.
+The web application is static and keeps lyric text, preferences, and local media processing in the browser. YouTube, Bilibili, NetEase, and complete publicly playable QQ Music links are handled by an optional Manifest V3 companion extension, so the site does not require a media-resolution backend. Optional AI alignment runs through a separate local engine only when the user enables and starts it.
 
 ## Features
 
 - Import plain text, `.txt`, and `.lrc` files; edit title, artist, and album metadata.
 - Copy or download LRC output with configurable timestamp precision and whitespace.
-- Load audio and video files, direct media URLs, NetEase Music song links and `163cn.tv` shares, standard or Music YouTube links (including extra playlist parameters), and Bilibili or `b23.tv` links. A complete share message can be pasted directly; the first HTTP(S) URL is extracted automatically.
+- Load audio and video files, direct media URLs, NetEase Music song links and `163cn.tv` shares, QQ Music `c6.y.qq.com` shares and `y.qq.com/.../songDetail/...` links, standard or Music YouTube links (including extra playlist parameters), and Bilibili or `b23.tv` links. A complete share message can be pasted directly; the first HTTP(S) URL is extracted automatically. QQ Music support is limited to tracks whose complete audio is publicly playable at that moment; VIP-only and preview-only responses are rejected.
 - Convert imported local FLAC/ALAC/AIFF/CAF media once to 256 kbps AAC with FFmpeg WebAssembly. Playback and AI alignment share only the current in-memory AAC Blob, so the AI bridge never reopens or transfers the much larger lossless source. The virtual input/output files and FFmpeg Worker are destroyed after every conversion; replacing the media revokes the previous Blob URL, and no converted audio is written to persistent browser storage.
 - Display a waveform for local or extension-resolved media, seek precisely, change playback speed, and continue playback in the background when enabled.
 - Add, replace, delete, fine-tune, or batch-shift timestamps with keyboard or pointer controls. The default correction step is 100 ms; `Shift` halves it and `Alt` reduces it to one fifth for keyboard adjustments.
@@ -25,7 +25,7 @@ The web application is static and keeps lyric text, preferences, and local media
 - Configure every timing and playback shortcut from the key-binding screen.
 - Keep editing state and preferences locally between sessions.
 - Optionally align the loaded media to the current editor lyrics with the local `lyrics-forced-aligner` models. Old timestamps are removed before processing, output precision follows the editor setting, and strict validation rejects duplicate or decreasing axes before one undoable replacement is applied. The progress card estimates remaining time without entering the inference path.
-- Open the translation-axis workspace first to build a translated LRC from untimed lyrics. Replacement is strictly positional: leading, internal, and timed blank placeholders are preserved, every source timestamp remains unchanged, and extra translated lines cannot alter the NetEase-compatible axis. Additional tools remove tags or empty lines, transform timestamps, and split translations.
+- Open the translation-axis workspace first to build a translated LRC from untimed lyrics. Replacement is strictly positional: leading, internal, and timed blank placeholders are preserved, every source timestamp remains unchanged, and extra translated lines cannot alter the NetEase-compatible axis. Every tool result remains editable before it is applied, copied, or downloaded. Tag cleanup also removes a bracketed lyric-document title such as `[YOASOBI「Biri-Biri」歌詞]` when it is the first meaningful line, together with known section tags, without treating the same title later in the lyrics as a header.
 - Use the integrated Lyrics Tools functions to remove Genius section labels, clean copied tracklists, replace plain text or regular expressions in bulk, and convert lyric case without changing timestamps.
 - Switch between system, light, and dark themes; choose an accent color.
 - Use English, Japanese, Korean, Polish, Brazilian Portuguese, Slovak, Simplified Chinese, Traditional Chinese (Hong Kong), or Traditional Chinese (Taiwan).
@@ -36,7 +36,7 @@ GitHub Gist integration from the upstream project is intentionally not included.
 
 ## Media companion extension
 
-LRC Editor Media Bridge accepts only validated YouTube or Bilibili video identifiers and constrained `163cn.tv` short links from the LRC Editor page. It resolves streams locally, while NetEase expansion returns only the numeric song ID. A scoped browser rule supplies the Bilibili media referer required for loading its audio.
+LRC Editor Media Bridge accepts only validated YouTube or Bilibili video identifiers, constrained NetEase links, and validated QQ Music share or song-detail links from the LRC Editor page. It resolves streams locally. NetEase and QQ Music audio are materialized as temporary in-memory Blobs so playback, waveform rendering, and AI alignment use the same bytes without writing the audio to persistent browser storage. QQ Music playback metadata is read through a 1×1 offscreen frame restricted to the official share pages; the resolver requires the public `pay_play=0` and full-playback state and rejects trial resources. Scoped browser rules supply only the Bilibili referer and QQ Music mobile playback header required by those flows.
 
 Download the current unpacked extension package from [GitHub Releases](https://github.com/samgum/lrc-editor/releases/latest).
 
@@ -51,14 +51,14 @@ Chrome installation:
 
 Microsoft Edge uses `edge://extensions` with the same **Developer mode** and **Load unpacked** steps. On Windows, `INSTALL-EXTENSION.cmd` opens the management page and extracted directory but cannot perform the final confirmation.
 
-- The temporary URL and audio data are not added to browser history, persistent storage, logs, or a project server. Original YouTube, Bilibili, or NetEase short-link input is retained only for the current tab session so a refresh can resolve it again.
+- The temporary URL and audio data are not added to browser history, persistent storage, logs, or a project server. Original YouTube, Bilibili, NetEase, or QQ Music input is retained only for the current tab session so a refresh can resolve it again.
 - The extension does not read site cookies, tabs, browsing history, or account data.
 - YouTube playback integrity data is obtained through an invisible muted embed, which is closed immediately without opening a tab or window.
 - The localized popup opens LRC Editor and shows the supported platforms.
-- Host permissions are limited to the YouTube, Bilibili, NetEase short-link redirect, and media CDN endpoints used by the resolvers, the LRC Editor site, and loopback access for the optional local aligner.
+- Host permissions are limited to the YouTube, Bilibili, NetEase, QQ Music share/playback and media CDN endpoints used by the resolvers, the LRC Editor site, and loopback access for the optional local aligner.
 - Direct media URLs remain available as a manual fallback.
 
-The YouTube resolver uses the private InnerTube interface through `youtubei.js`; the Bilibili resolver uses public web-player endpoints. Either integration can stop working when a platform changes its clients or playback requirements. Use is subject to the platform terms and the laws applicable to the media.
+The YouTube resolver uses the private InnerTube interface through `youtubei.js`; the Bilibili resolver uses public web-player endpoints; the QQ Music resolver reads its official public share-page playback state without cookies. Any integration can stop working when a platform changes its clients or playback requirements. Use is subject to the platform terms and the laws applicable to the media.
 
 ## Optional local AI alignment
 

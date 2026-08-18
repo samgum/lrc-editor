@@ -27,8 +27,8 @@
         "file": "File",
         "url": "URL",
         "loadFile": "Click here or drop an audio or video file on this page",
-        "urlPlaceholder": "Audio, NetEase, YouTube, or Bilibili URL",
-        "installExtension": "Get the YouTube and Bilibili media extension"
+        "urlPlaceholder": "Audio, NetEase, QQ Music, YouTube, or Bilibili URL",
+        "installExtension": "Get the media companion extension"
     },
     "workspace": {
         "title": "LRC workspace",
@@ -126,10 +126,13 @@
         "bilibiliResolveFailed": "Unable to resolve this Bilibili audio.",
         "neteaseResolving": "Expanding the NetEase share link with the companion extension…",
         "neteaseResolveFailed": "Unable to expand this NetEase share link.",
+        "qqmusicResolving": "Resolving complete QQ Music audio with the companion extension…",
+        "qqmusicResolveFailed": "Unable to resolve this QQ Music link.",
+        "qqmusicNotPlayable": "QQ Music does not offer complete public playback for this track. VIP-only and preview-only audio cannot be loaded.",
         "mediaExtensionMissing": "The Media Bridge is not connected. Install or update it, then refresh this page.",
         "mediaExtensionOutdated": "The Media Bridge is outdated. Replace it with the latest release, reload the extension, then refresh this page.",
         "youtubeResolveFailed": "Unable to resolve this YouTube audio.",
-        "invalidMediaUrl": "Enter a valid media, NetEase, YouTube, or Bilibili URL.",
+        "invalidMediaUrl": "Enter a valid media, NetEase, QQ Music, YouTube, or Bilibili URL.",
         "transcodingMedia": "Preparing a compact AAC copy locally for playback and AI alignment…",
         "mediaConverted": "AAC media is ready.",
         "mediaConversionFailed": "This audio codec could not be converted in the browser.",

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { requestNeteaseAudio, requestYouTubeAudio } from "./media-extension-bridge.js";
+import { requestNeteaseAudio, requestQQMusicAudio, requestYouTubeAudio } from "./media-extension-bridge.js";
 
 describe("YouTube extension bridge", () => {
     afterEach(() => {
@@ -90,6 +90,52 @@ describe("YouTube extension bridge", () => {
             songId: "3421081743",
             url: "https://m701.music.126.net/path/song.mp3?token=test",
             mimeType: "audio/mpeg",
+        });
+    });
+
+    it("returns a validated complete QQ Music stream", async () => {
+        const events = new EventTarget();
+        const postMessage = vi.fn();
+        const windowStub = {
+            addEventListener: events.addEventListener.bind(events),
+            removeEventListener: events.removeEventListener.bind(events),
+            postMessage,
+            setTimeout,
+            clearTimeout,
+        };
+        vi.stubGlobal("location", { origin: "https://lrc.sgmy.org" });
+        vi.stubGlobal("window", windowStub);
+
+        const pending = requestQQMusicAudio({
+            url: "https://c6.y.qq.com/base/fcgi-bin/u?__=LNIUcFeE9ZJc",
+        });
+        const request = postMessage.mock.calls[0][0] as { requestId: string };
+        const dispatch = (data: unknown): void => {
+            const event = new Event("message");
+            Object.defineProperties(event, {
+                source: { value: windowStub },
+                origin: { value: "https://lrc.sgmy.org" },
+                data: { value: data },
+            });
+            events.dispatchEvent(event);
+        };
+        dispatch({ type: "LRC_EDITOR_MEDIA_ACK", requestId: request.requestId, version: "0.4.6" });
+        dispatch({
+            type: "LRC_EDITOR_MEDIA_RESULT",
+            requestId: request.requestId,
+            ok: true,
+            provider: "qqmusic",
+            songMid: "001qJBYN2lctpI",
+            audioUrl: "https://aqqmusic.tc.qq.com/C400001qJBYN2lctpI.m4a?guid=1&vkey=test",
+            mimeType: "audio/mp4",
+            duration: 14,
+        });
+
+        await expect(pending).resolves.toEqual({
+            duration: 14,
+            songMid: "001qJBYN2lctpI",
+            url: "https://aqqmusic.tc.qq.com/C400001qJBYN2lctpI.m4a?guid=1&vkey=test",
+            mimeType: "audio/mp4",
         });
     });
 });

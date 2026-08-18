@@ -1,8 +1,14 @@
-import { extractNeteaseSongId, isNeteaseShortUrl } from "../shared/media-extension-protocol.js";
+import {
+    extractNeteaseSongId,
+    extractQQMusicSongMid,
+    isNeteaseShortUrl,
+    isQQMusicShortUrl,
+} from "../shared/media-extension-protocol.js";
 import {
     MediaExtensionError,
     requestBilibiliAudio,
     requestNeteaseAudio,
+    requestQQMusicAudio,
     requestYouTubeAudio,
 } from "./media-extension-bridge.js";
 
@@ -11,14 +17,22 @@ export type ParsedMediaInput =
     | { kind: "youtube"; originalUrl: string; videoId: string }
     | { kind: "bilibili"; originalUrl: string }
     | { kind: "netease-short"; originalUrl: string }
-    | { kind: "netease"; originalUrl: string; songId: string };
+    | { kind: "netease"; originalUrl: string; songId: string }
+    | { kind: "qqmusic-short"; originalUrl: string }
+    | { kind: "qqmusic"; originalUrl: string; songMid: string };
 
 export interface ResolvedMediaSource {
     data?: string;
     mimeType?: string;
     src: string;
     persist: boolean;
-    provider: "bilibili-extension" | "direct" | "netease" | "netease-extension" | "youtube-extension";
+    provider:
+        | "bilibili-extension"
+        | "direct"
+        | "netease"
+        | "netease-extension"
+        | "qqmusic-extension"
+        | "youtube-extension";
 }
 
 export const parseMediaInput = (value: string): ParsedMediaInput => {
@@ -52,6 +66,19 @@ export const parseMediaInput = (value: string): ParsedMediaInput => {
             kind: "netease",
             originalUrl: url.href,
             songId: neteaseId,
+        };
+    }
+
+    if (isQQMusicShortUrl(url.href)) {
+        return { kind: "qqmusic-short", originalUrl: url.href };
+    }
+
+    const qqMusicSongMid = extractQQMusicSongMid(url);
+    if (qqMusicSongMid !== null) {
+        return {
+            kind: "qqmusic",
+            originalUrl: url.href,
+            songMid: qqMusicSongMid,
         };
     }
 
@@ -99,6 +126,17 @@ export const resolveMediaInput = async (value: string): Promise<ResolvedMediaSou
             throw error;
         }
     }
+    if (parsed.kind === "qqmusic-short" || parsed.kind === "qqmusic") {
+        const audio = await requestQQMusicAudio(
+            parsed.kind === "qqmusic-short" ? { url: parsed.originalUrl } : { songMid: parsed.songMid },
+        );
+        return {
+            src: audio.url,
+            mimeType: audio.mimeType,
+            persist: false,
+            provider: "qqmusic-extension",
+        };
+    }
 
     return {
         src: parsed.url,
@@ -110,7 +148,7 @@ export const resolveMediaInput = async (value: string): Promise<ResolvedMediaSou
 export const materializeExtensionMedia = async (source: ResolvedMediaSource): Promise<string> => {
     if (
         source.provider !== "youtube-extension" && source.provider !== "bilibili-extension"
-        && source.provider !== "netease-extension"
+        && source.provider !== "netease-extension" && source.provider !== "qqmusic-extension"
     ) {
         return source.src;
     }

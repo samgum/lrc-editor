@@ -5,6 +5,7 @@
     },
     "supportedSources": { "message": "対応サービス" },
     "neteaseShareLinks": { "message": "NetEase 共有リンク" },
+    "qqMusicLinks": { "message": "QQ Music の公開楽曲" },
     "localAiAlignment": { "message": "ローカル AI タイミング調整" },
     "openEditor": { "message": "LRC Editor を開く" }
 }

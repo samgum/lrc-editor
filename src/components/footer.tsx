@@ -77,20 +77,26 @@ export const Footer: React.FC = () => {
             localFileRef.current = null;
             fallbackAttemptedRef.current = false;
             clearAlignmentMediaSource();
-            let provider: "bilibili" | "netease" | "youtube" | null = null;
+            let provider: "bilibili" | "netease" | "qqmusic" | "youtube" | null = null;
             try {
                 const parsed = parseMediaInput(value);
                 if (
                     parsed.kind === "youtube" || parsed.kind === "bilibili" || parsed.kind === "netease-short"
-                    || parsed.kind === "netease"
+                    || parsed.kind === "netease" || parsed.kind === "qqmusic-short" || parsed.kind === "qqmusic"
                 ) {
-                    provider = parsed.kind === "netease-short" || parsed.kind === "netease" ? "netease" : parsed.kind;
+                    provider = parsed.kind === "netease-short" || parsed.kind === "netease"
+                        ? "netease"
+                        : parsed.kind === "qqmusic-short" || parsed.kind === "qqmusic"
+                        ? "qqmusic"
+                        : parsed.kind;
                     toastPubSub.pub({
                         type: "info",
                         text: provider === "youtube"
                             ? lang.notify.youtubeResolving
                             : provider === "bilibili"
                             ? lang.notify.bilibiliResolving
+                            : provider === "qqmusic"
+                            ? lang.notify.qqmusicResolving
                             : lang.notify.neteaseResolving,
                     });
                 }
@@ -132,6 +138,10 @@ export const Footer: React.FC = () => {
                         ? lang.notify.bilibiliResolveFailed
                         : provider === "netease"
                         ? lang.notify.neteaseResolveFailed
+                        : provider === "qqmusic"
+                        ? error.reason === "NOT_PLAYABLE"
+                            ? lang.notify.qqmusicNotPlayable
+                            : lang.notify.qqmusicResolveFailed
                         : lang.notify.youtubeResolveFailed
                     : lang.notify.invalidMediaUrl;
                 toastPubSub.pub({ type: "warning", text: message });
@@ -146,6 +156,9 @@ export const Footer: React.FC = () => {
             lang.notify.mediaExtensionOutdated,
             lang.notify.neteaseResolveFailed,
             lang.notify.neteaseResolving,
+            lang.notify.qqmusicNotPlayable,
+            lang.notify.qqmusicResolveFailed,
+            lang.notify.qqmusicResolving,
             lang.notify.youtubeResolveFailed,
             lang.notify.youtubeResolving,
         ],

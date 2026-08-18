@@ -81,6 +81,7 @@ export const Tools: React.FC<{
     const sourceRef = useRef<HTMLTextAreaElement>(null);
     const translationRef = useRef<HTMLTextAreaElement>(null);
     const outputRef = useRef<HTMLTextAreaElement>(null);
+    const [output, setOutput] = useState("");
     const [downloadHref, setDownloadHref] = useState<string>();
 
     useEffect(() => setSource(serialized), [serialized]);
@@ -187,34 +188,36 @@ export const Tools: React.FC<{
         trimOptions,
     ]);
 
+    useEffect(() => setOutput(transformed.text), [tool, transformed.text]);
+
     const applyResult = useCallback(() => {
         if (transformed.error || tool === "split") {
             return;
         }
-        dispatch({ type: ActionType.parse, payload: { text: transformed.text, options: trimOptions } });
-        updateActiveSource(transformed.text);
+        dispatch({ type: ActionType.parse, payload: { text: output, options: trimOptions } });
+        updateActiveSource(output);
         toastPubSub.pub({ type: "success", text: lang.notify.resultApplied });
         location.hash = ROUTER.editor;
-    }, [dispatch, lang.notify.resultApplied, tool, transformed, trimOptions, updateActiveSource]);
+    }, [dispatch, lang.notify.resultApplied, output, tool, transformed.error, trimOptions, updateActiveSource]);
 
     const copyResult = useCallback(async () => {
         try {
-            await navigator.clipboard.writeText(transformed.text);
+            await navigator.clipboard.writeText(output);
         } catch {
             outputRef.current?.select();
             document.execCommand("copy");
         }
         toastPubSub.pub({ type: "success", text: lang.notify.copied });
-    }, [lang.notify.copied, transformed.text]);
+    }, [lang.notify.copied, output]);
 
     const prepareDownload = useCallback(() => {
         setDownloadHref((current) => {
             if (current) {
                 URL.revokeObjectURL(current);
             }
-            return URL.createObjectURL(new Blob([transformed.text], { type: "text/plain;charset=UTF-8" }));
+            return URL.createObjectURL(new Blob([output], { type: "text/plain;charset=UTF-8" }));
         });
-    }, [transformed.text]);
+    }, [output]);
 
     const syncScroll = useCallback((origin: HTMLTextAreaElement, targets: Array<HTMLTextAreaElement | null>) => {
         for (const target of targets) {
@@ -395,8 +398,8 @@ export const Tools: React.FC<{
                     <span>{lang.tools.output}</span>
                     <textarea
                         ref={outputRef}
-                        value={transformed.text}
-                        readOnly={true}
+                        value={output}
+                        onChange={(ev) => setOutput(ev.target.value)}
                         spellCheck={false}
                         onScroll={(ev) => syncScroll(ev.currentTarget, [sourceRef.current, translationRef.current])}
                     />

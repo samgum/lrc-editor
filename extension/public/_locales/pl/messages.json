@@ -5,6 +5,7 @@
     },
     "supportedSources": { "message": "Obsługiwane źródła" },
     "neteaseShareLinks": { "message": "Linki udostępniania NetEase" },
+    "qqMusicLinks": { "message": "Publiczne utwory QQ Music" },
     "localAiAlignment": { "message": "Lokalne wyrównanie AI" },
     "openEditor": { "message": "Otwórz LRC Editor" }
 }

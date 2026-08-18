@@ -2,6 +2,8 @@ import {
     bilibiliExtensionRequestType,
     isBilibiliUrl,
     isNeteaseShortUrl,
+    isQQMusicSongMid,
+    isQQMusicUrl,
     isYouTubeVideoId,
     mediaExtensionAckType,
     type MediaExtensionRequest,
@@ -9,16 +11,24 @@ import {
     mediaExtensionResponseType,
     type NeteaseExtensionRequest,
     neteaseExtensionRequestType,
+    type QQMusicExtensionRequest,
+    qqMusicExtensionRequestType,
     type YouTubeExtensionRequest,
     youtubeExtensionRequestType,
 } from "../shared/media-extension-protocol.js";
 
 export class MediaExtensionError extends Error {
-    constructor(readonly code: "missing" | "outdated" | "failed", message: string) {
+    constructor(
+        readonly code: "missing" | "outdated" | "failed",
+        message: string,
+        readonly reason?: MediaExtensionFailure,
+    ) {
         super(message);
         this.name = MediaExtensionError.name;
     }
 }
+
+type MediaExtensionFailure = Extract<MediaExtensionResponse, { ok: false }>["error"];
 
 const minimumMediaExtensionVersion = [0, 3, 1] as const;
 
@@ -31,6 +41,11 @@ export interface ResolvedExtensionAudio {
 
 export interface ResolvedNeteaseAudio extends ResolvedExtensionAudio {
     songId: string;
+}
+
+export interface ResolvedQQMusicAudio extends ResolvedExtensionAudio {
+    duration: number;
+    songMid: string;
 }
 
 export const requestYouTubeAudio = (videoId: string, timeoutMs = 90_000): Promise<ResolvedExtensionAudio> => {
@@ -69,7 +84,7 @@ export const requestNeteaseAudio = (
         ...input,
     };
     return requestExtension(request, timeoutMs).then((response) => {
-        if (!response.ok) throw new MediaExtensionError("failed", response.error);
+        if (!response.ok) throw new MediaExtensionError("failed", response.error, response.error);
         if (
             response.provider !== "netease" || !/^\d{4,}$/.test(response.songId)
             || !response.mimeType.startsWith("audio/")
@@ -88,14 +103,49 @@ export const requestNeteaseAudio = (
     });
 };
 
+export const requestQQMusicAudio = (
+    input: { songMid: string } | { url: string },
+    timeoutMs = 20_000,
+): Promise<ResolvedQQMusicAudio> => {
+    if ("url" in input ? !isQQMusicUrl(input.url) : !isQQMusicSongMid(input.songMid)) {
+        return Promise.reject(new MediaExtensionError("failed", "Invalid QQ Music request"));
+    }
+    const request: QQMusicExtensionRequest = {
+        type: qqMusicExtensionRequestType,
+        requestId: crypto.randomUUID(),
+        ...input,
+    };
+    return requestExtension(request, timeoutMs).then((response) => {
+        if (!response.ok) throw new MediaExtensionError("failed", response.error, response.error);
+        if (
+            response.provider !== "qqmusic" || !isQQMusicSongMid(response.songMid)
+            || !response.mimeType.startsWith("audio/") || !Number.isFinite(response.duration) || response.duration <= 0
+        ) {
+            throw new MediaExtensionError("failed", "Invalid QQ Music response");
+        }
+        const url = new URL(response.audioUrl);
+        if (url.protocol !== "https:" || !isProviderMediaHost("qqmusic", url.hostname)) {
+            throw new MediaExtensionError("failed", "Invalid QQ Music audio response");
+        }
+        return {
+            duration: response.duration,
+            songMid: response.songMid,
+            url: url.href,
+            mimeType: response.mimeType,
+        };
+    });
+};
+
 const requestExtensionAudio = (
     request: MediaExtensionRequest,
     provider: "youtube" | "bilibili",
     timeoutMs: number,
 ): Promise<ResolvedExtensionAudio> =>
     requestExtension(request, timeoutMs).then((response) => {
-        if (!response.ok) throw new MediaExtensionError("failed", response.error);
-        if (response.provider === "netease") throw new MediaExtensionError("failed", "Unexpected extension response");
+        if (!response.ok) throw new MediaExtensionError("failed", response.error, response.error);
+        if (response.provider === "netease" || response.provider === "qqmusic") {
+            throw new MediaExtensionError("failed", "Unexpected extension response");
+        }
         try {
             const url = new URL(response.audioUrl);
             if (
@@ -192,12 +242,16 @@ const isExtensionResponse = (value: unknown, requestId: string): value is MediaE
         && typeof response.ok === "boolean";
 };
 
-const isProviderMediaHost = (provider: "youtube" | "bilibili" | "netease", hostname: string): boolean => {
+const isProviderMediaHost = (
+    provider: "youtube" | "bilibili" | "netease" | "qqmusic",
+    hostname: string,
+): boolean => {
     if (provider === "youtube") {
         return hostname === "googlevideo.com" || hostname.endsWith(".googlevideo.com");
     }
     if (provider === "bilibili") {
         return hostname === "bilivideo.com" || hostname.endsWith(".bilivideo.com");
     }
+    if (provider === "qqmusic") return hostname === "aqqmusic.tc.qq.com";
     return hostname === "music.126.net" || hostname.endsWith(".music.126.net");
 };

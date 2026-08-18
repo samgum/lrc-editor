@@ -5,6 +5,7 @@
     },
     "supportedSources": { "message": "Fontes compatíveis" },
     "neteaseShareLinks": { "message": "Links compartilhados do NetEase" },
+    "qqMusicLinks": { "message": "Faixas públicas do QQ Music" },
     "localAiAlignment": { "message": "Alinhamento local com IA" },
     "openEditor": { "message": "Abrir LRC Editor" }
 }

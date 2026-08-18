@@ -5,6 +5,7 @@
     },
     "supportedSources": { "message": "지원 소스" },
     "neteaseShareLinks": { "message": "NetEase 공유 링크" },
+    "qqMusicLinks": { "message": "QQ Music 공개 곡" },
     "localAiAlignment": { "message": "로컬 AI 가사 싱크" },
     "openEditor": { "message": "LRC Editor 열기" }
 }

@@ -1,8 +1,9 @@
 {
     "extensionName": { "message": "LRC Editor Media Bridge" },
-    "extensionDescription": { "message": "在本机为 LRC Editor 解析 YouTube、哔哩哔哩和网易云分享链接。" },
+    "extensionDescription": { "message": "在本机为 LRC Editor 解析 YouTube、哔哩哔哩、网易云和 QQ 音乐公开歌曲。" },
     "supportedSources": { "message": "支持的来源" },
     "neteaseShareLinks": { "message": "网易云分享链接" },
+    "qqMusicLinks": { "message": "QQ 音乐公开歌曲" },
     "localAiAlignment": { "message": "本机 AI 对轴" },
     "openEditor": { "message": "打开 LRC Editor" }
 }

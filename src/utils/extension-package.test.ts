@@ -44,6 +44,12 @@ describe("extension package", () => {
         expect(rules[1].action.responseHeaders?.map((header) => header.header)).toContain(
             "Access-Control-Allow-Origin",
         );
+        for (const rule of rules.slice(2)) {
+            expect(rule.condition.resourceTypes).toContain("xmlhttprequest");
+            expect(rule.action.responseHeaders?.map((header) => header.header)).toContain(
+                "Access-Control-Allow-Origin",
+            );
+        }
     });
 
     it("ships complete popup localization for every locale", () => {
@@ -53,6 +59,7 @@ describe("extension package", () => {
             "localAiAlignment",
             "neteaseShareLinks",
             "openEditor",
+            "qqMusicLinks",
             "supportedSources",
         ];
         const localeRoot = resolve(extensionRoot, "_locales");
@@ -82,6 +89,10 @@ describe("extension package", () => {
             "https://*.music.163.com/*",
             "http://*.music.126.net/*",
             "https://*.music.126.net/*",
+            "https://c6.y.qq.com/*",
+            "https://i.y.qq.com/*",
+            "https://i2.y.qq.com/*",
+            "https://aqqmusic.tc.qq.com/*",
             "https://lrc.sgmy.org/*",
             "http://localhost/*",
             "http://127.0.0.1/*",
