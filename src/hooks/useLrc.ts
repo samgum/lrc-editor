@@ -73,6 +73,14 @@ export const lrcReducer = (state: IState, action: Action): IState => {
 
         case ActionType.replaceLyrics: {
             const lyric = action.payload.slice();
+            if (
+                lyric.length === state.lyric.length
+                && lyric.every((line, index) =>
+                    line.text === state.lyric[index].text && line.time === state.lyric[index].time
+                )
+            ) {
+                return state;
+            }
             const selectIndex = guard(state.selectIndex, 0, Math.max(0, lyric.length - 1));
             return commit(state, {
                 ...state,

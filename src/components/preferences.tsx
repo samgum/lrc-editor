@@ -187,6 +187,11 @@ export const Preferences: React.FC = () => {
         [prefDispatch],
     );
 
+    const onAdvancedLyricsToggle = useCallback(
+        () => prefDispatch({ type: "advancedLyricsEnabled", payload: (state) => !state.advancedLyricsEnabled }),
+        [prefDispatch],
+    );
+
     const onKeepAiTaskCacheToggle = useCallback(
         () => prefDispatch({ type: "keepAiTaskCache", payload: (state) => !state.keepAiTaskCache }),
         [prefDispatch],
@@ -391,6 +396,20 @@ export const Preferences: React.FC = () => {
                                 checked={prefState.allowBackgroundAudio}
                                 onChange={onAllowBackgroundAudioToggle}
                                 aria-label={lang.preferences.allowBackgroundAudio}
+                            />
+                            <span className="toggle-switch-label" />
+                        </label>
+                    </label>
+                </li>
+                <li>
+                    <label className="list-item">
+                        <span>{lang.advancedLyrics.setting}</span>
+                        <label className="toggle-switch">
+                            <input
+                                type="checkbox"
+                                checked={prefState.advancedLyricsEnabled}
+                                onChange={onAdvancedLyricsToggle}
+                                aria-label={lang.advancedLyrics.setting}
                             />
                             <span className="toggle-switch-label" />
                         </label>

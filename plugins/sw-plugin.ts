@@ -2,7 +2,7 @@ import fs from "node:fs";
 import type { Plugin } from "vite";
 
 const register = fs.readFileSync(new URL("./sw.register.js", import.meta.url), "utf-8");
-const un_register = fs.readFileSync(new URL("../src/utils/sw.unregister.ts", import.meta.url), "utf-8");
+const un_register = fs.readFileSync(new URL("./sw.unregister.js", import.meta.url), "utf-8");
 
 export default function(): Plugin {
     let is_prod = false;
@@ -16,7 +16,7 @@ export default function(): Plugin {
                 html,
                 tags: [{
                     tag: "script",
-                    children: is_prod ? register : un_register.replace("export", "") + ";unregister(false)",
+                    children: is_prod ? register : un_register + ";globalThis.__lrcEditorUnregister(false)",
                     injectTo: "body",
                 }],
             };

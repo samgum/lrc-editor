@@ -10,7 +10,7 @@
     top: 72px;
     z-index: 20;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     align-items: center;
     gap: 12px;
     width: 100%;
@@ -83,6 +83,10 @@
     display: flex;
     flex: 0 0 auto;
     gap: 4px;
+}
+
+.timing-mode-switch {
+    align-self: center;
 }
 
 .timing-actions button {
@@ -193,6 +197,52 @@
 
 .line-text {
     padding: 12px 0;
+}
+
+.line-text.word-timed-line {
+    pointer-events: auto;
+}
+
+.timed-word {
+    position: relative;
+    display: inline;
+    pointer-events: auto;
+    cursor: pointer;
+    border-radius: 3px;
+    transition:
+        color var(--transition-duration) var(--ease-standard),
+        background-color var(--transition-duration) var(--ease-standard),
+        box-shadow var(--transition-duration) var(--ease-standard);
+}
+
+.timed-word:hover {
+    color: var(--theme-foreground-color);
+    background: rgba(var(--theme-rgb), 0.1);
+}
+
+.timed-word.selected-word {
+    color: var(--theme-foreground-color);
+    background: rgba(var(--theme-rgb), 0.16);
+    box-shadow: inset 0 -2px var(--theme-color);
+}
+
+.timed-word.playback-word {
+    color: var(--theme-contrast-color);
+    font-weight: 760;
+    background: var(--theme-color);
+    box-shadow: 0 2px 8px rgba(var(--theme-rgb), 0.32);
+}
+
+.timed-word.word-error {
+    color: #b72f47;
+    background: #c6425518;
+    box-shadow: inset 0 -2px #c64255;
+}
+
+.timed-word.word-error.playback-word {
+    color: #ffffff;
+    background: #c64255;
+    box-shadow: 0 2px 8px #c6425540;
 }
 
 .select {
@@ -326,6 +376,10 @@
     .timing-actions {
         display: grid;
         grid-template-columns: auto auto minmax(0, 1fr);
+    }
+
+    .timing-mode-switch {
+        align-self: flex-start;
     }
 
     .timing-capture {

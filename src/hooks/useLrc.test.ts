@@ -44,4 +44,14 @@ describe("LRC timing history", () => {
         expect(lrcReducer(aligned, { type: ActionType.undo, payload: undefined }).lyric)
             .toEqual(initial.lyric);
     });
+
+    it("does not create history when an advanced edit leaves line text and time unchanged", () => {
+        const initial = initLrcState(() => ({ text: "[00:01.000]One", options: {}, select: 0 }));
+        const unchanged = lrcReducer(initial, {
+            type: ActionType.replaceLyrics,
+            payload: [{ time: 1, text: "One" }],
+        });
+        expect(unchanged).toBe(initial);
+        expect(unchanged.historyPast).toHaveLength(0);
+    });
 });

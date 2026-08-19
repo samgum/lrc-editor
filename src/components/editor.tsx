@@ -3,8 +3,10 @@ import ROUTER from "#const/router.json" assert { type: "json" };
 import SSK from "#const/session_key.json" assert { type: "json" };
 import { type State as LrcState, stringify } from "@lrc-maker/lrc-parser";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { type AdvancedLyricsAction, type AdvancedLyricsState } from "../hooks/useAdvancedLyrics.js";
 import type { Action as LrcAction } from "../hooks/useLrc.js";
 import { ActionType as LrcActionType } from "../hooks/useLrc.js";
+import { type ExportLyricFormat, type LyricsWorkspaceMode, serializeLyrics } from "../utils/advanced-lyrics.js";
 import { createUntimedTranscript, validateAlignedLyrics } from "../utils/ai-alignment-result.js";
 import {
     getAiAlignmentSessionSnapshot,
@@ -22,7 +24,9 @@ import {
 } from "../utils/local-ai-alignment.js";
 import { lrcFileName } from "../utils/lrc-file-name.js";
 import { prependHash } from "../utils/router.js";
+import { AdvancedLyricsEditor } from "./advanced-lyrics-editor.js";
 import { appContext } from "./app.context.js";
+import { LyricsModeSwitch } from "./lyrics-mode-switch.js";
 import { AiAlignSVG, CopySVG, DownloadSVG, OpenFileSVG, UtilitySVG } from "./svg.js";
 import { toastPubSub } from "./toast.js";
 
@@ -56,7 +60,32 @@ const useDefaultValue: UseDefaultValue = (defaultValue, ref) => {
 export const Editor: React.FC<{
     lrcState: LrcState;
     lrcDispatch: React.Dispatch<LrcAction>;
-}> = ({ lrcState, lrcDispatch }) => {
+    advancedState: AdvancedLyricsState;
+    advancedDispatch: (action: AdvancedLyricsAction) => void;
+    timingMode: LyricsWorkspaceMode;
+    onTimingModeChange: (mode: LyricsWorkspaceMode) => void;
+    onImportFile: (file: File) => Promise<void>;
+    onBasicTextParsed: (text: string) => void;
+    onMetadataChanged: (name: string, value: string) => void;
+    onBasicLyricsReplaced: (lyrics: LrcState["lyric"]) => void;
+    wordTimingOffer: boolean;
+    onAcceptWordTiming: () => void;
+    onDismissWordTiming: () => void;
+}> = ({
+    lrcState,
+    lrcDispatch,
+    advancedState,
+    advancedDispatch,
+    timingMode,
+    onTimingModeChange,
+    onImportFile,
+    onBasicTextParsed,
+    onMetadataChanged,
+    onBasicLyricsReplaced,
+    wordTimingOffer,
+    onAcceptWordTiming,
+    onDismissWordTiming,
+}) => {
     const { prefState, prefDispatch, lang, trimOptions } = useContext(appContext);
 
     const parse = useCallback(
@@ -65,8 +94,9 @@ export const Editor: React.FC<{
                 type: LrcActionType.parse,
                 payload: { text: ev.target.value, options: trimOptions },
             });
+            onBasicTextParsed(ev.target.value);
         },
-        [lrcDispatch, trimOptions],
+        [lrcDispatch, onBasicTextParsed, trimOptions],
     );
 
     const setInfo = useCallback(
@@ -76,8 +106,9 @@ export const Editor: React.FC<{
                 type: LrcActionType.info,
                 payload: { name, value },
             });
+            onMetadataChanged(name, value);
         },
-        [lrcDispatch],
+        [lrcDispatch, onMetadataChanged],
     );
 
     const text = stringify(lrcState, prefState);
@@ -93,7 +124,8 @@ export const Editor: React.FC<{
     }, []);
 
     const textarea = useRef<HTMLInputLikeElement>(null);
-    const [href, setHref] = useState<string | undefined>(undefined);
+    const textareaDefaultValue = useDefaultValue(text, textarea);
+    const [exportFormat, setExportFormat] = useState<ExportLyricFormat>("enhanced-lrc");
     const aiSession = useSyncExternalStore(
         subscribeAiAlignmentSession,
         getAiAlignmentSessionSnapshot,
@@ -101,19 +133,40 @@ export const Editor: React.FC<{
     );
     const aiState = aiSession.state;
 
-    const onDownloadClick = useCallback(() => {
-        setHref((url) => {
-            if (url) {
-                URL.revokeObjectURL(url);
-            }
+    const exportPayload = useCallback((): string | Uint8Array => {
+        if (timingMode === "word" && advancedState.document) {
+            return serializeLyrics(advancedState.document, exportFormat, prefState.fixed);
+        }
+        return textarea.current?.value ?? text;
+    }, [advancedState.document, exportFormat, prefState.fixed, text, timingMode]);
 
-            return URL.createObjectURL(
-                new Blob([textarea.current!.value], {
-                    type: "text/plain;charset=UTF-8",
-                }),
-            );
+    const exportExtension = timingMode === "word"
+        ? { lrc: ".lrc", "enhanced-lrc": ".lrc", krc: ".krc", ttml: ".ttml", srt: ".srt" }[exportFormat]
+        : ".lrc";
+
+    const onDownloadClick = useCallback((event: React.MouseEvent<HTMLAnchorElement>) => {
+        event.preventDefault();
+        const payload = exportPayload();
+        const blobPart: BlobPart = typeof payload === "string"
+            ? payload
+            : new Uint8Array(payload).buffer as ArrayBuffer;
+        const blob = new Blob([blobPart], {
+            type: exportFormat === "krc" && timingMode === "word"
+                ? "application/octet-stream"
+                : "text/plain;charset=UTF-8",
         });
-    }, []);
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = lrcFileName(lrcState.info, exportExtension);
+        link.hidden = true;
+        document.body.append(link);
+        link.click();
+        setTimeout(() => {
+            link.remove();
+            URL.revokeObjectURL(url);
+        }, 1000);
+    }, [exportExtension, exportFormat, exportPayload, lrcState.info, timingMode]);
 
     const onTextFileUpload = useCallback(
         (ev: React.ChangeEvent<HTMLInputElement>) => {
@@ -121,24 +174,32 @@ export const Editor: React.FC<{
                 return;
             }
 
-            const fileReader = new FileReader();
-            fileReader.addEventListener("load", () => {
-                lrcDispatch({
-                    type: LrcActionType.parse,
-                    payload: { text: fileReader.result as string, options: trimOptions },
-                });
-            });
-            fileReader.readAsText(ev.target.files[0], "UTF-8");
+            void onImportFile(ev.target.files[0]);
+            ev.target.value = "";
         },
-        [lrcDispatch, trimOptions],
+        [onImportFile],
     );
 
     const onCopyClick = useCallback(() => {
-        textarea.current?.select();
-        document.execCommand("copy");
-    }, []);
+        if (timingMode === "line") {
+            textarea.current?.select();
+            document.execCommand("copy");
+            return;
+        }
+        const payload = exportPayload();
+        if (payload instanceof Uint8Array) {
+            toastPubSub.pub({ type: "warning", text: lang.advancedLyrics.krcCopyUnavailable });
+            return;
+        }
+        void navigator.clipboard.writeText(payload).then(() => {
+            toastPubSub.pub({ type: "success", text: lang.advancedLyrics.copyComplete });
+        });
+    }, [exportPayload, lang.advancedLyrics, timingMode]);
 
-    const downloadName = useMemo(() => lrcFileName(lrcState.info), [lrcState.info]);
+    const downloadName = useMemo(
+        () => lrcFileName(lrcState.info, exportExtension),
+        [exportExtension, lrcState.info],
+    );
 
     const statusText = useCallback((progress: LocalAlignmentProgress): string => {
         switch (progress.phase) {
@@ -213,6 +274,7 @@ export const Editor: React.FC<{
                 });
                 const lyric = validateAlignedLyrics(transcript, result.lrc, trimOptions);
                 lrcDispatch({ type: LrcActionType.replaceLyrics, payload: lyric });
+                onBasicLyricsReplaced(lyric);
                 updateAiAlignmentSessionState(() => ({ phase: "complete", progress: 1, visible: true }));
                 toastPubSub.pub({ type: "success", text: lang.editor.aiComplete });
                 if (result.cacheCleanup === "failed") {
@@ -253,6 +315,8 @@ export const Editor: React.FC<{
         prefState.aiGpuAcceleration,
         prefState.fixed,
         prefState.keepAiTaskCache,
+        onBasicLyricsReplaced,
+        prefState,
         text,
         trimOptions,
     ]);
@@ -311,6 +375,15 @@ export const Editor: React.FC<{
                     </section>
                 </details>
 
+                {prefState.advancedLyricsEnabled && (
+                    <LyricsModeSwitch
+                        className="editor-mode-switch"
+                        mode={timingMode}
+                        onChange={onTimingModeChange}
+                        labels={lang.advancedLyrics}
+                    />
+                )}
+
                 <section className="editor-tools">
                     <button
                         className={`editor-tools-item ripple ai-align-button${
@@ -325,7 +398,12 @@ export const Editor: React.FC<{
                         <span>AI</span>
                     </button>
                     <label className="editor-tools-item ripple" title={lang.editor.uploadText}>
-                        <input hidden={true} type="file" accept="text/*, .txt, .lrc" onChange={onTextFileUpload} />
+                        <input
+                            hidden={true}
+                            type="file"
+                            accept="text/*,.txt,.lrc,.krc,.ttml,.srt,application/xml,application/octet-stream"
+                            onChange={onTextFileUpload}
+                        />
                         <OpenFileSVG />
                     </label>
                     <button className="editor-tools-item ripple" title={lang.editor.copyText} onClick={onCopyClick}>
@@ -334,7 +412,7 @@ export const Editor: React.FC<{
                     <a
                         className="editor-tools-item ripple"
                         title={lang.editor.downloadText}
-                        href={href}
+                        href="#"
                         onClick={onDownloadClick}
                         download={downloadName}
                     >
@@ -347,13 +425,56 @@ export const Editor: React.FC<{
                 </section>
             </header>
 
-            <textarea
-                className="app-textarea"
-                aria-label="lrc input here"
-                onBlur={parse}
-                {...disableCheck}
-                {...useDefaultValue(text, textarea)}
-            />
+            {timingMode === "word" && advancedState.document
+                ? (
+                    <>
+                        <label className="advanced-editor-subbar">
+                            <span>{lang.advancedLyrics.exportFormat}</span>
+                            <select
+                                className="advanced-export-select"
+                                value={exportFormat}
+                                onChange={(event) => setExportFormat(event.target.value as ExportLyricFormat)}
+                            >
+                                <option value="enhanced-lrc">{lang.advancedLyrics.enhancedLrc}</option>
+                                <option value="lrc">{lang.advancedLyrics.standardLrc}</option>
+                                <option value="krc">KRC</option>
+                                <option value="ttml">TTML</option>
+                                <option value="srt">SRT</option>
+                            </select>
+                        </label>
+                        <AdvancedLyricsEditor
+                            state={advancedState}
+                            dispatch={advancedDispatch}
+                            fixed={prefState.fixed}
+                            language={lang.advancedLyrics}
+                        />
+                    </>
+                )
+                : (
+                    <textarea
+                        className="app-textarea"
+                        aria-label="lrc input here"
+                        onBlur={parse}
+                        {...disableCheck}
+                        {...textareaDefaultValue}
+                    />
+                )}
+            {wordTimingOffer && (
+                <dialog className="word-timing-offer" open={true} aria-labelledby="word-timing-offer-title">
+                    <article>
+                        <h2 id="word-timing-offer-title">{lang.advancedLyrics.wordDetectedTitle}</h2>
+                        <p>{lang.advancedLyrics.wordDetectedMessage}</p>
+                        <footer>
+                            <button type="button" onClick={onDismissWordTiming}>
+                                {lang.advancedLyrics.keepLineMode}
+                            </button>
+                            <button type="button" onClick={onAcceptWordTiming}>
+                                {lang.advancedLyrics.switchWordMode}
+                            </button>
+                        </footer>
+                    </article>
+                </dialog>
+            )}
             {aiState?.visible && (
                 <dialog className="ai-align-dialog" open={true} aria-labelledby="ai-align-title">
                     <article>

@@ -1,4 +1,5 @@
 {
     "lyric": "lrc-editor-lyric",
-    "preferences": "lrc-editor-preferences"
+    "preferences": "lrc-editor-preferences",
+    "advancedLyrics": "lrc-editor-advanced-lyrics"
 }

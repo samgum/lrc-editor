@@ -44,6 +44,7 @@
         "@ffmpeg/ffmpeg": "0.12.15",
         "@lrc-maker/lrc-parser": "^0.1.17",
         "@wavesurfer/react": "^1.0.11",
+        "fflate": "^0.8.3",
         "react": "^18.2.0",
         "react-dom": "^18.2.0",
         "wavesurfer.js": "^7.9.5"
@@ -54,6 +55,7 @@
         "@types/node": "^22.15.21",
         "@types/react": "^18.2.0",
         "@types/react-dom": "^18.2.0",
+        "@xmldom/xmldom": "^0.9.11",
         "core-js": "^3.42.0",
         "dprint": "^0.50.0",
         "lightningcss": "1.32.0",

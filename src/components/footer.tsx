@@ -302,7 +302,9 @@ export const Footer: React.FC = () => {
     useEffect(() => {
         const onDrop = (event: DragEvent): void => {
             const file = event.dataTransfer?.files[0];
-            if (file) onAudioFile(file);
+            if (file && !file.type.startsWith("text/") && !/(?:\.lrc|\.krc|\.ttml|\.srt|\.txt)$/i.test(file.name)) {
+                onAudioFile(file);
+            }
         };
         document.documentElement.addEventListener("drop", onDrop);
         return () => document.documentElement.removeEventListener("drop", onDrop);

@@ -6,5 +6,7 @@
     "editorDetailsOpen": "editor-details-open",
     "syncMode": "sync-mode",
     "selectIndex": "select-index",
-    "ratelimit": "x-ratelimit"
+    "ratelimit": "x-ratelimit",
+    "editorTimingMode": "editor-timing-mode",
+    "synchronizerTimingMode": "synchronizer-timing-mode"
 }

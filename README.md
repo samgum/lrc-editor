@@ -14,8 +14,11 @@ The web application is static and keeps lyric text, preferences, and local media
 
 ## Features
 
-- Import plain text, `.txt`, and `.lrc` files; edit title, artist, and album metadata.
-- Copy or download LRC output with configurable timestamp precision and whitespace.
+- Import plain text, standard or Enhanced LRC, binary or plaintext KRC, TTML, and SRT. Every supported file first opens as stable line-timed lyrics; when genuine word timestamps are present, the editor offers a choice between staying in line mode and switching to word mode.
+- Keep advanced formats disabled by default. After enabling them in Settings, the editor and timing workspace each retain an independent **Line / Word** switch, so the ordinary LRC workflow remains unchanged.
+- Edit word or syllable text, line boundaries, word starts, and word ends in a structured word editor. Duplicate, backwards, and invalid word timing is marked on the exact segment and its row instead of being silently repaired.
+- Time words with the same comfortable playback, fine-tune, selection, follow, keyboard, and undo/redo controls used by line timing. Capturing a word closes the previous segment and advances across line boundaries.
+- Copy or download Standard LRC, Enhanced LRC, TTML, and SRT, or download an actual compressed and encrypted binary KRC file. Timestamp precision follows the existing setting; line-only LRC download remains the default outside word mode.
 - Load audio and video files, direct media URLs, NetEase Music song links and `163cn.tv` shares, QQ Music `c6.y.qq.com` shares and `y.qq.com/.../songDetail/...` links, standard or Music YouTube links (including extra playlist parameters), and Bilibili or `b23.tv` links. A complete share message can be pasted directly; the first HTTP(S) URL is extracted automatically. QQ Music support is limited to tracks whose complete audio is publicly playable at that moment; VIP-only and preview-only responses are rejected.
 - Convert imported local FLAC/ALAC/AIFF/CAF media once to 256 kbps AAC with FFmpeg WebAssembly. Playback and AI alignment share only the current in-memory AAC Blob, so the AI bridge never reopens or transfers the much larger lossless source. The virtual input/output files and FFmpeg Worker are destroyed after every conversion; replacing the media revokes the previous Blob URL, and no converted audio is written to persistent browser storage.
 - Display a waveform for local or extension-resolved media, seek precisely, change playback speed, and continue playback in the background when enabled.
@@ -31,6 +34,7 @@ The web application is static and keeps lyric text, preferences, and local media
 - Use English, Japanese, Korean, Polish, Brazilian Portuguese, Slovak, Simplified Chinese, Traditional Chinese (Hong Kong), or Traditional Chinese (Taiwan).
 - Install the site as a PWA and receive shared media URLs through the Web Share Target API.
 - Reopen the editor, timing workspace, tools, settings, and bundled language interface without a network connection after the first successful online visit. Remote media and first-time model or codec downloads still require a connection.
+- Use the advanced-format interface in every bundled language. Imports preserve real TTML span timing and whitespace, keep line-timed TTML as line timing, and retain background-vocal text without forcing overlapping harmony timestamps into a backwards linear axis.
 
 GitHub Gist integration from the upstream project is intentionally not included. LRC Editor never inserts a `[tool: ...]` metadata line.
 
@@ -135,7 +139,7 @@ The extensions are packaged separately. Build the desktop package with `pnpm bui
 ## Project structure
 
 ```text
-src/                 React application, LRC logic, localization, and tests
+src/                 React application, line/word lyric formats, localization, and tests
 worker/              Local NCM/QMC media workers
 extension/           Shared extension source plus desktop and mobile manifests
 companion/           Local AI installer, launcher, documentation, and bundled engine snapshot

@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { Script } from "node:vm";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { unregister } from "./sw.unregister.js";
 
@@ -37,5 +40,11 @@ describe("website cache cleanup", () => {
         await unregister(false);
 
         expect(reload).not.toHaveBeenCalled();
+    });
+
+    it("injects a JavaScript-only development helper", () => {
+        const helper = readFileSync(resolve("plugins/sw.unregister.js"), "utf8");
+        expect(() => new Script(`${helper};globalThis.__lrcEditorUnregister(false);`)).not.toThrow();
+        expect(helper).not.toContain("Promise<void>");
     });
 });
