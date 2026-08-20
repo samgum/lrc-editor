@@ -47,11 +47,11 @@ describe("advanced lyrics timing state", () => {
     });
 
     it("records a held word start and end as one undoable gesture", () => {
-        const document = parseEnhancedLrc("[00:01.000]<00:01.000>fast <00:01.200>rap<00:01.400>");
         let state = advancedLyricsReducer(initAdvancedLyricsState(""), {
-            type: AdvancedActionType.load,
-            payload: document,
+            type: AdvancedActionType.ensureWordMode,
+            payload: { lines: [{ text: "fast rap" }], metadata: new Map() },
         });
+        const document = state.document;
         state = advancedLyricsReducer(state, { type: AdvancedActionType.startHold, payload: 2000 });
         expect(state.document?.lines[0].words[0].startMs).toBe(2000);
         expect(state.cursor).toEqual({ lineIndex: 0, wordIndex: 0 });
@@ -77,6 +77,33 @@ describe("advanced lyrics timing state", () => {
         expect(state.document?.lines[0].words[0].text).toBe("A");
         state = advancedLyricsReducer(state, { type: AdvancedActionType.redo, payload: undefined });
         expect(state.document?.lines[0].words[0].text).toBe("B");
+    });
+
+    it("never changes segment text while its timing is edited", () => {
+        const document = parseEnhancedLrc(
+            "[00:01.000]<00:01.000>我<00:01.200>爱<00:01.400>你<00:01.600>",
+        );
+        let state = advancedLyricsReducer(initAdvancedLyricsState(""), {
+            type: AdvancedActionType.load,
+            payload: document,
+        });
+        state = advancedLyricsReducer(state, {
+            type: AdvancedActionType.updateWord,
+            payload: { cursor: { lineIndex: 0, wordIndex: 1 }, patch: { startMs: 1250 } },
+        });
+        expect(state.document?.lines[0].words.map((word) => word.text).join("")).toBe("我爱你");
+        expect(state.document?.lines[0].words[1]).toMatchObject({ text: "爱", startMs: 1250 });
+    });
+
+    it("keeps rapid captured starts monotonic instead of creating duplicates", () => {
+        let state = advancedLyricsReducer(initAdvancedLyricsState(""), {
+            type: AdvancedActionType.ensureWordMode,
+            payload: { lines: [{ text: "快速" }], metadata: new Map() },
+        });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.stamp, payload: 1000 });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.stamp, payload: 1000 });
+        expect(state.document?.lines[0].words.map((word) => word.startMs)).toEqual([1000, 1010]);
+        expect(state.document?.lines[0].words.map((word) => word.text).join("")).toBe("快速");
     });
 
     it("navigates across line boundaries", () => {

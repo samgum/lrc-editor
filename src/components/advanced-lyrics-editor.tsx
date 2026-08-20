@@ -93,8 +93,8 @@ const WordEditor: React.FC<{
     }, [issue, language]);
 
     const select = () => dispatch({ type: AdvancedActionType.select, payload: cursor });
-    const updateTime = (patch: Partial<TimedWord>) =>
-        dispatch({ type: AdvancedActionType.updateWord, payload: { cursor, patch } });
+    const updateWord = (patch: Partial<TimedWord>) =>
+        dispatch({ type: AdvancedActionType.updateWord, payload: { cursor, patch: { text, ...patch } } });
 
     return (
         <article
@@ -118,20 +118,23 @@ const WordEditor: React.FC<{
                 aria-label={`${language.wordMode} ${cursor.wordIndex + 1}`}
                 onChange={(event) => setText(event.target.value)}
                 onBlur={() => {
-                    if (text !== word.text) updateTime({ text });
+                    if (text !== word.text) updateWord({ text });
+                }}
+                onKeyDown={(event) => {
+                    if (event.key === "Enter") event.currentTarget.blur();
                 }}
             />
             <TimestampField
                 label={language.wordStart}
                 value={word.startMs}
                 fixed={fixed}
-                onCommit={(startMs) => updateTime({ startMs })}
+                onCommit={(startMs) => updateWord({ startMs })}
             />
             <TimestampField
                 label={language.wordEnd}
                 value={word.endMs}
                 fixed={fixed}
-                onCommit={(endMs) => updateTime({ endMs })}
+                onCommit={(endMs) => updateWord({ endMs })}
             />
             <div className="advanced-word-actions">
                 <button

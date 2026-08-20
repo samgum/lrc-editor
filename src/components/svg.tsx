@@ -37,6 +37,16 @@ export const SynchronizerSVG: React.FC = () => (
     </LineIcon>
 );
 
+export const WordSynchronizerSVG: React.FC = () => (
+    <LineIcon>
+        <path d="M4 6h16M4 18h16" />
+        <circle cx="7" cy="12" r="2" />
+        <circle cx="12" cy="12" r="2" />
+        <circle cx="17" cy="12" r="2" />
+        <path d="M9 12h1M14 12h1" />
+    </LineIcon>
+);
+
 export const UtilitySVG: React.FC = () => (
     <LineIcon>
         <path d="M14.2 5.2a4.2 4.2 0 0 0-5.1 5.2L4.3 15.2a2.2 2.2 0 0 0 0 3.1l1.4 1.4a2.2 2.2 0 0 0 3.1 0l4.8-4.8a4.2 4.2 0 0 0 5.2-5.1l-3 3-2.6-.9-.9-2.6z" />

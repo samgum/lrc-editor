@@ -8,6 +8,5 @@
     "selectIndex": "select-index",
     "ratelimit": "x-ratelimit",
     "editorTimingMode": "editor-timing-mode",
-    "synchronizerTimingMode": "synchronizer-timing-mode",
     "advancedWordCursor": "advanced-word-cursor"
 }

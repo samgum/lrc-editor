@@ -1,3 +1,4 @@
+import ROUTER from "#const/router.json" assert { type: "json" };
 import SSK from "#const/session_key.json" assert { type: "json" };
 import STRINGS from "#const/strings.json" assert { type: "json" };
 import { convertTimeToTag, formatText, type ILyric } from "@lrc-maker/lrc-parser";
@@ -24,11 +25,11 @@ import { centeredFollowOffset, followEndSpace } from "../utils/follow-scroll.js"
 import { InputAction } from "../utils/input-action.js";
 import { isKeyboardElement } from "../utils/is-keyboard-element.js";
 import { formatKeyBinding, getMatchedAction } from "../utils/keybindings.js";
+import { prependHash } from "../utils/router.js";
 import { timingIssueAt } from "../utils/timing-issues.js";
 import { appContext } from "./app.context.js";
 import { AsidePanel } from "./asidepanel.js";
 import { Curser } from "./curser.js";
-import { LyricsModeSwitch } from "./lyrics-mode-switch.js";
 import { ProblemSVG } from "./svg.js";
 import { WordTimingStage } from "./word-timing-stage.js";
 
@@ -51,7 +52,6 @@ interface ISynchronizerProps {
     advancedState: AdvancedLyricsState;
     advancedDispatch: (action: AdvancedLyricsAction) => void;
     timingMode: LyricsWorkspaceMode;
-    onTimingModeChange: (mode: LyricsWorkspaceMode) => void;
 }
 
 export const Synchronizer: React.FC<ISynchronizerProps> = ({
@@ -60,7 +60,6 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
     advancedState,
     advancedDispatch,
     timingMode,
-    onTimingModeChange,
 }) => {
     const self = useRef(Symbol(Synchronizer.name));
 
@@ -163,6 +162,23 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
     }, [timingMode]);
 
     useEffect(() => {
+        if (timingMode !== "word") return;
+        const frameId = requestAnimationFrame(() => {
+            const list = ul.current;
+            const container = list?.parentElement;
+            const line = list?.children[advancedState.cursor.lineIndex] as HTMLElement | undefined;
+            if (!list || !container || !line) return;
+            const lineTop = line.offsetTop;
+            const lineBottom = lineTop + line.offsetHeight;
+            if (lineTop < container.scrollTop) container.scrollTo({ top: lineTop, behavior: "smooth" });
+            else if (lineBottom > container.scrollTop + container.clientHeight) {
+                container.scrollTo({ top: lineBottom - container.clientHeight, behavior: "smooth" });
+            }
+        });
+        return () => cancelAnimationFrame(frameId);
+    }, [advancedState.cursor.lineIndex, timingMode]);
+
+    useEffect(() => {
         return currentTimePubSub.sub(self.current, (time) => {
             if (previewEndRef.current !== null && time * 1000 >= previewEndRef.current - 8) {
                 audioRef.current?.pause();
@@ -244,12 +260,16 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
         timingMode,
     ]);
 
+    const cancelWordHold = useCallback(() => {
+        if (!holdingWordRef.current) return;
+        holdingWordRef.current = false;
+        heldSyncKeyRef.current = null;
+        setIsHoldingWord(false);
+        advancedDispatch({ type: AdvancedActionType.undo, payload: undefined });
+    }, [advancedDispatch]);
+
     const adjust = useCallback(
         (ev: KeyboardEvent | React.MouseEvent, offset: number, index: number) => {
-            if (!audioRef.duration) {
-                return;
-            }
-
             const selectTime = timingMode === "word"
                 ? advancedState.document?.lines[advancedState.cursor.lineIndex]?.words[advancedState.cursor.wordIndex]
                         ?.startMs === undefined
@@ -261,8 +281,17 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
             if (selectTime === undefined) {
                 return;
             }
-
-            const nextTime = audioRef.step(ev, offset, selectTime);
+            let nextTime: number;
+            if (offset === 0) {
+                if (!audioRef.duration) return;
+                nextTime = audioRef.currentTime;
+            } else {
+                let scaledOffset = offset;
+                if (ev.altKey) scaledOffset *= 0.2;
+                if (ev.shiftKey) scaledOffset *= 0.5;
+                nextTime = Math.max(0, selectTime + scaledOffset);
+                if (audioRef.duration) nextTime = Math.min(audioRef.duration, nextTime);
+            }
             if (timingMode === "word") {
                 advancedDispatch({
                     type: AdvancedActionType.adjustTime,
@@ -350,6 +379,12 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
     useEffect(() => {
         function onKeydown(ev: KeyboardEvent): void {
             if (isKeyboardElement(ev.target)) {
+                return;
+            }
+
+            if (ev.key === "Escape" && holdingWordRef.current) {
+                ev.preventDefault();
+                cancelWordHold();
                 return;
             }
 
@@ -443,11 +478,15 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                     break;
                 case InputAction.PageUp:
                     ev.preventDefault();
-                    selectLine((index) => index - 10);
+                    if (timingMode === "word") {
+                        selectWord({ lineIndex: advancedState.cursor.lineIndex - 10, wordIndex: 0 });
+                    } else selectLine((index) => index - 10);
                     break;
                 case InputAction.PageDown:
                     ev.preventDefault();
-                    selectLine((index) => index + 10);
+                    if (timingMode === "word") {
+                        selectWord({ lineIndex: advancedState.cursor.lineIndex + 10, wordIndex: 0 });
+                    } else selectLine((index) => index + 10);
                     break;
             }
         }
@@ -461,8 +500,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
         }
 
         function onWindowBlur(): void {
-            heldSyncKeyRef.current = null;
-            if (holdingWordRef.current) finishWordHold();
+            if (holdingWordRef.current) cancelWordHold();
         }
 
         document.addEventListener("keydown", onKeydown);
@@ -479,6 +517,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
         advancedDispatch,
         advancedState.cursor,
         advancedState.document,
+        cancelWordHold,
         dispatch,
         keyBindings,
         prefState.fineTuneMs,
@@ -491,6 +530,12 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
         finishWordHold,
         timingMode,
     ]);
+
+    useEffect(() => () => {
+        if (holdingWordRef.current) {
+            advancedDispatch({ type: AdvancedActionType.undo, payload: undefined });
+        }
+    }, [advancedDispatch]);
 
     const onLineClick = useCallback(
         (ev: React.MouseEvent<HTMLUListElement & HTMLLIElement>) => {
@@ -509,8 +554,8 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
 
             if (target.classList.contains("line")) {
                 const lineKey = Number.parseInt(target.dataset.key!, 10) || 0;
-
-                selectLine(() => lineKey);
+                if (timingMode === "word") selectWord({ lineIndex: lineKey, wordIndex: 0 });
+                else selectLine(() => lineKey);
             }
         },
         [selectLine, selectWord, timingMode],
@@ -544,7 +589,8 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                 const key = Number.parseInt(target.dataset.key!, 10);
                 const time = lyric[key]?.time;
                 if (time !== undefined) {
-                    selectLine(() => key);
+                    if (timingMode === "word") selectWord({ lineIndex: key, wordIndex: 0 });
+                    else selectLine(() => key);
                     audioRef.currentTime = time;
                 }
             }
@@ -659,7 +705,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                             title={lang.keybindings.actions.decreaseOffset}
                             aria-label={`${lang.keybindings.actions.decreaseOffset}: ${prefState.fineTuneMs} ms`}
                             onClick={(event) => adjust(event, -prefState.fineTuneMs / 1000, selectIndex)}
-                            disabled={!mediaReady || selectedTime === undefined}
+                            disabled={selectedTime === undefined}
                         >
                             −{prefState.fineTuneMs} ms
                         </button>
@@ -669,24 +715,18 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                             title={lang.keybindings.actions.increaseOffset}
                             aria-label={`${lang.keybindings.actions.increaseOffset}: ${prefState.fineTuneMs} ms`}
                             onClick={(event) => adjust(event, prefState.fineTuneMs / 1000, selectIndex)}
-                            disabled={!mediaReady || selectedTime === undefined}
+                            disabled={selectedTime === undefined}
                         >
                             +{prefState.fineTuneMs} ms
                         </button>
                     </div>
                 </div>
-                {prefState.advancedLyricsEnabled && (
-                    <LyricsModeSwitch
-                        className="timing-mode-switch"
-                        mode={timingMode}
-                        onChange={(mode) => {
-                            if (holdingWordRef.current) finishWordHold();
-                            onTimingModeChange(mode);
-                        }}
-                        labels={lang.advancedLyrics}
-                    />
-                )}
                 <div className="timing-actions">
+                    {timingMode === "word" && (
+                        <a className="timing-review-export" href={prependHash(ROUTER.editor)}>
+                            {lang.advancedLyrics.reviewAndExport}
+                        </a>
+                    )}
                     <button
                         type="button"
                         onClick={() =>
@@ -737,6 +777,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                     onStamp={sync}
                     onHoldStart={startWordHold}
                     onHoldEnd={finishWordHold}
+                    onHoldCancel={cancelWordHold}
                     onCaptureModeChange={(holdMode) => {
                         if (holdingWordRef.current) finishWordHold();
                         prefDispatch({ type: "wordHoldMode", payload: holdMode });
@@ -766,6 +807,9 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                             type: AdvancedActionType.clearLineFromCursor,
                             payload: advancedState.cursor,
                         })}
+                    onNextUntimed={() =>
+                        advancedState.document
+                        && selectWord(nextUntimedWordCursor(advancedState.document, advancedState.cursor))}
                     onPrevious={() =>
                         advancedState.document
                         && selectWord(nextWordCursor(advancedState.document, advancedState.cursor, -1))}
@@ -905,6 +949,24 @@ const wordAtTime = (lines: readonly AdvancedLyricLine[], timeMs: number): WordCu
         }
     }
     return result;
+};
+
+const nextUntimedWordCursor = (
+    document: NonNullable<AdvancedLyricsState["document"]>,
+    cursor: WordCursor,
+): WordCursor => {
+    const flattened: WordCursor[] = document.lines.flatMap((line, lineIndex) =>
+        line.words.map((_, wordIndex) => ({ lineIndex, wordIndex }))
+    );
+    const currentIndex = flattened.findIndex((candidate) =>
+        candidate.lineIndex === cursor.lineIndex && candidate.wordIndex === cursor.wordIndex
+    );
+    for (let offset = 1; offset <= flattened.length; offset += 1) {
+        const candidate = flattened[(Math.max(0, currentIndex) + offset) % flattened.length];
+        const word = document.lines[candidate.lineIndex]?.words[candidate.wordIndex];
+        if (word?.startMs === undefined) return candidate;
+    }
+    return cursor;
 };
 
 const firstWordIssue = (

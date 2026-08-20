@@ -1,5 +1,10 @@
 import { useReducer } from "react";
-import { type AdvancedLyricsDocument, createWordTimedDocument, type TimedWord } from "../utils/advanced-lyrics.js";
+import {
+    type AdvancedLyricsDocument,
+    createWordTimedDocument,
+    normalizeAdvancedDocument,
+    type TimedWord,
+} from "../utils/advanced-lyrics.js";
 
 export interface WordCursor {
     readonly lineIndex: number;
@@ -76,12 +81,18 @@ export type AdvancedLyricsAction =
     | { readonly type: AdvancedActionType.redo; readonly payload: undefined };
 
 const initialCursor: WordCursor = { lineIndex: 0, wordIndex: 0 };
+const minimumCapturedWordDurationMs = 10;
 
 export const initAdvancedLyricsState = (serialized: string): AdvancedLyricsState => {
     try {
         const document = JSON.parse(serialized) as AdvancedLyricsDocument;
         if (isAdvancedDocument(document)) {
-            return { document, cursor: initialCursor, historyPast: [], historyFuture: [] };
+            return {
+                document: normalizeAdvancedDocument(document),
+                cursor: initialCursor,
+                historyPast: [],
+                historyFuture: [],
+            };
         }
     } catch {
         // Ignore missing or older advanced state.
@@ -96,7 +107,7 @@ export const advancedLyricsReducer = (
     switch (action.type) {
         case AdvancedActionType.load:
             return {
-                document: action.payload,
+                document: action.payload ? normalizeAdvancedDocument(action.payload) : null,
                 cursor: initialCursor,
                 historyPast: [],
                 historyFuture: [],
@@ -243,22 +254,25 @@ const updateTiming = (state: AdvancedLyricsState, startMs: number, advance: bool
     const word = line?.words[state.cursor.wordIndex];
     if (!document || !line || !word) return state;
 
-    let nextDocument = replaceWord(document, state.cursor, { ...word, startMs });
+    const constrainedStartMs = constrainCapturedWordStart(document, state.cursor, startMs);
+    let nextDocument = replaceWord(document, state.cursor, { ...word, startMs: constrainedStartMs });
     const previousCursor = nextWordCursor(document, state.cursor, -1);
     if (previousCursor.lineIndex !== state.cursor.lineIndex || previousCursor.wordIndex !== state.cursor.wordIndex) {
         const previous = nextDocument.lines[previousCursor.lineIndex].words[previousCursor.wordIndex];
-        nextDocument = replaceWord(nextDocument, previousCursor, { ...previous, endMs: startMs });
-        if (previousCursor.lineIndex !== state.cursor.lineIndex) {
+        if (previous.startMs !== undefined) {
+            nextDocument = replaceWord(nextDocument, previousCursor, { ...previous, endMs: constrainedStartMs });
+        }
+        if (previous.startMs !== undefined && previousCursor.lineIndex !== state.cursor.lineIndex) {
             nextDocument = replaceLine(nextDocument, previousCursor.lineIndex, {
                 ...nextDocument.lines[previousCursor.lineIndex],
-                endMs: startMs,
+                endMs: constrainedStartMs,
             });
         }
     }
     if (state.cursor.wordIndex === 0) {
         nextDocument = replaceLine(nextDocument, state.cursor.lineIndex, {
             ...nextDocument.lines[state.cursor.lineIndex],
-            startMs,
+            startMs: constrainedStartMs,
         });
     }
     const cursor = advance ? nextWordCursor(nextDocument, state.cursor, 1) : state.cursor;
@@ -270,7 +284,11 @@ const finishHoldTiming = (state: AdvancedLyricsState, requestedEndMs: number): A
     const line = document?.lines[state.cursor.lineIndex];
     const word = line?.words[state.cursor.wordIndex];
     if (!document || !line || !word || word.startMs === undefined) return state;
-    const endMs = Math.max(word.startMs, requestedEndMs);
+    const followingStart = nextTimedWordStart(document, state.cursor);
+    const minimumEnd = word.startMs + minimumCapturedWordDurationMs;
+    const endMs = followingStart === undefined || followingStart < minimumEnd
+        ? Math.max(minimumEnd, requestedEndMs)
+        : Math.min(followingStart, Math.max(minimumEnd, requestedEndMs));
     let nextDocument = replaceWord(document, state.cursor, { ...word, endMs });
     if (state.cursor.wordIndex === line.words.length - 1) {
         nextDocument = replaceLine(nextDocument, state.cursor.lineIndex, {
@@ -284,6 +302,43 @@ const finishHoldTiming = (state: AdvancedLyricsState, requestedEndMs: number): A
         cursor: nextWordCursor(nextDocument, state.cursor, 1),
         historyFuture: [],
     };
+};
+
+const constrainCapturedWordStart = (
+    document: AdvancedLyricsDocument,
+    cursor: WordCursor,
+    requestedStartMs: number,
+): number => {
+    const previousStart = previousTimedWordStart(document, cursor);
+    const lowerBound = previousStart === undefined ? 0 : previousStart + minimumCapturedWordDurationMs;
+    const followingStart = nextTimedWordStart(document, cursor);
+    const upperBound = followingStart === undefined
+        ? Number.POSITIVE_INFINITY
+        : followingStart - minimumCapturedWordDurationMs;
+    if (upperBound < lowerBound) return lowerBound;
+    return Math.max(lowerBound, Math.min(upperBound, Math.max(0, Math.round(requestedStartMs))));
+};
+
+const previousTimedWordStart = (document: AdvancedLyricsDocument, cursor: WordCursor): number | undefined => {
+    for (let lineIndex = cursor.lineIndex; lineIndex >= 0; lineIndex -= 1) {
+        const words = document.lines[lineIndex]?.words || [];
+        const start = lineIndex === cursor.lineIndex ? cursor.wordIndex - 1 : words.length - 1;
+        for (let wordIndex = start; wordIndex >= 0; wordIndex -= 1) {
+            if (words[wordIndex].startMs !== undefined) return words[wordIndex].startMs;
+        }
+    }
+    return undefined;
+};
+
+const nextTimedWordStart = (document: AdvancedLyricsDocument, cursor: WordCursor): number | undefined => {
+    for (let lineIndex = cursor.lineIndex; lineIndex < document.lines.length; lineIndex += 1) {
+        const words = document.lines[lineIndex]?.words || [];
+        const start = lineIndex === cursor.lineIndex ? cursor.wordIndex + 1 : 0;
+        for (let wordIndex = start; wordIndex < words.length; wordIndex += 1) {
+            if (words[wordIndex].startMs !== undefined) return words[wordIndex].startMs;
+        }
+    }
+    return undefined;
 };
 
 const updateCurrentWord = (

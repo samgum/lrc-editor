@@ -82,9 +82,6 @@ export const Content: React.FC = () => {
     const [editorTimingMode, setEditorTimingMode] = useState<LyricsWorkspaceMode>(() =>
         sessionStorage.getItem(SSK.editorTimingMode) === "word" ? "word" : "line"
     );
-    const [synchronizerTimingMode, setSynchronizerTimingMode] = useState<LyricsWorkspaceMode>(() =>
-        sessionStorage.getItem(SSK.synchronizerTimingMode) === "word" ? "word" : "line"
-    );
     const [wordTimingOffer, setWordTimingOffer] = useState(false);
     const advancedNeedsBasicSync = useRef(false);
     const cursorRestored = useRef(false);
@@ -160,7 +157,6 @@ export const Content: React.FC = () => {
             });
         }
         if (target === "editor") setEditorTimingMode("word");
-        else setSynchronizerTimingMode("word");
     }, [
         advancedDispatch,
         advancedState.cursor,
@@ -177,10 +173,15 @@ export const Content: React.FC = () => {
         else setEditorTimingMode("line");
     }, [ensureWordMode]);
 
-    const changeSynchronizerTimingMode = useCallback((mode: LyricsWorkspaceMode) => {
-        if (mode === "word") ensureWordMode("synchronizer");
-        else setSynchronizerTimingMode("line");
-    }, [ensureWordMode]);
+    useEffect(() => {
+        if (
+            path.slice(1) === ROUTER.wordSynchronizer
+            && prefState.advancedLyricsEnabled
+            && advancedState.document?.timingMode !== "word"
+        ) {
+            ensureWordMode("synchronizer");
+        }
+    }, [advancedState.document?.timingMode, ensureWordMode, path, prefState.advancedLyricsEnabled]);
 
     const importLyricsFile = useCallback(async (file: File): Promise<void> => {
         try {
@@ -235,13 +236,8 @@ export const Content: React.FC = () => {
     }, [editorTimingMode]);
 
     useEffect(() => {
-        sessionStorage.setItem(SSK.synchronizerTimingMode, synchronizerTimingMode);
-    }, [synchronizerTimingMode]);
-
-    useEffect(() => {
         if (!prefState.advancedLyricsEnabled) {
             setEditorTimingMode("line");
-            setSynchronizerTimingMode("line");
         }
     }, [prefState.advancedLyricsEnabled]);
 
@@ -351,8 +347,44 @@ export const Content: React.FC = () => {
                         dispatch={lrcDispatch}
                         advancedState={advancedState}
                         advancedDispatch={updateAdvanced}
-                        timingMode={synchronizerTimingMode}
-                        onTimingModeChange={changeSynchronizerTimingMode}
+                        timingMode="line"
+                    />
+                );
+            }
+
+            case ROUTER.wordSynchronizer: {
+                if (!prefState.advancedLyricsEnabled) {
+                    return (
+                        <section className="workspace-empty">
+                            <h1>{lang.advancedLyrics.wordTimingDisabled}</h1>
+                            <a className="button" href={prependHash(ROUTER.preferences)}>
+                                {lang.header.preferences}
+                            </a>
+                        </section>
+                    );
+                }
+                if (lrcState.lyric.length === 0) {
+                    return (
+                        <section className="workspace-empty">
+                            <h1>{lang.workspace.noLyrics}</h1>
+                            <a className="button" href={prependHash(ROUTER.editor)}>{lang.workspace.openEditor}</a>
+                        </section>
+                    );
+                }
+                if (advancedState.document?.timingMode !== "word") {
+                    return (
+                        <div className="workspace-loading" aria-label={lang.workspace.loading}>
+                            <span />
+                        </div>
+                    );
+                }
+                return (
+                    <LazySynchronizer
+                        state={lrcState}
+                        dispatch={lrcDispatch}
+                        advancedState={advancedState}
+                        advancedDispatch={updateAdvanced}
+                        timingMode="word"
                     />
                 );
             }

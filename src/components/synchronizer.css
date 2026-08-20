@@ -5,12 +5,70 @@
     padding-bottom: var(--timing-follow-end-space, 28svh);
 }
 
+.timing-page.word-mode {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 23rem);
+    align-items: start;
+    gap: 10px;
+    width: min(1600px, 100%);
+    padding-bottom: 150px;
+}
+
+.word-mode .timing-toolbar {
+    grid-column: 1 / -1;
+    margin-bottom: 0;
+}
+
+.word-mode .word-timing-stage {
+    grid-column: 1;
+    margin-bottom: 0;
+}
+
+.word-mode .synchronizer-workspace {
+    position: sticky;
+    top: 144px;
+    grid-column: 2;
+    grid-row: 2;
+    display: block;
+    max-height: calc(100svh - 260px);
+    overflow: auto;
+    overscroll-behavior: contain;
+    border: 1px solid #88888838;
+    border-radius: 9px;
+}
+
+.word-mode .lyric-list {
+    border: 0;
+    border-radius: 0;
+}
+
+.word-mode .aside-panel {
+    display: none;
+}
+
+.word-mode .line {
+    grid-template-columns: 2rem 5.2rem minmax(0, 1fr);
+    min-height: 45px;
+    padding-right: 8px;
+}
+
+.word-mode .line-copy {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.word-mode .line-text, .word-mode .line-copy, .word-mode .timed-word {
+    pointer-events: auto;
+}
+
 .timing-toolbar {
     position: sticky;
     top: 72px;
     z-index: 20;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 12px;
     width: 100%;
@@ -89,7 +147,7 @@
     align-self: center;
 }
 
-.timing-actions button {
+.timing-actions button, .timing-review-export {
     min-height: 40px;
     padding: 0 10px;
     color: inherit;
@@ -97,7 +155,18 @@
     border-radius: 5px;
 }
 
-.timing-actions button:hover:not(:disabled), .timing-actions button:focus-visible {
+.timing-review-export {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--theme-foreground-color);
+    white-space: nowrap;
+}
+
+.timing-actions button:hover:not(:disabled),
+.timing-actions button:focus-visible,
+.timing-review-export:hover,
+.timing-review-export:focus-visible {
     border-color: var(--theme-color);
 }
 
@@ -995,6 +1064,20 @@
         padding-bottom: var(--timing-follow-end-space, 34svh);
     }
 
+    .timing-page.word-mode {
+        display: block;
+        padding-bottom: 190px;
+    }
+
+    .word-mode .synchronizer-workspace {
+        position: static;
+        max-height: none;
+        margin-top: 7px;
+        overflow: visible;
+        border: 0;
+        border-radius: 0;
+    }
+
     .timing-toolbar {
         top: 68px;
         display: flex;
@@ -1022,6 +1105,10 @@
 
     .word-mode .timing-actions {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .word-mode .timing-review-export {
+        grid-column: 1 / -1;
     }
 
     .timing-mode-switch {

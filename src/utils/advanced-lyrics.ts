@@ -23,7 +23,7 @@ export interface AdvancedLyricsDocument {
     readonly lines: readonly AdvancedLyricLine[];
 }
 
-export type ExportLyricFormat = "lrc" | "enhanced-lrc" | "krc" | "ttml" | "srt";
+export type ExportLyricFormat = "lrc" | "enhanced-lrc" | "krc" | "ttml" | "srt" | "ass-kf" | "txt";
 export type LineLyricExportFormat = "lrc" | "srt" | "ttml" | "txt";
 
 const KRC_MAGIC = new Uint8Array([0x6b, 0x72, 0x63, 0x31]);
@@ -173,7 +173,7 @@ const parseEnhancedWords = (content: string, lineStartMs: number): {
     const trailingText = content.slice(cursor);
     if (trailingText) {
         words.push({ text: trailingText, startMs: activeStart });
-        return { words, wordTimed: true };
+        return { words: normalizeWordBoundaries(words), wordTimed: true };
     }
 
     if (words.length === 0) {
@@ -181,7 +181,7 @@ const parseEnhancedWords = (content: string, lineStartMs: number): {
     }
     const last = words.at(-1)!;
     if (last.endMs === undefined) words[words.length - 1] = { ...last, endMs: activeStart };
-    return { words, endMs: activeStart, wordTimed: true };
+    return { words: normalizeWordBoundaries(words), endMs: activeStart, wordTimed: true };
 };
 
 export const parseKrc = (input: string | Uint8Array): AdvancedLyricsDocument => {
@@ -215,7 +215,7 @@ export const parseKrc = (input: string | Uint8Array): AdvancedLyricsDocument => 
         lines.push({
             startMs: lineStart,
             endMs: lineStart + lineDuration,
-            words: words.length > 0 ? words : [{ text: content }],
+            words: words.length > 0 ? normalizeWordBoundaries(words) : [{ text: content }],
         });
     }
 
@@ -306,7 +306,7 @@ export const parseTtml = (source: string, parseXml: XmlParser = browserXmlParser
         lines.push({
             startMs: paragraphStart ?? words[0]?.startMs,
             endMs: maxDefined(paragraphEnd, words.at(-1)?.endMs, backgroundEnd),
-            words,
+            words: normalizeWordBoundaries(words),
         });
     }
 
@@ -385,6 +385,19 @@ export const toLineTimedDocument = (document: AdvancedLyricsDocument): AdvancedL
         startMs: line.startMs,
         endMs: line.endMs,
         words: [{ text: displayLineText(line) }],
+    })),
+});
+
+export const createLineTimedDocument = (
+    lines: readonly { readonly text: string; readonly time?: number }[],
+    metadata: ReadonlyMap<string, string>,
+): AdvancedLyricsDocument => ({
+    sourceFormat: "lrc",
+    timingMode: "line",
+    metadata: Object.fromEntries(metadata),
+    lines: lines.map((line) => ({
+        startMs: line.time === undefined ? undefined : Math.round(line.time * 1000),
+        words: [{ text: line.text }],
     })),
 });
 
@@ -492,6 +505,69 @@ export const toTtml = (document: AdvancedLyricsDocument): string => {
     return `<?xml version="1.0" encoding="UTF-8"?>\n<tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata" xmlns:itunes="http://music.apple.com/lyric-ttml-internal" itunes:timing="${timing}">\n  <head>\n    <metadata>\n${metadata}\n    </metadata>\n  </head>\n  <body>\n    <div>\n${body}\n    </div>\n  </body>\n</tt>\n`;
 };
 
+export const toAssKaraoke = (document: AdvancedLyricsDocument): string => {
+    for (const [lineIndex, line] of document.lines.entries()) {
+        if (!lineText(line)) continue;
+        const nextLineStart = document.lines.slice(lineIndex + 1)
+            .find((candidate) => candidate.startMs !== undefined)?.startMs;
+        const lastWordEnd = [...line.words].reverse().find((word) => word.endMs !== undefined)?.endMs;
+        if (
+            line.startMs === undefined
+            || line.words.some((word) => word.text && word.startMs === undefined)
+            || (line.endMs ?? lastWordEnd ?? nextLineStart) === undefined
+        ) {
+            throw new Error("ASS karaoke export requires complete word timing");
+        }
+    }
+    const resolvedLines = resolveLineRanges(document.lines);
+    const events: string[] = [];
+    for (const [lineIndex, line] of document.lines.entries()) {
+        if (!lineText(line)) continue;
+        const range = resolvedLines[lineIndex];
+        const words = resolveWordRanges(line, range.startMs, range.endMs);
+        let cursorCentiseconds = 0;
+        let karaokeText = "";
+        for (const word of words) {
+            const startCentiseconds = Math.max(
+                cursorCentiseconds,
+                Math.round((word.startMs - range.startMs) / 10),
+            );
+            if (startCentiseconds > cursorCentiseconds) {
+                karaokeText += `{\\kf${startCentiseconds - cursorCentiseconds}}`;
+            }
+            const endCentiseconds = Math.max(
+                startCentiseconds + 1,
+                Math.round((word.endMs - range.startMs) / 10),
+            );
+            karaokeText += `{\\kf${endCentiseconds - startCentiseconds}}${escapeAssText(word.text)}`;
+            cursorCentiseconds = endCentiseconds;
+        }
+        const eventEnd = Math.max(range.endMs, range.startMs + cursorCentiseconds * 10);
+        events.push(
+            `Dialogue: 0,${formatAssTime(range.startMs)},${formatAssTime(eventEnd)},Default,,0,0,0,,${karaokeText}`,
+        );
+    }
+
+    return [
+        "[Script Info]",
+        "ScriptType: v4.00+",
+        "WrapStyle: 0",
+        "ScaledBorderAndShadow: yes",
+        "PlayResX: 1920",
+        "PlayResY: 1080",
+        "YCbCr Matrix: TV.709",
+        "",
+        "[V4+ Styles]",
+        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+        "Style: Default,Arial,52,&H00FFFFFF,&H00F58EA8,&H00181818,&H64000000,-1,0,0,0,100,100,0,0,1,2,0,2,60,60,48,1",
+        "",
+        "[Events]",
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+        ...events,
+        "",
+    ].join("\r\n");
+};
+
 export const serializeLyrics = (
     document: AdvancedLyricsDocument,
     format: ExportLyricFormat,
@@ -508,6 +584,10 @@ export const serializeLyrics = (
             return toTtml(document);
         case "srt":
             return toSrt(document);
+        case "ass-kf":
+            return toAssKaraoke(document);
+        case "txt":
+            return document.lines.map(lineText).join("\r\n");
     }
 };
 
@@ -557,8 +637,37 @@ export const tokenizeLyricText = (text: string): readonly TimedWord[] => {
         if (previous) words[words.length - 1] = { ...previous, text: previous.text + prefix };
         else words.push({ text: prefix });
     }
+    return normalizeWordBoundaries(words);
+};
+
+export const normalizeWordBoundaries = (input: readonly TimedWord[]): TimedWord[] => {
+    const words = input.map((word) => ({ ...word }));
+    for (let index = 0; index + 1 < words.length; index += 1) {
+        const current = words[index];
+        const opening = /([([{（［｛“‘《「『【]+)$/u.exec(current.text)?.[1];
+        if (!opening) continue;
+        const remaining = current.text.slice(0, -opening.length);
+        const next = words[index + 1];
+        if (!remaining.trim()) {
+            words[index + 1] = {
+                ...next,
+                text: remaining + opening + next.text,
+                startMs: current.startMs ?? next.startMs,
+            };
+            words.splice(index, 1);
+            index -= 1;
+            continue;
+        }
+        words[index] = { ...current, text: remaining };
+        words[index + 1] = { ...next, text: opening + next.text };
+    }
     return words;
 };
+
+export const normalizeAdvancedDocument = (document: AdvancedLyricsDocument): AdvancedLyricsDocument => ({
+    ...document,
+    lines: document.lines.map((line) => ({ ...line, words: normalizeWordBoundaries(line.words) })),
+});
 
 const segmentDictionaryScript = (text: string): string[] | null => {
     const Segmenter = (Intl as unknown as {
@@ -863,6 +972,24 @@ const formatSrtTime = (milliseconds: number): string => {
 };
 
 const formatTtmlTime = (milliseconds: number): string => `${(Math.max(0, milliseconds) / 1000).toFixed(3)}s`;
+
+const formatAssTime = (milliseconds: number): string => {
+    const centiseconds = Math.max(0, Math.round(milliseconds / 10));
+    const hours = Math.floor(centiseconds / 360_000);
+    const minutes = Math.floor(centiseconds % 360_000 / 6000);
+    const seconds = Math.floor(centiseconds % 6000 / 100);
+    const fraction = centiseconds % 100;
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}.${
+        fraction.toString().padStart(2, "0")
+    }`;
+};
+
+const escapeAssText = (value: string): string =>
+    value
+        .replace(/\\/gu, "\\\\")
+        .replace(/\{/gu, "\\{")
+        .replace(/\}/gu, "\\}")
+        .replace(/\r\n|\r|\n/gu, "\\N");
 
 const escapeXml = (value: string): string =>
     value

@@ -1,5 +1,8 @@
 {
     "ja": {
+        "header": {
+            "wordSynchronizer": "単語タイミング"
+        },
         "loadAudio": {
             "loadFile": "ローカルの音声または動画を選択",
             "urlPlaceholder": "音声、NetEase、QQ Music、YouTube、Bilibili の URL",
@@ -93,6 +96,17 @@
             "exportFormat": "書き出し形式",
             "enhancedLrc": "Enhanced LRC",
             "standardLrc": "標準 LRC",
+            "standardLrcDefault": "標準 LRC（既定）",
+            "lineSrt": "SRT（行単位）",
+            "lineTtml": "TTML（行単位）",
+            "wordTtml": "TTML（単語単位）",
+            "assKf": "ASS（\\kf カラオケ）",
+            "plainText": "プレーンテキスト",
+            "lineOnlyExport": "行タイミングのみ",
+            "exportUnavailable": "この形式に必要な行タイミングを設定してから書き出してください。",
+            "openWordTiming": "単語タイミングを開く",
+            "reviewAndExport": "編集と書き出し",
+            "wordTimingDisabled": "設定で高度な歌詞形式を有効にしてから単語タイミングを開いてください",
             "lineStart": "行の開始",
             "lineEnd": "行の終了",
             "wordStart": "単語の開始",
@@ -106,6 +120,8 @@
             "duplicateWordTime": "前の区間と同じ時刻です",
             "backwardsWordTime": "単語時刻が前の区間より早くなっています",
             "copyComplete": "書き出しテキストをコピーしました。",
+            "copyExport": "選択した形式をコピー",
+            "downloadExport": "選択した形式をダウンロード",
             "krcCopyUnavailable": "KRC はバイナリ形式のため、ダウンロードのみ可能です。",
             "wordTimingWorkspace": "集中ワードタイミング",
             "overallProgress": "全体の進捗",
@@ -134,6 +150,7 @@
             "releaseWord": "離して確定・次へ",
             "timingLane": "現在行のタイミングレーン",
             "restartFromWord": "現在の単語から再記録",
+            "nextUntimed": "次の未設定単語へ",
             "distributeLine": "現在行を均等配分",
             "draftTimingHint": "まず行全体の下書きを作り、必要な境界だけを修正します。"
         },
@@ -225,6 +242,9 @@
         }
     },
     "ko-KR": {
+        "header": {
+            "wordSynchronizer": "단어 타이밍"
+        },
         "loadAudio": {
             "loadFile": "로컬 오디오 또는 비디오 선택",
             "urlPlaceholder": "오디오, NetEase, QQ Music, YouTube 또는 Bilibili URL",
@@ -318,6 +338,17 @@
             "exportFormat": "내보내기 형식",
             "enhancedLrc": "Enhanced LRC",
             "standardLrc": "표준 LRC",
+            "standardLrcDefault": "표준 LRC(기본값)",
+            "lineSrt": "SRT(줄 단위)",
+            "lineTtml": "TTML(줄 단위)",
+            "wordTtml": "TTML(단어 단위)",
+            "assKf": "ASS(\\kf 가라오케)",
+            "plainText": "일반 텍스트",
+            "lineOnlyExport": "줄 타이밍만 유지",
+            "exportUnavailable": "이 형식에 필요한 줄 타이밍을 먼저 완성하세요.",
+            "openWordTiming": "단어 타이밍 열기",
+            "reviewAndExport": "편집 및 내보내기",
+            "wordTimingDisabled": "설정에서 고급 가사 형식을 활성화한 뒤 단어 타이밍을 여세요",
             "lineStart": "줄 시작",
             "lineEnd": "줄 끝",
             "wordStart": "단어 시작",
@@ -331,6 +362,8 @@
             "duplicateWordTime": "이전 구간과 시간이 같습니다",
             "backwardsWordTime": "단어 시간이 이전 구간보다 빠릅니다",
             "copyComplete": "내보내기 텍스트를 복사했습니다.",
+            "copyExport": "선택한 형식 복사",
+            "downloadExport": "선택한 형식 다운로드",
             "krcCopyUnavailable": "KRC는 바이너리 형식이므로 다운로드만 가능합니다.",
             "wordTimingWorkspace": "집중 단어 타이밍",
             "overallProgress": "전체 진행률",
@@ -359,6 +392,7 @@
             "releaseWord": "놓아서 완료하고 다음으로",
             "timingLane": "현재 줄 타이밍 레인",
             "restartFromWord": "현재 단어부터 다시 기록",
+            "nextUntimed": "다음 미설정 단어로",
             "distributeLine": "현재 줄 균등 배분",
             "draftTimingHint": "먼저 줄 전체 초안을 만든 뒤 필요한 경계만 수정하세요."
         },
@@ -450,6 +484,9 @@
         }
     },
     "pl-PL": {
+        "header": {
+            "wordSynchronizer": "Synchronizacja słów"
+        },
         "loadAudio": {
             "loadFile": "Wybierz lokalny plik audio lub wideo",
             "urlPlaceholder": "Adres audio, NetEase, QQ Music, YouTube lub Bilibili",
@@ -543,6 +580,17 @@
             "exportFormat": "Format eksportu",
             "enhancedLrc": "Enhanced LRC",
             "standardLrc": "Standardowy LRC",
+            "standardLrcDefault": "Standardowy LRC (domyślnie)",
+            "lineSrt": "SRT (wiersze)",
+            "lineTtml": "TTML (wiersze)",
+            "wordTtml": "TTML (słowa)",
+            "assKf": "ASS (karaoke \\kf)",
+            "plainText": "Zwykły tekst",
+            "lineOnlyExport": "Tylko czasy wierszy",
+            "exportUnavailable": "Najpierw uzupełnij czasy wierszy wymagane przez ten format.",
+            "openWordTiming": "Otwórz synchronizację słów",
+            "reviewAndExport": "Edytuj i eksportuj",
+            "wordTimingDisabled": "Najpierw włącz zaawansowane formaty tekstów w ustawieniach",
             "lineStart": "Początek wiersza",
             "lineEnd": "Koniec wiersza",
             "wordStart": "Początek słowa",
@@ -556,6 +604,8 @@
             "duplicateWordTime": "Czas powtarza poprzedni segment",
             "backwardsWordTime": "Czas słowa cofa się względem poprzedniego segmentu",
             "copyComplete": "Skopiowano tekst eksportu.",
+            "copyExport": "Kopiuj wybrany format",
+            "downloadExport": "Pobierz wybrany format",
             "krcCopyUnavailable": "KRC jest formatem binarnym i można go tylko pobrać.",
             "wordTimingWorkspace": "Skupione taktowanie słów",
             "overallProgress": "Postęp utworu",
@@ -584,6 +634,7 @@
             "releaseWord": "Puść, aby zakończyć i przejść dalej",
             "timingLane": "Oś czasu aktywnego wiersza",
             "restartFromWord": "Nagraj ponownie od bieżącego słowa",
+            "nextUntimed": "Następne słowo bez czasu",
             "distributeLine": "Rozłóż wiersz równomiernie",
             "draftTimingHint": "Najpierw utwórz szkic całego wiersza, potem popraw tylko potrzebne granice."
         },
@@ -675,6 +726,9 @@
         }
     },
     "pt-BR": {
+        "header": {
+            "wordSynchronizer": "Sincronização de palavras"
+        },
         "loadAudio": {
             "loadFile": "Escolha um arquivo local de áudio ou vídeo",
             "urlPlaceholder": "URL de áudio, NetEase, QQ Music, YouTube ou Bilibili",
@@ -768,6 +822,17 @@
             "exportFormat": "Formato de exportação",
             "enhancedLrc": "Enhanced LRC",
             "standardLrc": "LRC padrão",
+            "standardLrcDefault": "LRC padrão (predefinido)",
+            "lineSrt": "SRT (por linha)",
+            "lineTtml": "TTML (por linha)",
+            "wordTtml": "TTML (por palavra)",
+            "assKf": "ASS (karaokê \\kf)",
+            "plainText": "Texto simples",
+            "lineOnlyExport": "Somente tempos de linha",
+            "exportUnavailable": "Complete primeiro os tempos de linha exigidos por este formato.",
+            "openWordTiming": "Abrir sincronização por palavra",
+            "reviewAndExport": "Editar e exportar",
+            "wordTimingDisabled": "Ative os formatos avançados nas configurações antes de abrir a sincronização por palavra",
             "lineStart": "Início da linha",
             "lineEnd": "Fim da linha",
             "wordStart": "Início da palavra",
@@ -781,6 +846,8 @@
             "duplicateWordTime": "O tempo repete o segmento anterior",
             "backwardsWordTime": "O tempo da palavra volta em relação ao segmento anterior",
             "copyComplete": "Texto de exportação copiado.",
+            "copyExport": "Copiar formato selecionado",
+            "downloadExport": "Baixar formato selecionado",
             "krcCopyUnavailable": "KRC é um formato binário e só pode ser baixado.",
             "wordTimingWorkspace": "Sincronização focada por palavra",
             "overallProgress": "Progresso da música",
@@ -809,6 +876,7 @@
             "releaseWord": "Solte para concluir e avançar",
             "timingLane": "Faixa de tempo da linha ativa",
             "restartFromWord": "Regravar a partir da palavra atual",
+            "nextUntimed": "Próxima palavra sem tempo",
             "distributeLine": "Distribuir linha igualmente",
             "draftTimingHint": "Crie primeiro um rascunho da linha e corrija apenas os limites necessários."
         },
@@ -900,6 +968,9 @@
         }
     },
     "sk-SK": {
+        "header": {
+            "wordSynchronizer": "Časovanie slov"
+        },
         "loadAudio": {
             "loadFile": "Vyberte miestny zvukový alebo video súbor",
             "urlPlaceholder": "Adresa zvuku, NetEase, QQ Music, YouTube alebo Bilibili",
@@ -993,6 +1064,17 @@
             "exportFormat": "Formát exportu",
             "enhancedLrc": "Enhanced LRC",
             "standardLrc": "Štandardný LRC",
+            "standardLrcDefault": "Štandardný LRC (predvolené)",
+            "lineSrt": "SRT (po riadkoch)",
+            "lineTtml": "TTML (po riadkoch)",
+            "wordTtml": "TTML (po slovách)",
+            "assKf": "ASS (karaoke \\kf)",
+            "plainText": "Obyčajný text",
+            "lineOnlyExport": "Len časovanie riadkov",
+            "exportUnavailable": "Najprv doplňte časovanie riadkov požadované týmto formátom.",
+            "openWordTiming": "Otvoriť časovanie slov",
+            "reviewAndExport": "Upraviť a exportovať",
+            "wordTimingDisabled": "Pred otvorením časovania slov povoľte v nastaveniach pokročilé formáty",
             "lineStart": "Začiatok riadka",
             "lineEnd": "Koniec riadka",
             "wordStart": "Začiatok slova",
@@ -1006,6 +1088,8 @@
             "duplicateWordTime": "Čas sa zhoduje s predchádzajúcim úsekom",
             "backwardsWordTime": "Čas slova ide späť oproti predchádzajúcemu úseku",
             "copyComplete": "Text exportu bol skopírovaný.",
+            "copyExport": "Kopírovať zvolený formát",
+            "downloadExport": "Stiahnuť zvolený formát",
             "krcCopyUnavailable": "KRC je binárny formát a dá sa iba stiahnuť.",
             "wordTimingWorkspace": "Sústredené časovanie slov",
             "overallProgress": "Priebeh skladby",
@@ -1034,6 +1118,7 @@
             "releaseWord": "Uvoľnite na dokončenie a posun",
             "timingLane": "Časová dráha aktívneho riadka",
             "restartFromWord": "Znova zaznamenať od aktuálneho slova",
+            "nextUntimed": "Ďalšie slovo bez času",
             "distributeLine": "Rovnomerne rozdeliť riadok",
             "draftTimingHint": "Najprv vytvorte návrh celého riadka a opravte iba potrebné hranice."
         },
@@ -1125,6 +1210,9 @@
         }
     },
     "zh-HK": {
+        "header": {
+            "wordSynchronizer": "逐字打軸"
+        },
         "loadAudio": {
             "loadFile": "選擇本機音訊或影片",
             "urlPlaceholder": "音訊、網易雲、QQ 音樂、YouTube 或嗶哩嗶哩連結",
@@ -1218,6 +1306,17 @@
             "exportFormat": "匯出格式",
             "enhancedLrc": "Enhanced LRC",
             "standardLrc": "標準 LRC",
+            "standardLrcDefault": "標準 LRC（預設）",
+            "lineSrt": "SRT（逐行）",
+            "lineTtml": "TTML（逐行）",
+            "wordTtml": "TTML（逐字）",
+            "assKf": "ASS（\\kf 卡拉 OK）",
+            "plainText": "純文字",
+            "lineOnlyExport": "只保留逐行時間",
+            "exportUnavailable": "請先補齊此格式所需的逐行時間，再進行匯出。",
+            "openWordTiming": "開啟逐字打軸",
+            "reviewAndExport": "編輯與匯出",
+            "wordTimingDisabled": "請先在設定中啟用進階歌詞格式，再開啟逐字打軸",
             "lineStart": "行開始",
             "lineEnd": "行結束",
             "wordStart": "字詞開始",
@@ -1231,6 +1330,8 @@
             "duplicateWordTime": "字詞時間與上一個片段重複",
             "backwardsWordTime": "字詞時間早於上一個片段",
             "copyComplete": "已複製目前匯出文字。",
+            "copyExport": "複製所選匯出格式",
+            "downloadExport": "下載所選匯出格式",
             "krcCopyUnavailable": "KRC 是二進位格式，只能下載。",
             "wordTimingWorkspace": "專注逐字打軸",
             "overallProgress": "全曲進度",
@@ -1259,6 +1360,7 @@
             "releaseWord": "放開完成並前進",
             "timingLane": "目前行時間軌",
             "restartFromWord": "從目前字詞重新打軸",
+            "nextUntimed": "跳到下一個未打軸字詞",
             "distributeLine": "均分目前行",
             "draftTimingHint": "先產生整行草稿，再只修需要調整的邊界。"
         },
@@ -1350,6 +1452,9 @@
         }
     },
     "zh-TW": {
+        "header": {
+            "wordSynchronizer": "逐字打軸"
+        },
         "loadAudio": {
             "loadFile": "選擇本機音訊或影片",
             "urlPlaceholder": "音訊、網易雲、QQ 音樂、YouTube 或嗶哩嗶哩連結",
@@ -1443,6 +1548,17 @@
             "exportFormat": "匯出格式",
             "enhancedLrc": "Enhanced LRC",
             "standardLrc": "標準 LRC",
+            "standardLrcDefault": "標準 LRC（預設）",
+            "lineSrt": "SRT（逐行）",
+            "lineTtml": "TTML（逐行）",
+            "wordTtml": "TTML（逐字）",
+            "assKf": "ASS（\\kf 卡拉 OK）",
+            "plainText": "純文字",
+            "lineOnlyExport": "僅保留逐行時間",
+            "exportUnavailable": "請先補齊此格式需要的逐行時間，再進行匯出。",
+            "openWordTiming": "開啟逐字打軸",
+            "reviewAndExport": "編輯與匯出",
+            "wordTimingDisabled": "請先在設定中啟用進階歌詞格式，再開啟逐字打軸",
             "lineStart": "行開始",
             "lineEnd": "行結束",
             "wordStart": "字詞開始",
@@ -1456,6 +1572,8 @@
             "duplicateWordTime": "字詞時間與上一個片段重複",
             "backwardsWordTime": "字詞時間早於上一個片段",
             "copyComplete": "已複製目前匯出文字。",
+            "copyExport": "複製所選匯出格式",
+            "downloadExport": "下載所選匯出格式",
             "krcCopyUnavailable": "KRC 是二進位格式，只能下載。",
             "wordTimingWorkspace": "專注逐字打軸",
             "overallProgress": "全曲進度",
@@ -1484,6 +1602,7 @@
             "releaseWord": "放開完成並前進",
             "timingLane": "目前行時間軌",
             "restartFromWord": "從目前字詞重新打軸",
+            "nextUntimed": "跳到下一個未打軸字詞",
             "distributeLine": "均分目前行",
             "draftTimingHint": "先產生整行草稿，再只修需要調整的邊界。"
         },

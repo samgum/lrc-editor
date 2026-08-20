@@ -26,6 +26,7 @@ interface WordTimingStageProps {
     onStamp: () => void;
     onHoldStart: () => void;
     onHoldEnd: () => void;
+    onHoldCancel: () => void;
     onCaptureModeChange: (holdMode: boolean) => void;
     onCompensationChange: (milliseconds: number) => void;
     onPreviewLeadChange: (milliseconds: number) => void;
@@ -33,6 +34,7 @@ interface WordTimingStageProps {
     onSeek: (milliseconds: number) => void;
     onDistributeLine: (startMs: number, endMs: number) => void;
     onRestartFromWord: () => void;
+    onNextUntimed: () => void;
     onPrevious: () => void;
     onNext: () => void;
     onPreviewWord: () => void;
@@ -57,6 +59,7 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
     onStamp,
     onHoldStart,
     onHoldEnd,
+    onHoldCancel,
     onCaptureModeChange,
     onCompensationChange,
     onPreviewLeadChange,
@@ -64,6 +67,7 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
     onSeek,
     onDistributeLine,
     onRestartFromWord,
+    onNextUntimed,
     onPrevious,
     onNext,
     onPreviewWord,
@@ -73,6 +77,7 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
     const self = useRef(Symbol(WordTimingStage.name));
     const currentTimeRef = useRef<HTMLTimeElement>(null);
     const playheadRef = useRef<HTMLElement>(null);
+    const selectedWordRef = useRef<HTMLButtonElement>(null);
     const line = document.lines[cursor.lineIndex];
     const word = line?.words[cursor.wordIndex];
     const previousLine = document.lines[cursor.lineIndex - 1];
@@ -98,6 +103,14 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
         update(audioRef.currentTime);
         return currentTimePubSub.sub(self.current, update);
     }, [fixed, lineEndMs, lineStartMs]);
+
+    useEffect(() => {
+        selectedWordRef.current?.scrollIntoView({
+            behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+            block: "nearest",
+            inline: "center",
+        });
+    }, [cursor.lineIndex, cursor.wordIndex]);
 
     const progress = useMemo(() => {
         let total = 0;
@@ -243,6 +256,7 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
                                 <button
                                     type="button"
                                     key={wordIndex}
+                                    ref={selected ? selectedWordRef : undefined}
                                     className={`word-stage-word${selected ? " selected" : ""}${
                                         playing ? " playing" : ""
                                     }${timed ? " timed" : " untimed"}${issue ? " issue" : ""}`}
@@ -371,7 +385,7 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
                         }
                         onHoldEnd();
                     }}
-                    onPointerCancel={() => holdMode && onHoldEnd()}
+                    onPointerCancel={() => holdMode && onHoldCancel()}
                 >
                     <span>
                         {holdMode ? (isHolding ? language.releaseWord : language.holdWord) : language.captureWord}
@@ -397,6 +411,9 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
                 </button>
             </div>
             <div className="word-stage-draft-actions">
+                <button type="button" onClick={onNextUntimed}>
+                    {language.nextUntimed}
+                </button>
                 <button type="button" onClick={onRestartFromWord}>
                     {language.restartFromWord}
                 </button>

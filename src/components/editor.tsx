@@ -1,12 +1,18 @@
 import BRAND from "#const/brand.json" assert { type: "json" };
 import ROUTER from "#const/router.json" assert { type: "json" };
 import SSK from "#const/session_key.json" assert { type: "json" };
-import { type State as LrcState, stringify } from "@lrc-maker/lrc-parser";
+import { parser, type State as LrcState, stringify } from "@lrc-maker/lrc-parser";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { type AdvancedLyricsAction, type AdvancedLyricsState } from "../hooks/useAdvancedLyrics.js";
 import type { Action as LrcAction } from "../hooks/useLrc.js";
 import { ActionType as LrcActionType } from "../hooks/useLrc.js";
-import { type ExportLyricFormat, type LyricsWorkspaceMode, serializeLyrics } from "../utils/advanced-lyrics.js";
+import {
+    createLineTimedDocument,
+    exportLineLyrics,
+    type ExportLyricFormat,
+    type LyricsWorkspaceMode,
+    serializeLyrics,
+} from "../utils/advanced-lyrics.js";
 import { createUntimedTranscript, validateAlignedLyrics } from "../utils/ai-alignment-result.js";
 import {
     getAiAlignmentSessionSnapshot,
@@ -125,7 +131,7 @@ export const Editor: React.FC<{
 
     const textarea = useRef<HTMLInputLikeElement>(null);
     const textareaDefaultValue = useDefaultValue(text, textarea);
-    const [exportFormat, setExportFormat] = useState<ExportLyricFormat>("enhanced-lrc");
+    const [exportFormat, setExportFormat] = useState<ExportLyricFormat>("lrc");
     const aiSession = useSyncExternalStore(
         subscribeAiAlignmentSession,
         getAiAlignmentSessionSnapshot,
@@ -134,25 +140,51 @@ export const Editor: React.FC<{
     const aiState = aiSession.state;
 
     const exportPayload = useCallback((): string | Uint8Array => {
-        if (timingMode === "word" && advancedState.document) {
-            return serializeLyrics(advancedState.document, exportFormat, prefState.fixed);
+        const source = textarea.current?.value ?? text;
+        const parsed = parser(source, trimOptions);
+        const document = timingMode === "word" && advancedState.document
+            ? advancedState.document
+            : createLineTimedDocument(parsed.lyric, parsed.info);
+        if (exportFormat === "srt" || (exportFormat === "ttml" && timingMode === "line")) {
+            return exportLineLyrics(document, exportFormat, prefState.fixed);
         }
-        return textarea.current?.value ?? text;
-    }, [advancedState.document, exportFormat, prefState.fixed, text, timingMode]);
+        if (exportFormat === "txt") return exportLineLyrics(document, "txt", prefState.fixed);
+        return serializeLyrics(document, exportFormat, prefState.fixed);
+    }, [advancedState.document, exportFormat, prefState.fixed, text, timingMode, trimOptions]);
 
-    const exportExtension = timingMode === "word"
-        ? { lrc: ".lrc", "enhanced-lrc": ".lrc", krc: ".krc", ttml: ".ttml", srt: ".srt" }[exportFormat]
-        : ".lrc";
+    const exportExtension = {
+        lrc: ".lrc",
+        "enhanced-lrc": ".lrc",
+        krc: ".krc",
+        ttml: ".ttml",
+        srt: ".srt",
+        "ass-kf": ".ass",
+        txt: ".txt",
+    }[exportFormat];
+
+    useEffect(() => {
+        if (timingMode === "line" && !["lrc", "srt", "ttml", "txt"].includes(exportFormat)) {
+            setExportFormat("lrc");
+        }
+    }, [exportFormat, timingMode]);
 
     const onDownloadClick = useCallback((event: React.MouseEvent<HTMLAnchorElement>) => {
         event.preventDefault();
-        const payload = exportPayload();
+        let payload: string | Uint8Array;
+        try {
+            payload = exportPayload();
+        } catch {
+            toastPubSub.pub({ type: "warning", text: lang.advancedLyrics.exportUnavailable });
+            return;
+        }
         const blobPart: BlobPart = typeof payload === "string"
             ? payload
             : new Uint8Array(payload).buffer as ArrayBuffer;
         const blob = new Blob([blobPart], {
             type: exportFormat === "krc" && timingMode === "word"
                 ? "application/octet-stream"
+                : exportFormat === "ass-kf"
+                ? "text/x-ssa;charset=UTF-8"
                 : "text/plain;charset=UTF-8",
         });
         const url = URL.createObjectURL(blob);
@@ -166,7 +198,14 @@ export const Editor: React.FC<{
             link.remove();
             URL.revokeObjectURL(url);
         }, 1000);
-    }, [exportExtension, exportFormat, exportPayload, lrcState.info, timingMode]);
+    }, [
+        exportExtension,
+        exportFormat,
+        exportPayload,
+        lang.advancedLyrics.exportUnavailable,
+        lrcState.info,
+        timingMode,
+    ]);
 
     const onTextFileUpload = useCallback(
         (ev: React.ChangeEvent<HTMLInputElement>) => {
@@ -181,12 +220,13 @@ export const Editor: React.FC<{
     );
 
     const onCopyClick = useCallback(() => {
-        if (timingMode === "line") {
-            textarea.current?.select();
-            document.execCommand("copy");
+        let payload: string | Uint8Array;
+        try {
+            payload = exportPayload();
+        } catch {
+            toastPubSub.pub({ type: "warning", text: lang.advancedLyrics.exportUnavailable });
             return;
         }
-        const payload = exportPayload();
         if (payload instanceof Uint8Array) {
             toastPubSub.pub({ type: "warning", text: lang.advancedLyrics.krcCopyUnavailable });
             return;
@@ -194,7 +234,7 @@ export const Editor: React.FC<{
         void navigator.clipboard.writeText(payload).then(() => {
             toastPubSub.pub({ type: "success", text: lang.advancedLyrics.copyComplete });
         });
-    }, [exportPayload, lang.advancedLyrics, timingMode]);
+    }, [exportPayload, lang.advancedLyrics]);
 
     const downloadName = useMemo(
         () => lrcFileName(lrcState.info, exportExtension),
@@ -406,12 +446,18 @@ export const Editor: React.FC<{
                         />
                         <OpenFileSVG />
                     </label>
-                    <button className="editor-tools-item ripple" title={lang.editor.copyText} onClick={onCopyClick}>
+                    <button
+                        className="editor-tools-item ripple"
+                        title={lang.advancedLyrics.copyExport}
+                        aria-label={lang.advancedLyrics.copyExport}
+                        onClick={onCopyClick}
+                    >
                         <CopySVG />
                     </button>
                     <a
                         className="editor-tools-item ripple"
-                        title={lang.editor.downloadText}
+                        title={lang.advancedLyrics.downloadExport}
+                        aria-label={lang.advancedLyrics.downloadExport}
                         href="#"
                         onClick={onDownloadClick}
                         download={downloadName}
@@ -425,23 +471,42 @@ export const Editor: React.FC<{
                 </section>
             </header>
 
+            <label className="advanced-editor-subbar">
+                <span>{lang.advancedLyrics.exportFormat}</span>
+                <select
+                    className="advanced-export-select"
+                    value={exportFormat}
+                    onChange={(event) => setExportFormat(event.target.value as ExportLyricFormat)}
+                >
+                    <option value="lrc">{lang.advancedLyrics.standardLrcDefault}</option>
+                    {timingMode === "word" && (
+                        <>
+                            <option value="enhanced-lrc">{lang.advancedLyrics.enhancedLrc}</option>
+                            <option value="krc">KRC</option>
+                            <option value="ttml">{lang.advancedLyrics.wordTtml}</option>
+                            <option value="ass-kf">{lang.advancedLyrics.assKf}</option>
+                        </>
+                    )}
+                    <option value="srt">{lang.advancedLyrics.lineSrt}</option>
+                    {timingMode === "line" && (
+                        <>
+                            <option value="ttml">{lang.advancedLyrics.lineTtml}</option>
+                            <option value="txt">{lang.advancedLyrics.plainText}</option>
+                        </>
+                    )}
+                </select>
+                {timingMode === "word" && ["lrc", "srt"].includes(exportFormat) && (
+                    <strong>{lang.advancedLyrics.lineOnlyExport}</strong>
+                )}
+                {timingMode === "word" && (
+                    <a className="word-timing-link" href={prependHash(ROUTER.wordSynchronizer)}>
+                        {lang.advancedLyrics.openWordTiming}
+                    </a>
+                )}
+            </label>
             {timingMode === "word" && advancedState.document
                 ? (
                     <>
-                        <label className="advanced-editor-subbar">
-                            <span>{lang.advancedLyrics.exportFormat}</span>
-                            <select
-                                className="advanced-export-select"
-                                value={exportFormat}
-                                onChange={(event) => setExportFormat(event.target.value as ExportLyricFormat)}
-                            >
-                                <option value="enhanced-lrc">{lang.advancedLyrics.enhancedLrc}</option>
-                                <option value="lrc">{lang.advancedLyrics.standardLrc}</option>
-                                <option value="krc">KRC</option>
-                                <option value="ttml">TTML</option>
-                                <option value="srt">SRT</option>
-                            </select>
-                        </label>
                         <AdvancedLyricsEditor
                             state={advancedState}
                             dispatch={advancedDispatch}

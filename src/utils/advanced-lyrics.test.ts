@@ -15,6 +15,7 @@ import {
     parseTtml,
     reconcileAdvancedDocument,
     serializeLyrics,
+    toAssKaraoke,
     toEnhancedLrc,
     tokenizeLyricText,
     toKrc,
@@ -52,6 +53,32 @@ describe("advanced lyric formats", () => {
         expect(toEnhancedLrc(document, 3)).toContain(
             "[00:06.970]<00:06.970>Me <00:07.361>and<00:07.659>",
         );
+    });
+
+    it("moves opening punctuation to the following timed segment without changing the line", () => {
+        const document = parseEnhancedLrc(
+            "[00:01.000]<00:01.000>xxx(<00:01.500>next<00:02.000>",
+        );
+        expect(document.lines[0].words.map((word) => word.text)).toEqual(["xxx", "(next"]);
+        expect(displayLineText(document.lines[0])).toBe("xxx(next");
+
+        const standalone = parseKrc("[1000,1000]<0,300,0>(<300,700,0>next");
+        expect(standalone.lines[0].words.map((word) => word.text)).toEqual(["(next"]);
+        expect(standalone.lines[0].words[0].startMs).toBe(1000);
+    });
+
+    it("exports real ASS kf karaoke tags in centiseconds without dropping text", () => {
+        const document = parseEnhancedLrc(
+            "[00:01.000]<00:01.000>(Hi <00:01.300>there)<00:02.000>",
+        );
+        const ass = toAssKaraoke(document);
+        expect(ass).toContain("[V4+ Styles]");
+        expect(ass).toContain("[Events]");
+        expect(ass).toContain("Dialogue: 0,0:00:01.00,0:00:02.00,Default");
+        expect(ass).toContain("{\\kf30}(Hi {\\kf70}there)");
+        expect(ass).not.toContain("undefined");
+        expect(() => toAssKaraoke(createWordTimedDocument([{ text: "not timed" }], new Map())))
+            .toThrow("complete word timing");
     });
 
     it("keeps ordinary LRC in line mode", () => {

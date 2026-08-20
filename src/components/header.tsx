@@ -17,6 +17,7 @@ import {
     SunSVG,
     SynchronizerSVG,
     UtilitySVG,
+    WordSynchronizerSVG,
 } from "./svg.js";
 
 export const Header: React.FC = () => {
@@ -50,6 +51,9 @@ export const Header: React.FC = () => {
     const navigation = [
         { path: ROUTER.editor, label: lang.header.editor, icon: <EditorSVG /> },
         { path: ROUTER.synchronizer, label: lang.header.synchronizer, icon: <SynchronizerSVG /> },
+        ...(prefState.advancedLyricsEnabled
+            ? [{ path: ROUTER.wordSynchronizer, label: lang.header.wordSynchronizer, icon: <WordSynchronizerSVG /> }]
+            : []),
         { path: ROUTER.tools, label: lang.header.tools, icon: <UtilitySVG /> },
         { path: ROUTER.preferences, label: lang.header.preferences, icon: <PreferencesSVG /> },
         { path: ROUTER.keybindings, label: lang.header.keybindings, icon: <KeyBindingsSVG /> },
