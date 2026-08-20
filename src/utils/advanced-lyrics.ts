@@ -513,20 +513,61 @@ export const serializeLyrics = (
 
 export const tokenizeLyricText = (text: string): readonly TimedWord[] => {
     if (!text) return [{ text: "" }];
-    const pieces = text.match(
-        /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]|[\p{L}\p{N}\p{M}]+(?:['’-][\p{L}\p{N}\p{M}]+)*|[^\p{L}\p{N}\p{M}\s]+|\s+/gu,
+    const lexicalPieces = text.match(
+        /[\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]+|[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]|[\p{L}\p{N}\p{M}]+(?:['’ʼ-][\p{L}\p{N}\p{M}]+)*|[^\p{L}\p{N}\p{M}\s]|\s+/gu,
     ) || [text];
+    const pieces = lexicalPieces.flatMap((piece) =>
+        /^[\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]+$/u.test(piece)
+            ? segmentDictionaryScript(piece) || [piece]
+            : [piece]
+    );
     const words: TimedWord[] = [];
+    let pendingSpace = false;
+    let prefix = "";
     for (const piece of pieces) {
-        if (/^\s+$/u.test(piece) || /^[^\p{L}\p{N}\p{M}\s]+$/u.test(piece)) {
-            const previous = words.at(-1);
-            if (previous) words[words.length - 1] = { ...previous, text: previous.text + piece };
-            else words.push({ text: piece });
-        } else {
-            words.push({ text: piece });
+        if (/^\s+$/u.test(piece)) {
+            if (words.length > 0) pendingSpace = true;
+            continue;
         }
+        if (/^[^\p{L}\p{N}\p{M}\s]+$/u.test(piece)) {
+            const previousText = words.at(-1)?.text.trimEnd() || "";
+            const opensNext = /^[([{（［｛“‘《「『【]/u.test(piece)
+                || (/^["']/u.test(piece)
+                    && (words.length === 0 || pendingSpace || /[:：([{（［｛《「『【]$/u.test(previousText)));
+            if (opensNext) {
+                prefix += `${pendingSpace && words.length > 0 ? " " : ""}${piece}`;
+            } else {
+                const previous = words.at(-1);
+                if (previous) words[words.length - 1] = { ...previous, text: previous.text.trimEnd() + piece };
+                else prefix += piece;
+            }
+            pendingSpace = false;
+            continue;
+        }
+        if (pendingSpace && words.length > 0) {
+            const previous = words.at(-1);
+            words[words.length - 1] = { ...previous!, text: previous!.text.trimEnd() + " " };
+        }
+        words.push({ text: prefix + piece });
+        prefix = "";
+        pendingSpace = false;
+    }
+    if (prefix) {
+        const previous = words.at(-1);
+        if (previous) words[words.length - 1] = { ...previous, text: previous.text + prefix };
+        else words.push({ text: prefix });
     }
     return words;
+};
+
+const segmentDictionaryScript = (text: string): string[] | null => {
+    const Segmenter = (Intl as unknown as {
+        Segmenter?: new(locale?: string | string[], options?: { granularity: "word" }) => {
+            segment: (value: string) => Iterable<{ segment: string }>;
+        };
+    }).Segmenter;
+    if (!Segmenter) return null;
+    return Array.from(new Segmenter(undefined, { granularity: "word" }).segment(text), (part) => part.segment);
 };
 
 export const createWordTimedDocument = (
@@ -544,7 +585,12 @@ export const createWordTimedDocument = (
         const text = line.text;
         if (current && displayLineText(current) === text) {
             const nextStart = line.time === undefined ? current.startMs : Math.round(line.time * 1000);
-            return moveLineToStart(current, nextStart);
+            const lineWithCurrentWords = current.words.every((word) =>
+                    word.startMs === undefined && word.endMs === undefined
+                )
+                ? { ...current, words: tokenizeLyricText(text) }
+                : current;
+            return moveLineToStart(lineWithCurrentWords, nextStart);
         }
         return {
             startMs: line.time === undefined ? undefined : Math.round(line.time * 1000),

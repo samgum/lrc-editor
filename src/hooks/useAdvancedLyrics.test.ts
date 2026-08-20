@@ -46,6 +46,22 @@ describe("advanced lyrics timing state", () => {
         expect(state.document?.lines[1].words[0].startMs).toBe(3500);
     });
 
+    it("records a held word start and end as one undoable gesture", () => {
+        const document = parseEnhancedLrc("[00:01.000]<00:01.000>fast <00:01.200>rap<00:01.400>");
+        let state = advancedLyricsReducer(initAdvancedLyricsState(""), {
+            type: AdvancedActionType.load,
+            payload: document,
+        });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.startHold, payload: 2000 });
+        expect(state.document?.lines[0].words[0].startMs).toBe(2000);
+        expect(state.cursor).toEqual({ lineIndex: 0, wordIndex: 0 });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.finishHold, payload: 2250 });
+        expect(state.document?.lines[0].words[0]).toMatchObject({ startMs: 2000, endMs: 2250 });
+        expect(state.cursor).toEqual({ lineIndex: 0, wordIndex: 1 });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.undo, payload: undefined });
+        expect(state.document).toEqual(document);
+    });
+
     it("undoes and redoes word edits independently", () => {
         const document = parseEnhancedLrc("[00:01.000]<00:01.000>A<00:02.000>");
         let state = advancedLyricsReducer(initAdvancedLyricsState(""), {
@@ -89,5 +105,46 @@ describe("advanced lyrics timing state", () => {
             payload: state.cursor,
         });
         expect(state.document?.lines[0].words.map((word) => word.text)).toEqual(["A", "B"]);
+    });
+
+    it("keeps the active word while reconciling new line timing", () => {
+        let state = advancedLyricsReducer(initAdvancedLyricsState(""), {
+            type: AdvancedActionType.ensureWordMode,
+            payload: { lines: [{ text: "fast rap" }], metadata: new Map() },
+        });
+        state = advancedLyricsReducer(state, {
+            type: AdvancedActionType.select,
+            payload: { lineIndex: 0, wordIndex: 1 },
+        });
+        state = advancedLyricsReducer(state, {
+            type: AdvancedActionType.ensureWordMode,
+            payload: { lines: [{ time: 2, text: "fast rap" }], metadata: new Map() },
+        });
+        expect(state.cursor).toEqual({ lineIndex: 0, wordIndex: 1 });
+        expect(state.document?.lines[0].startMs).toBe(2000);
+        expect(state.document?.lines[0].words.every((word) => word.startMs === undefined)).toBe(true);
+    });
+
+    it("creates and clears a one-step evenly distributed timing draft", () => {
+        const document = parseEnhancedLrc("[00:01.000]<00:01.000>fast <00:01.300>rap <00:01.700>line<00:02.000>");
+        let state = advancedLyricsReducer(initAdvancedLyricsState(""), {
+            type: AdvancedActionType.load,
+            payload: document,
+        });
+        state = advancedLyricsReducer(state, {
+            type: AdvancedActionType.distributeLine,
+            payload: { lineIndex: 0, startMs: 1000, endMs: 2500 },
+        });
+        expect(state.document?.lines[0].words.map((word) => [word.startMs, word.endMs])).toEqual([
+            [1000, 1500],
+            [1500, 2000],
+            [2000, 2500],
+        ]);
+        state = advancedLyricsReducer(state, {
+            type: AdvancedActionType.clearLineFromCursor,
+            payload: { lineIndex: 0, wordIndex: 1 },
+        });
+        expect(state.document?.lines[0].words[0].startMs).toBe(1000);
+        expect(state.document?.lines[0].words.slice(1).every((word) => word.startMs === undefined)).toBe(true);
     });
 });

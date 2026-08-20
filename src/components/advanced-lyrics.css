@@ -72,6 +72,14 @@
     overflow: auto;
     overscroll-behavior: contain;
     background: color-mix(in srgb, var(--background-color) 55%, var(--surface-color));
+    animation: advanced-editor-enter 220ms var(--ease-emphasized);
+}
+
+@keyframes advanced-editor-enter {
+    from {
+        transform: translateY(4px);
+        opacity: 0;
+    }
 }
 
 .advanced-edit-line {

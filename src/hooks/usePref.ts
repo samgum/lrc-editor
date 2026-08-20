@@ -39,6 +39,9 @@ const initState = {
     aiGpuAcceleration: true,
     keepAiTaskCache: false,
     advancedLyricsEnabled: false,
+    wordHoldMode: false,
+    wordTimingCompensationMs: 0,
+    wordPreviewLeadMs: 750,
     keyBindings: defaultKeyBindings,
 };
 

@@ -24,12 +24,16 @@ export const enum AdvancedActionType {
     ensureWordMode,
     select,
     stamp,
+    startHold,
+    finishHold,
     deleteTime,
     adjustTime,
     updateWord,
     updateLine,
     addWord,
     removeWord,
+    distributeLine,
+    clearLineFromCursor,
     undo,
     redo,
 }
@@ -46,6 +50,8 @@ export type AdvancedLyricsAction =
     }
     | { readonly type: AdvancedActionType.select; readonly payload: WordCursor }
     | { readonly type: AdvancedActionType.stamp; readonly payload: number }
+    | { readonly type: AdvancedActionType.startHold; readonly payload: number }
+    | { readonly type: AdvancedActionType.finishHold; readonly payload: number }
     | { readonly type: AdvancedActionType.deleteTime; readonly payload: undefined }
     | { readonly type: AdvancedActionType.adjustTime; readonly payload: number }
     | {
@@ -61,6 +67,11 @@ export type AdvancedLyricsAction =
     }
     | { readonly type: AdvancedActionType.addWord; readonly payload: WordCursor }
     | { readonly type: AdvancedActionType.removeWord; readonly payload: WordCursor }
+    | {
+        readonly type: AdvancedActionType.distributeLine;
+        readonly payload: { readonly lineIndex: number; readonly startMs: number; readonly endMs: number };
+    }
+    | { readonly type: AdvancedActionType.clearLineFromCursor; readonly payload: WordCursor }
     | { readonly type: AdvancedActionType.undo; readonly payload: undefined }
     | { readonly type: AdvancedActionType.redo; readonly payload: undefined };
 
@@ -104,6 +115,10 @@ export const advancedLyricsReducer = (
             return { ...state, cursor: clampCursor(state.document, action.payload) };
         case AdvancedActionType.stamp:
             return updateTiming(state, Math.max(0, Math.round(action.payload)), true);
+        case AdvancedActionType.startHold:
+            return updateTiming(state, Math.max(0, Math.round(action.payload)), false);
+        case AdvancedActionType.finishHold:
+            return finishHoldTiming(state, Math.max(0, Math.round(action.payload)));
         case AdvancedActionType.deleteTime:
             return updateCurrentWord(state, (word) => ({ text: word.text }), false);
         case AdvancedActionType.adjustTime: {
@@ -145,6 +160,32 @@ export const advancedLyricsReducer = (
                 lineIndex: action.payload.lineIndex,
                 wordIndex: Math.min(action.payload.wordIndex, words.length - 1),
             });
+        }
+        case AdvancedActionType.distributeLine: {
+            const document = state.document;
+            const line = document?.lines[action.payload.lineIndex];
+            const { startMs, endMs } = action.payload;
+            if (!document || !line || line.words.length === 0 || endMs <= startMs) return state;
+            const duration = endMs - startMs;
+            const words = line.words.map((word, index) => ({
+                ...word,
+                startMs: Math.round(startMs + duration * index / line.words.length),
+                endMs: Math.round(startMs + duration * (index + 1) / line.words.length),
+            }));
+            const lines = document.lines.slice();
+            lines[action.payload.lineIndex] = { ...line, startMs, endMs, words };
+            return commit(state, { ...document, lines }, state.cursor);
+        }
+        case AdvancedActionType.clearLineFromCursor: {
+            const document = state.document;
+            const line = document?.lines[action.payload.lineIndex];
+            if (!document || !line) return state;
+            const words = line.words.map((word, index) =>
+                index < action.payload.wordIndex ? word : { text: word.text }
+            );
+            const lines = document.lines.slice();
+            lines[action.payload.lineIndex] = { ...line, words };
+            return commit(state, { ...document, lines }, action.payload);
         }
         case AdvancedActionType.undo: {
             const previous = state.historyPast.at(-1);
@@ -222,6 +263,27 @@ const updateTiming = (state: AdvancedLyricsState, startMs: number, advance: bool
     }
     const cursor = advance ? nextWordCursor(nextDocument, state.cursor, 1) : state.cursor;
     return commit(state, nextDocument, cursor);
+};
+
+const finishHoldTiming = (state: AdvancedLyricsState, requestedEndMs: number): AdvancedLyricsState => {
+    const document = state.document;
+    const line = document?.lines[state.cursor.lineIndex];
+    const word = line?.words[state.cursor.wordIndex];
+    if (!document || !line || !word || word.startMs === undefined) return state;
+    const endMs = Math.max(word.startMs, requestedEndMs);
+    let nextDocument = replaceWord(document, state.cursor, { ...word, endMs });
+    if (state.cursor.wordIndex === line.words.length - 1) {
+        nextDocument = replaceLine(nextDocument, state.cursor.lineIndex, {
+            ...nextDocument.lines[state.cursor.lineIndex],
+            endMs,
+        });
+    }
+    return {
+        ...state,
+        document: nextDocument,
+        cursor: nextWordCursor(nextDocument, state.cursor, 1),
+        historyFuture: [],
+    };
 };
 
 const updateCurrentWord = (

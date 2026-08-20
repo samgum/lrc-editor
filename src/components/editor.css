@@ -243,6 +243,14 @@
     border: 0;
     resize: none;
     overscroll-behavior-y: contain;
+    animation: editor-line-mode-enter 180ms var(--ease-emphasized);
+}
+
+@keyframes editor-line-mode-enter {
+    from {
+        transform: translateY(3px);
+        opacity: 0.65;
+    }
 }
 
 .app-editor input, .app-editor textarea {

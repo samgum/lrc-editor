@@ -61,6 +61,9 @@ export const Footer: React.FC = () => {
     const [rememberedMediaUrl, setRememberedMediaUrl] = useState(() =>
         sessionStorage.getItem(SSK.mediaInputDisplay) || ""
     );
+    const [currentMediaLabel, setCurrentMediaLabel] = useState(() =>
+        sessionStorage.getItem(SSK.mediaInputDisplay) || ""
+    );
     const localFileRef = useRef<File | null>(null);
     const fallbackAttemptedRef = useRef(false);
     const restoredMediaRef = useRef<string | null>(null);
@@ -106,6 +109,7 @@ export const Footer: React.FC = () => {
                 const displayInput = extractMediaUrl(value);
                 sessionStorage.setItem(SSK.mediaInputDisplay, displayInput);
                 setRememberedMediaUrl(displayInput);
+                setCurrentMediaLabel(displayInput);
                 if (parsed.kind !== "direct") {
                     sessionStorage.setItem(SSK.mediaInput, parsed.originalUrl);
                     restoredMediaRef.current = `input:${parsed.originalUrl}`;
@@ -246,6 +250,7 @@ export const Footer: React.FC = () => {
         sessionStorage.removeItem(SSK.mediaInput);
         sessionStorage.removeItem(SSK.mediaInputDisplay);
         setRememberedMediaUrl("");
+        setCurrentMediaLabel(file.name);
         localFileRef.current = isLocalMediaFile(file) ? file : null;
         fallbackAttemptedRef.current = false;
         clearAlignmentMediaSource();
@@ -395,6 +400,7 @@ export const Footer: React.FC = () => {
             <LoadAudio
                 accept={accept}
                 rememberedUrl={rememberedMediaUrl}
+                currentMediaLabel={currentMediaLabel}
                 onLoadFile={onAudioFile}
                 onLoadUrl={loadMediaUrl}
                 lang={lang}

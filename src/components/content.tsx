@@ -87,6 +87,36 @@ export const Content: React.FC = () => {
     );
     const [wordTimingOffer, setWordTimingOffer] = useState(false);
     const advancedNeedsBasicSync = useRef(false);
+    const cursorRestored = useRef(false);
+
+    useEffect(() => {
+        if (cursorRestored.current) return;
+        cursorRestored.current = true;
+        try {
+            const cursor = JSON.parse(sessionStorage.getItem(SSK.advancedWordCursor) || "null") as {
+                lineIndex?: unknown;
+                wordIndex?: unknown;
+            } | null;
+            if (cursor && Number.isInteger(cursor.lineIndex) && Number.isInteger(cursor.wordIndex)) {
+                advancedDispatch({
+                    type: AdvancedActionType.select,
+                    payload: { lineIndex: Number(cursor.lineIndex), wordIndex: Number(cursor.wordIndex) },
+                });
+            }
+        } catch {
+            sessionStorage.removeItem(SSK.advancedWordCursor);
+        }
+    }, [advancedDispatch]);
+
+    useEffect(() => {
+        const saveTimer = setTimeout(() => {
+            if (advancedState.document) {
+                localStorage.setItem(LSK.advancedLyrics, JSON.stringify(advancedState.document));
+            }
+            sessionStorage.setItem(SSK.advancedWordCursor, JSON.stringify(advancedState.cursor));
+        }, 120);
+        return () => clearTimeout(saveTimer);
+    }, [advancedState.cursor, advancedState.document]);
 
     const updateAdvanced = useCallback((action: AdvancedLyricsAction) => {
         if (
@@ -110,6 +140,7 @@ export const Content: React.FC = () => {
     }, [advancedState.document, lrcDispatch]);
 
     const ensureWordMode = useCallback((target: "editor" | "synchronizer") => {
+        const hasExistingWordProgress = hasWordTiming(advancedState.document);
         if (!prefState.advancedLyricsEnabled) {
             prefDispatch({ type: "advancedLyricsEnabled", payload: true });
         }
@@ -117,13 +148,29 @@ export const Content: React.FC = () => {
             type: AdvancedActionType.ensureWordMode,
             payload: { lines: lrcState.lyric, metadata: lrcState.info },
         });
-        advancedDispatch({
-            type: AdvancedActionType.select,
-            payload: { lineIndex: lrcState.selectIndex, wordIndex: 0 },
-        });
+        if (!hasExistingWordProgress) {
+            advancedDispatch({
+                type: AdvancedActionType.select,
+                payload: {
+                    lineIndex: lrcState.selectIndex,
+                    wordIndex: advancedState.cursor.lineIndex === lrcState.selectIndex
+                        ? advancedState.cursor.wordIndex
+                        : 0,
+                },
+            });
+        }
         if (target === "editor") setEditorTimingMode("word");
         else setSynchronizerTimingMode("word");
-    }, [advancedDispatch, lrcState.info, lrcState.lyric, prefDispatch, prefState.advancedLyricsEnabled]);
+    }, [
+        advancedDispatch,
+        advancedState.cursor,
+        advancedState.document,
+        lrcState.info,
+        lrcState.lyric,
+        lrcState.selectIndex,
+        prefDispatch,
+        prefState.advancedLyricsEnabled,
+    ]);
 
     const changeEditorTimingMode = useCallback((mode: LyricsWorkspaceMode) => {
         if (mode === "word") ensureWordMode("editor");
@@ -213,6 +260,7 @@ export const Content: React.FC = () => {
             } else {
                 localStorage.removeItem(LSK.advancedLyrics);
             }
+            sessionStorage.setItem(SSK.advancedWordCursor, JSON.stringify(advancedState.cursor));
 
             localStorage.setItem(LSK.preferences, JSON.stringify(prefState));
         }

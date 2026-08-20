@@ -237,6 +237,68 @@ describe("advanced lyric formats", () => {
         expect(tokenizeLyricText("Hello, 世界！").map((word) => word.text)).toEqual(["Hello, ", "世", "界！"]);
     });
 
+    it("keeps English contractions intact and normalizes inter-word spacing", () => {
+        const words = tokenizeLyricText("i   don't  wanna be   you anymore  ");
+        expect(words.map((word) => word.text)).toEqual(["i ", "don't ", "wanna ", "be ", "you ", "anymore"]);
+        expect(words.map((word) => word.text).join("")).toBe("i don't wanna be you anymore");
+        expect(words.map((word) => word.text).join("")).not.toContain("  ");
+    });
+
+    it("attaches paired punctuation to adjacent words without creating timing units", () => {
+        const words = tokenizeLyricText(`("I can't see")`);
+        expect(words.map((word) => word.text)).toEqual([`("I `, "can't ", `see")`]);
+        expect(words.map((word) => word.text).join("")).toBe(`("I can't see")`);
+
+        const fullWidth = tokenizeLyricText("（“我  看不见”）");
+        expect(fullWidth.map((word) => word.text).join("")).toBe("（“我 看不见”）");
+        expect(fullWidth.map((word) => word.text)).not.toContain("（");
+        expect(fullWidth.map((word) => word.text)).not.toContain("）");
+    });
+
+    it("distinguishes straight quotes from contractions and possessives", () => {
+        const quote = `he said 'i don't like it'`;
+        const quotedWords = tokenizeLyricText(quote);
+        expect(quotedWords.map((word) => word.text.trim())).toEqual(["he", "said", "'i", "don't", "like", "it'"]);
+        expect(quotedWords.map((word) => word.text).join("")).toBe(quote);
+
+        const colonQuote = `he said:'hello'`;
+        expect(tokenizeLyricText(colonQuote).map((word) => word.text.trim())).toEqual(["he", "said:", "'hello'"]);
+        expect(tokenizeLyricText("James' song").map((word) => word.text.trim())).toEqual(["James'", "song"]);
+    });
+
+    it("uses dictionary word boundaries for supported no-space scripts", () => {
+        const words = tokenizeLyricText("ฉันรักเธอ");
+        expect(words.map((word) => word.text).join("")).toBe("ฉันรักเธอ");
+        expect(words.length).toBeGreaterThan(1);
+
+        const mixed = tokenizeLyricText("中文 ฉันรักเธอ tonight");
+        expect(mixed.map((word) => word.text).join("")).toBe("中文 ฉันรักเธอ tonight");
+        expect(mixed.slice(0, 2).map((word) => word.text)).toEqual(["中", "文 "]);
+        expect(mixed.at(-1)?.text.trim()).toBe("tonight");
+    });
+
+    it("segments mixed CJK and English lyrics without changing their text", () => {
+        const chineseEnglish = "我真的 don't wanna 失去 you";
+        const chineseWords = tokenizeLyricText(chineseEnglish);
+        expect(chineseWords.map((word) => word.text).join("")).toBe(chineseEnglish);
+        expect(chineseWords.map((word) => word.text.trim()).filter(Boolean)).toEqual([
+            "我",
+            "真",
+            "的",
+            "don't",
+            "wanna",
+            "失",
+            "去",
+            "you",
+        ]);
+
+        const japaneseEnglish = `今日は "Good night" だよ`;
+        const japaneseWords = tokenizeLyricText(japaneseEnglish);
+        expect(japaneseWords.map((word) => word.text).join("")).toBe(japaneseEnglish);
+        expect(japaneseWords.some((word) => word.text.includes("Good"))).toBe(true);
+        expect(japaneseWords.some((word) => word.text.includes("night"))).toBe(true);
+    });
+
     it("reports duplicate and backwards word timestamps instead of repairing them", () => {
         const document = parseEnhancedLrc(
             "[00:01.000]<00:01.000>A<00:01.000>B<00:00.900>C<00:02.000>",
@@ -262,6 +324,35 @@ describe("advanced lyric formats", () => {
                 { text: "and", startMs: 2391, endMs: 2689 },
             ],
         });
+    });
+
+    it("adds a line timestamp without fabricating word timing after a line-mode round trip", () => {
+        const untimed = createWordTimedDocument(
+            [{ text: "fast rap" }],
+            new Map(),
+        );
+        const updated = createWordTimedDocument(
+            [{ time: 3, text: "fast rap" }],
+            new Map(),
+            untimed,
+        );
+        expect(updated.lines[0].startMs).toBe(3000);
+        expect(updated.lines[0].words.every((word) => word.startMs === undefined)).toBe(true);
+    });
+
+    it("rebuilds only the line whose text changed during line-mode editing", () => {
+        const original = parseEnhancedLrc([
+            "[00:01.000]<00:01.000>keep <00:01.500>this<00:02.000>",
+            "[00:03.000]<00:03.000>change <00:03.500>this<00:04.000>",
+        ].join("\n"));
+        const updated = createWordTimedDocument(
+            [{ time: 1, text: "keep this" }, { time: 3, text: "changed line" }],
+            new Map(),
+            original,
+        );
+        expect(updated.lines[0]).toEqual(original.lines[0]);
+        expect(updated.lines[1].words.map((word) => word.text)).toEqual(["changed ", "line"]);
+        expect(updated.lines[1].words.every((word) => word.startMs === undefined)).toBe(true);
     });
 
     it("rounds LRC timestamps at the requested precision", () => {
