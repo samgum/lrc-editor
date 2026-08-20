@@ -314,7 +314,15 @@ export const Content: React.FC = () => {
             }
 
             case ROUTER.tools: {
-                return <LazyTools state={lrcState} dispatch={lrcDispatch} />;
+                return (
+                    <LazyTools
+                        state={lrcState}
+                        dispatch={lrcDispatch}
+                        advancedDocument={advancedState.document}
+                        onConversionApplied={(document) =>
+                            advancedDispatch({ type: AdvancedActionType.load, payload: document })}
+                    />
+                );
             }
 
             case ROUTER.keybindings: {

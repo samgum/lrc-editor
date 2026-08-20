@@ -4,6 +4,17 @@ import { parser, stringify } from "@lrc-maker/lrc-parser";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { Action, IState } from "../hooks/useLrc.js";
 import { ActionType } from "../hooks/useLrc.js";
+import {
+    type AdvancedLyricsDocument,
+    decodeTextBytes,
+    exportLineLyrics,
+    type LineLyricExportFormat,
+    type LyricFormat,
+    parseLyricBytes,
+    toEnhancedLrc,
+    toLineLrc,
+    toLineTimedDocument,
+} from "../utils/advanced-lyrics.js";
 import { lrcFileName } from "../utils/lrc-file-name.js";
 import {
     cleanGeniusTracklist,
@@ -18,6 +29,7 @@ import {
     transformTimes,
 } from "../utils/lrc-tools.js";
 import { appContext } from "./app.context.js";
+import { OpenFileSVG } from "./svg.js";
 import { toastPubSub } from "./toast.js";
 
 type Tool =
@@ -26,14 +38,15 @@ type Tool =
     | "time"
     | "split"
     | "overwrite"
+    | "convert"
     | "sections"
     | "tracklist"
     | "replace"
     | "case";
 
-type StandaloneTool = "sections" | "tracklist" | "replace" | "case";
+type StandaloneTool = "convert" | "sections" | "tracklist" | "replace" | "case";
 
-const standaloneTools = new Set<Tool>(["sections", "tracklist", "replace", "case"]);
+const standaloneTools = new Set<Tool>(["convert", "sections", "tracklist", "replace", "case"]);
 const isStandaloneTool = (tool: Tool): tool is StandaloneTool => standaloneTools.has(tool);
 
 const splitPatterns = [
@@ -50,9 +63,15 @@ const splitPatterns = [
 export const Tools: React.FC<{
     state: IState;
     dispatch: React.Dispatch<Action>;
-}> = ({ state, dispatch }) => {
+    advancedDocument: AdvancedLyricsDocument | null;
+    onConversionApplied: (document: AdvancedLyricsDocument) => void;
+}> = ({ state, dispatch, advancedDocument, onConversionApplied }) => {
     const { lang, prefState, trimOptions } = useContext(appContext);
     const serialized = useMemo(() => stringify(state, prefState), [prefState, state]);
+    const converterInitialSource = useMemo(
+        () => advancedDocument ? toEnhancedLrc(advancedDocument, prefState.fixed) : serialized,
+        [advancedDocument, prefState.fixed, serialized],
+    );
     const [source, setSource] = useState(serialized);
     const [tool, setTool] = useState<Tool>("overwrite");
     const [multiplier, setMultiplier] = useState("1");
@@ -61,6 +80,7 @@ export const Tools: React.FC<{
     const [customPattern, setCustomPattern] = useState("");
     const [replacement, setReplacement] = useState(() => sessionStorage.getItem(SSK.overwriteText) || "");
     const [standaloneSources, setStandaloneSources] = useState<Record<StandaloneTool, string>>({
+        convert: converterInitialSource,
         sections: "",
         tracklist: "",
         replace: "",
@@ -78,11 +98,12 @@ export const Tools: React.FC<{
     const [caseMode, setCaseMode] = useState<LyricsCaseMode>("sentence");
     const [capitalizeLineStart, setCapitalizeLineStart] = useState(true);
     const [fixPronoun, setFixPronoun] = useState(true);
+    const [conversionFormat, setConversionFormat] = useState<LineLyricExportFormat>("lrc");
+    const [conversionLoadedFormat, setConversionLoadedFormat] = useState<LyricFormat | null>(null);
     const sourceRef = useRef<HTMLTextAreaElement>(null);
     const translationRef = useRef<HTMLTextAreaElement>(null);
     const outputRef = useRef<HTMLTextAreaElement>(null);
     const [output, setOutput] = useState("");
-    const [downloadHref, setDownloadHref] = useState<string>();
 
     useEffect(() => setSource(serialized), [serialized]);
     useEffect(() => sessionStorage.setItem(SSK.overwriteText, replacement), [replacement]);
@@ -99,13 +120,51 @@ export const Tools: React.FC<{
     const updateActiveSource = useCallback((value: string) => {
         if (isStandaloneTool(tool)) {
             setStandaloneSources((current) => ({ ...current, [tool]: value }));
+            if (tool === "convert") setConversionLoadedFormat(null);
         } else {
             setSource(value);
         }
     }, [tool]);
 
-    const transformed = useMemo(() => {
+    const onConversionFile = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
         try {
+            const bytes = new Uint8Array(await file.arrayBuffer());
+            const document = parseLyricBytes(file.name, bytes);
+            const isKrc = /\.krc$/iu.test(file.name) || new TextDecoder().decode(bytes.subarray(0, 4)) === "krc1";
+            const text = isKrc ? toEnhancedLrc(document, prefState.fixed) : decodeTextBytes(bytes);
+            setStandaloneSources((current) => ({ ...current, convert: text }));
+            setConversionLoadedFormat(document.sourceFormat);
+            toastPubSub.pub({ type: "success", text: lang.tools.lyricFileLoaded });
+        } catch {
+            toastPubSub.pub({ type: "warning", text: lang.tools.formatConversionFailed });
+        } finally {
+            event.target.value = "";
+        }
+    }, [lang.tools, prefState.fixed]);
+
+    const transformed = useMemo<{
+        text: string;
+        error?: string;
+        sourceFormat?: string;
+        lineCount?: number;
+        segmentCount?: number;
+    }>(() => {
+        try {
+            if (tool === "convert") {
+                const document = parseLyricBytes("pasted.txt", new TextEncoder().encode(activeSource));
+                const segmentCount = document.lines.reduce(
+                    (total, line) => total + line.words.filter((word) => word.startMs !== undefined).length,
+                    0,
+                );
+                return {
+                    text: exportLineLyrics(document, conversionFormat, prefState.fixed),
+                    sourceFormat: conversionLoadedFormat ?? document.sourceFormat,
+                    lineCount: document.lines.length,
+                    segmentCount,
+                };
+            }
             if (tool === "sections") {
                 return {
                     text: stripGeniusSections(activeSource, {
@@ -160,7 +219,10 @@ export const Tools: React.FC<{
                     return { text: overwriteLyrics(parsed, replacement, prefState) };
             }
         } catch {
-            return { text: "", error: lang.tools.invalidRegex };
+            return {
+                text: "",
+                error: tool === "convert" ? lang.tools.formatConversionFailed : lang.tools.invalidRegex,
+            };
         }
     }, [
         constantMs,
@@ -169,11 +231,14 @@ export const Tools: React.FC<{
         capitalizeLineStart,
         caseMode,
         caseSensitive,
+        conversionFormat,
+        conversionLoadedFormat,
         dropSectionEmpty,
         dropSuggestions,
         findText,
         fixPronoun,
         keepAlbumTitle,
+        lang.tools.formatConversionFailed,
         lang.tools.invalidRegex,
         multiplier,
         prefState,
@@ -194,11 +259,36 @@ export const Tools: React.FC<{
         if (transformed.error || tool === "split") {
             return;
         }
-        dispatch({ type: ActionType.parse, payload: { text: output, options: trimOptions } });
-        updateActiveSource(output);
+        let editorText = output;
+        if (tool === "convert") {
+            try {
+                const extension = conversionFormat === "txt" ? "txt" : conversionFormat;
+                const parsed = parseLyricBytes(`converted.${extension}`, new TextEncoder().encode(output));
+                const lineDocument = toLineTimedDocument(parsed);
+                editorText = toLineLrc(lineDocument, prefState.fixed);
+                onConversionApplied(lineDocument);
+            } catch {
+                toastPubSub.pub({ type: "warning", text: lang.tools.formatConversionFailed });
+                return;
+            }
+        }
+        dispatch({ type: ActionType.parse, payload: { text: editorText, options: trimOptions } });
+        updateActiveSource(tool === "convert" ? editorText : output);
         toastPubSub.pub({ type: "success", text: lang.notify.resultApplied });
         location.hash = ROUTER.editor;
-    }, [dispatch, lang.notify.resultApplied, output, tool, transformed.error, trimOptions, updateActiveSource]);
+    }, [
+        conversionFormat,
+        dispatch,
+        lang.notify.resultApplied,
+        lang.tools.formatConversionFailed,
+        onConversionApplied,
+        output,
+        prefState.fixed,
+        tool,
+        transformed.error,
+        trimOptions,
+        updateActiveSource,
+    ]);
 
     const copyResult = useCallback(async () => {
         try {
@@ -210,14 +300,25 @@ export const Tools: React.FC<{
         toastPubSub.pub({ type: "success", text: lang.notify.copied });
     }, [lang.notify.copied, output]);
 
-    const prepareDownload = useCallback(() => {
-        setDownloadHref((current) => {
-            if (current) {
-                URL.revokeObjectURL(current);
-            }
-            return URL.createObjectURL(new Blob([output], { type: "text/plain;charset=UTF-8" }));
-        });
-    }, [output]);
+    const downloadExtension = tool === "convert"
+        ? { lrc: ".lrc", srt: ".srt", ttml: ".ttml", txt: ".txt" }[conversionFormat]
+        : ".lrc";
+
+    const downloadResult = useCallback((event: React.MouseEvent<HTMLAnchorElement>) => {
+        event.preventDefault();
+        if (transformed.error) return;
+        const url = URL.createObjectURL(new Blob([output], { type: "text/plain;charset=UTF-8" }));
+        const link = document.createElement("a");
+        link.hidden = true;
+        link.href = url;
+        link.download = lrcFileName(state.info, downloadExtension);
+        document.body.append(link);
+        link.click();
+        setTimeout(() => {
+            link.remove();
+            URL.revokeObjectURL(url);
+        }, 1000);
+    }, [downloadExtension, output, state.info, transformed.error]);
 
     const syncScroll = useCallback((origin: HTMLTextAreaElement, targets: Array<HTMLTextAreaElement | null>) => {
         for (const target of targets) {
@@ -229,6 +330,7 @@ export const Tools: React.FC<{
 
     const toolButtons: Array<{ id: Tool; label: string }> = [
         { id: "overwrite", label: lang.tools.overwrite },
+        { id: "convert", label: lang.tools.formatConverter },
         { id: "remove-tags", label: lang.tools.removeTags },
         { id: "remove-empty", label: lang.tools.removeEmpty },
         { id: "time", label: lang.tools.changeOffset },
@@ -258,6 +360,39 @@ export const Tools: React.FC<{
             </header>
 
             <div className="tools-options">
+                {tool === "convert" && (
+                    <>
+                        <label className="tools-file-button">
+                            <input
+                                hidden={true}
+                                type="file"
+                                accept="text/*,.lrc,.krc,.ttml,.srt,application/xml,application/octet-stream"
+                                onChange={(event) => void onConversionFile(event)}
+                            />
+                            <OpenFileSVG />
+                            <span>{lang.tools.loadLyricFile}</span>
+                        </label>
+                        <label>
+                            {lang.tools.converterOutputFormat}
+                            <select
+                                value={conversionFormat}
+                                onChange={(event) => setConversionFormat(event.target.value as LineLyricExportFormat)}
+                            >
+                                <option value="lrc">{lang.advancedLyrics.standardLrc}</option>
+                                <option value="srt">SRT</option>
+                                <option value="ttml">{lang.tools.lineTtml}</option>
+                                <option value="txt">{lang.tools.plainText}</option>
+                            </select>
+                        </label>
+                        {transformed.sourceFormat && (
+                            <output className="tools-format-status" aria-live="polite">
+                                <strong>{lang.tools.detectedFormat}: {transformed.sourceFormat.toUpperCase()}</strong>
+                                <span>{transformed.lineCount} {lang.tools.lines}</span>
+                                <span>{transformed.segmentCount} {lang.tools.timedSegments}</span>
+                            </output>
+                        )}
+                    </>
+                )}
                 {tool === "time" && (
                     <>
                         <label>
@@ -375,6 +510,7 @@ export const Tools: React.FC<{
                     <textarea
                         ref={sourceRef}
                         value={activeSource}
+                        placeholder={tool === "convert" ? lang.tools.converterSourcePlaceholder : undefined}
                         onChange={(ev) => updateActiveSource(ev.target.value)}
                         onScroll={(ev) => syncScroll(ev.currentTarget, [translationRef.current, outputRef.current])}
                         spellCheck={false}
@@ -427,9 +563,9 @@ export const Tools: React.FC<{
                 </button>
                 <a
                     className="button"
-                    href={downloadHref}
-                    download={lrcFileName(state.info)}
-                    onClick={prepareDownload}
+                    href="#"
+                    download={lrcFileName(state.info, downloadExtension)}
+                    onClick={downloadResult}
                     aria-disabled={Boolean(transformed.error)}
                 >
                     {lang.tools.download}

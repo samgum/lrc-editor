@@ -240,7 +240,18 @@
         "titleCase": "英文标题大小写",
         "capitalizeLineStart": "每行首字母大写",
         "fixPronounI": "修正英文 I / I'm",
-        "invalidRegex": "正则表达式无效。"
+        "invalidRegex": "正则表达式无效。",
+        "formatConverter": "逐字转逐行",
+        "converterOutputFormat": "逐行输出格式",
+        "loadLyricFile": "载入歌词文件",
+        "converterSourcePlaceholder": "粘贴 Enhanced LRC、明文 KRC、TTML、SRT 或标准 LRC",
+        "detectedFormat": "识别格式",
+        "lines": "行",
+        "timedSegments": "个定时片段",
+        "lineTtml": "逐行 TTML",
+        "plainText": "纯文本",
+        "lyricFileLoaded": "歌词文件已载入，可以开始转换。",
+        "formatConversionFailed": "无法转换这个歌词格式，请检查文件或粘贴内容。"
     },
     "about": {
         "title": "关于 LRC Editor",

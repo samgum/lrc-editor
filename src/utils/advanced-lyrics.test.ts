@@ -5,6 +5,7 @@ import {
     decodeKrc,
     decodeTextBytes,
     displayLineText,
+    exportLineLyrics,
     formatLrcTimestamp,
     hasWordTiming,
     parseEnhancedLrc,
@@ -18,6 +19,7 @@ import {
     tokenizeLyricText,
     toKrc,
     toLineLrc,
+    toLineTimedDocument,
     toSrt,
     toTtml,
     wordTimingIssueAt,
@@ -76,6 +78,15 @@ describe("advanced lyric formats", () => {
             { text: "Hello ", startMs: 1000, endMs: 1600 },
             { text: "world", startMs: 1600, endMs: 2500 },
         ]);
+        expect(exportLineLyrics(reparsed, "lrc", 3)).toContain("[00:01.000]Hello world");
+        expect(exportLineLyrics(reparsed, "srt", 3)).toContain("00:00:01,000 --> 00:00:02,500");
+    });
+
+    it("detects pasted plaintext KRC without relying on its file extension", () => {
+        const source = "[1000,1500]<0,600,0>Hello <600,900,0>world";
+        const document = parseLyricBytes("pasted.txt", new TextEncoder().encode(source));
+        expect(document.sourceFormat).toBe("krc");
+        expect(document.timingMode).toBe("word");
     });
 
     it("parses Apple-style word TTML and keeps background vocals linear", () => {
@@ -103,6 +114,8 @@ describe("advanced lyric formats", () => {
             endMs: 6000,
             words: [{ text: "Line only" }],
         });
+        expect(exportLineLyrics(document, "ttml", 3)).toContain("itunes:timing=\"Line\"");
+        expect(exportLineLyrics(document, "ttml", 3)).not.toContain("<span");
     });
 
     it("imports line-timed TTML without pretending it has word timing", () => {
@@ -193,6 +206,31 @@ describe("advanced lyric formats", () => {
         expect(serializeLyrics(timed, "krc")).toBeInstanceOf(Uint8Array);
         expect(toTtml(timed)).toContain("itunes:timing=\"Word\"");
         expect(toSrt(timed)).toContain("00:00:01,000 --> 00:00:03,000");
+    });
+
+    it("converts word timing into line LRC, SRT, TTML, and plain text", () => {
+        const document = parseEnhancedLrc([
+            "[ti: Demo]",
+            "[00:01.000]<00:01.000>Hello <00:01.800>world<00:03.000>",
+            "[00:04.000]<00:04.000>Next<00:05.000>",
+        ].join("\n"));
+        const collapsed = toLineTimedDocument(document);
+
+        expect(collapsed.timingMode).toBe("line");
+        expect(collapsed.lines[0].words).toEqual([{ text: "Hello world" }]);
+        expect(exportLineLyrics(document, "lrc", 3)).toContain("[00:01.000]Hello world");
+        expect(exportLineLyrics(document, "lrc", 3)).not.toContain("<00:");
+        expect(exportLineLyrics(document, "srt", 3)).toContain("00:00:01,000 --> 00:00:03,000");
+        expect(exportLineLyrics(document, "ttml", 3)).toContain("itunes:timing=\"Line\"");
+        expect(exportLineLyrics(document, "ttml", 3)).not.toContain("<span");
+        expect(exportLineLyrics(document, "txt", 3)).toBe("Hello world\r\nNext");
+    });
+
+    it("does not invent a timed subtitle axis from untimed plain text", () => {
+        const document = parseEnhancedLrc("First\nSecond");
+        expect(exportLineLyrics(document, "lrc", 3)).toBe("First\r\nSecond");
+        expect(() => exportLineLyrics(document, "srt", 3)).toThrow(/requires a timestamp/u);
+        expect(() => exportLineLyrics(document, "ttml", 3)).toThrow(/requires a timestamp/u);
     });
 
     it("tokenizes CJK by grapheme and Latin text by word while retaining separators", () => {

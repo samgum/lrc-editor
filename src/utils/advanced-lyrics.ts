@@ -24,6 +24,7 @@ export interface AdvancedLyricsDocument {
 }
 
 export type ExportLyricFormat = "lrc" | "enhanced-lrc" | "krc" | "ttml" | "srt";
+export type LineLyricExportFormat = "lrc" | "srt" | "ttml" | "txt";
 
 const KRC_MAGIC = new Uint8Array([0x6b, 0x72, 0x63, 0x31]);
 const KRC_XOR_KEY = new Uint8Array([
@@ -337,6 +338,7 @@ export const parseLyricBytes = (fileName: string, bytes: Uint8Array): AdvancedLy
     if (extension === "krc" || startsWithBytes(bytes, KRC_MAGIC)) return parseKrc(bytes);
     const source = decodeTextBytes(bytes);
     const trimmed = source.trimStart();
+    if (/^\[\d+,\d+\](?:<\d+,\d+,-?\d+>.*)?\r?$/mu.test(source)) return parseKrc(source);
     if (extension === "ttml" || /^<\?xml|^<tt(?:\s|>)/iu.test(trimmed)) return parseTtml(source);
     if (extension === "srt" || /\d{1,2}:\d{2}:\d{2}[,.]\d{3}\s*-->/u.test(source)) return parseSrt(source);
     return parseEnhancedLrc(source);
@@ -374,6 +376,41 @@ export const toLineLrc = (document: AdvancedLyricsDocument, fixed: Fixed = 3): s
         output.push(line.startMs === undefined ? text : `${formatLrcTimestamp(line.startMs, fixed)}${text}`);
     }
     return output.join("\r\n");
+};
+
+export const toLineTimedDocument = (document: AdvancedLyricsDocument): AdvancedLyricsDocument => ({
+    ...document,
+    timingMode: "line",
+    lines: document.lines.map((line) => ({
+        startMs: line.startMs,
+        endMs: line.endMs,
+        words: [{ text: displayLineText(line) }],
+    })),
+});
+
+export const exportLineLyrics = (
+    document: AdvancedLyricsDocument,
+    format: LineLyricExportFormat,
+    fixed: Fixed = 3,
+): string => {
+    if (document.lines.length === 0) throw new Error("No lyric lines were found");
+    if (
+        (format === "srt" || format === "ttml")
+        && document.lines.some((line) => displayLineText(line).trim() && line.startMs === undefined)
+    ) {
+        throw new Error("Timed line output requires a timestamp on every non-empty line");
+    }
+    const lineDocument = toLineTimedDocument(document);
+    switch (format) {
+        case "lrc":
+            return toLineLrc(lineDocument, fixed);
+        case "srt":
+            return toSrt(lineDocument);
+        case "ttml":
+            return toTtml(lineDocument);
+        case "txt":
+            return lineDocument.lines.map(displayLineText).join("\r\n");
+    }
 };
 
 export const toEnhancedLrc = (document: AdvancedLyricsDocument, fixed: Fixed = 3): string => {

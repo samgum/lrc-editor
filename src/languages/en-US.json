@@ -246,7 +246,18 @@
         "titleCase": "English Title Case",
         "capitalizeLineStart": "Capitalize each line",
         "fixPronounI": "Correct English I / I'm",
-        "invalidRegex": "The regular expression is invalid."
+        "invalidRegex": "The regular expression is invalid.",
+        "formatConverter": "Word-to-line converter",
+        "converterOutputFormat": "Line output",
+        "loadLyricFile": "Load lyric file",
+        "converterSourcePlaceholder": "Paste Enhanced LRC, plaintext KRC, TTML, SRT, or standard LRC",
+        "detectedFormat": "Detected",
+        "lines": "lines",
+        "timedSegments": "timed segments",
+        "lineTtml": "Line TTML",
+        "plainText": "Plain text",
+        "lyricFileLoaded": "The lyric file is ready for conversion.",
+        "formatConversionFailed": "The lyric format could not be converted. Check the file or pasted text."
     },
     "about": {
         "title": "About LRC Editor",

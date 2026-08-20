@@ -164,7 +164,18 @@
             "titleCase": "英語タイトル形式",
             "capitalizeLineStart": "各行の先頭を大文字",
             "fixPronounI": "英語の I / I'm を修正",
-            "invalidRegex": "正規表現が無効です。"
+            "invalidRegex": "正規表現が無効です。",
+            "formatConverter": "単語タイミングを行へ変換",
+            "converterOutputFormat": "行単位の出力形式",
+            "loadLyricFile": "歌詞ファイルを読み込む",
+            "converterSourcePlaceholder": "Enhanced LRC、テキスト KRC、TTML、SRT、または標準 LRC を貼り付け",
+            "detectedFormat": "検出形式",
+            "lines": "行",
+            "timedSegments": "個の時刻付き区間",
+            "lineTtml": "行単位 TTML",
+            "plainText": "プレーンテキスト",
+            "lyricFileLoaded": "歌詞ファイルを変換用に読み込みました。",
+            "formatConversionFailed": "歌詞形式を変換できません。ファイルまたは貼り付けた内容を確認してください。"
         },
         "about": {
             "title": "LRC Editor について",
@@ -341,7 +352,18 @@
             "titleCase": "영문 제목 형식",
             "capitalizeLineStart": "각 줄 첫 글자 대문자",
             "fixPronounI": "영어 I / I'm 수정",
-            "invalidRegex": "정규식이 올바르지 않습니다."
+            "invalidRegex": "정규식이 올바르지 않습니다.",
+            "formatConverter": "단어 타이밍을 줄로 변환",
+            "converterOutputFormat": "줄 출력 형식",
+            "loadLyricFile": "가사 파일 불러오기",
+            "converterSourcePlaceholder": "Enhanced LRC, 텍스트 KRC, TTML, SRT 또는 표준 LRC 붙여넣기",
+            "detectedFormat": "감지된 형식",
+            "lines": "줄",
+            "timedSegments": "개 타이밍 구간",
+            "lineTtml": "줄 단위 TTML",
+            "plainText": "일반 텍스트",
+            "lyricFileLoaded": "가사 파일을 변환할 준비가 되었습니다.",
+            "formatConversionFailed": "가사 형식을 변환할 수 없습니다. 파일이나 붙여넣은 내용을 확인하세요."
         },
         "about": {
             "title": "LRC Editor 정보",
@@ -518,7 +540,18 @@
             "titleCase": "Angielski zapis tytułu",
             "capitalizeLineStart": "Wielka litera na początku wiersza",
             "fixPronounI": "Popraw angielskie I / I'm",
-            "invalidRegex": "Wyrażenie regularne jest nieprawidłowe."
+            "invalidRegex": "Wyrażenie regularne jest nieprawidłowe.",
+            "formatConverter": "Konwerter słów na wiersze",
+            "converterOutputFormat": "Format wierszowy",
+            "loadLyricFile": "Wczytaj plik tekstu",
+            "converterSourcePlaceholder": "Wklej Enhanced LRC, tekstowy KRC, TTML, SRT lub standardowy LRC",
+            "detectedFormat": "Wykryto",
+            "lines": "wierszy",
+            "timedSegments": "segmentów z czasem",
+            "lineTtml": "Wierszowy TTML",
+            "plainText": "Zwykły tekst",
+            "lyricFileLoaded": "Plik tekstu jest gotowy do konwersji.",
+            "formatConversionFailed": "Nie można przekonwertować formatu. Sprawdź plik lub wklejony tekst."
         },
         "about": {
             "title": "O LRC Editor",
@@ -695,7 +728,18 @@
             "titleCase": "Título em inglês",
             "capitalizeLineStart": "Inicial de cada linha em maiúscula",
             "fixPronounI": "Corrigir I / I'm em inglês",
-            "invalidRegex": "A expressão regular é inválida."
+            "invalidRegex": "A expressão regular é inválida.",
+            "formatConverter": "Converter palavras em linhas",
+            "converterOutputFormat": "Formato de saída por linha",
+            "loadLyricFile": "Carregar arquivo de letra",
+            "converterSourcePlaceholder": "Cole Enhanced LRC, KRC em texto, TTML, SRT ou LRC padrão",
+            "detectedFormat": "Detectado",
+            "lines": "linhas",
+            "timedSegments": "segmentos com tempo",
+            "lineTtml": "TTML por linha",
+            "plainText": "Texto simples",
+            "lyricFileLoaded": "O arquivo de letra está pronto para conversão.",
+            "formatConversionFailed": "Não foi possível converter o formato. Verifique o arquivo ou o texto colado."
         },
         "about": {
             "title": "Sobre o LRC Editor",
@@ -872,7 +916,18 @@
             "titleCase": "Anglický názov",
             "capitalizeLineStart": "Veľké písmeno na začiatku riadka",
             "fixPronounI": "Opraviť anglické I / I'm",
-            "invalidRegex": "Regulárny výraz je neplatný."
+            "invalidRegex": "Regulárny výraz je neplatný.",
+            "formatConverter": "Prevod slov na riadky",
+            "converterOutputFormat": "Riadkový výstup",
+            "loadLyricFile": "Načítať súbor textu",
+            "converterSourcePlaceholder": "Vložte Enhanced LRC, textový KRC, TTML, SRT alebo štandardný LRC",
+            "detectedFormat": "Rozpoznané",
+            "lines": "riadkov",
+            "timedSegments": "časovaných úsekov",
+            "lineTtml": "Riadkový TTML",
+            "plainText": "Obyčajný text",
+            "lyricFileLoaded": "Súbor textu je pripravený na prevod.",
+            "formatConversionFailed": "Formát textu sa nepodarilo previesť. Skontrolujte súbor alebo vložený text."
         },
         "about": {
             "title": "O LRC Editor",
@@ -1049,7 +1104,18 @@
             "titleCase": "英文標題大小寫",
             "capitalizeLineStart": "每行首字母大寫",
             "fixPronounI": "修正英文 I / I'm",
-            "invalidRegex": "正規表示式無效。"
+            "invalidRegex": "正規表示式無效。",
+            "formatConverter": "逐字轉逐行",
+            "converterOutputFormat": "逐行輸出格式",
+            "loadLyricFile": "載入歌詞檔案",
+            "converterSourcePlaceholder": "貼上 Enhanced LRC、純文字 KRC、TTML、SRT 或標準 LRC",
+            "detectedFormat": "識別格式",
+            "lines": "行",
+            "timedSegments": "個定時片段",
+            "lineTtml": "逐行 TTML",
+            "plainText": "純文字",
+            "lyricFileLoaded": "歌詞檔案已載入，可以開始轉換。",
+            "formatConversionFailed": "無法轉換這個歌詞格式，請檢查檔案或貼上的內容。"
         },
         "about": {
             "title": "關於 LRC Editor",
@@ -1226,7 +1292,18 @@
             "titleCase": "英文標題大小寫",
             "capitalizeLineStart": "每行首字母大寫",
             "fixPronounI": "修正英文 I / I'm",
-            "invalidRegex": "正規表示式無效。"
+            "invalidRegex": "正規表示式無效。",
+            "formatConverter": "逐字轉逐行",
+            "converterOutputFormat": "逐行輸出格式",
+            "loadLyricFile": "載入歌詞檔案",
+            "converterSourcePlaceholder": "貼上 Enhanced LRC、純文字 KRC、TTML、SRT 或標準 LRC",
+            "detectedFormat": "識別格式",
+            "lines": "行",
+            "timedSegments": "個定時片段",
+            "lineTtml": "逐行 TTML",
+            "plainText": "純文字",
+            "lyricFileLoaded": "歌詞檔案已載入，可以開始轉換。",
+            "formatConversionFailed": "無法轉換這個歌詞格式，請檢查檔案或貼上的內容。"
         },
         "about": {
             "title": "關於 LRC Editor",
