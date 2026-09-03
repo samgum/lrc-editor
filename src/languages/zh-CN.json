@@ -241,6 +241,7 @@
         "waveformClickAutoNext": "点击设置起点后选择下一行",
         "waveformClickAutoNextWord": "点击设置起点后选择下一字词",
         "waveformPlayAfterSetActive": "已开启从新起点播放",
+        "waveformKeepPlaybackPosition": "点击不会改变播放位置",
         "waveformStartSet": "开始时间已设为 %s",
         "currentLine": "当前行",
         "currentLinePosition": "行位置",

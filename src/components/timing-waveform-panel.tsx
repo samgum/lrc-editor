@@ -19,7 +19,6 @@ interface TimingWaveformPanelProps {
     lineAutoAdvance?: boolean;
     linePlayAfterSet?: boolean;
     language: Language["advancedLyrics"];
-    onSeek: (timeSeconds: number) => void;
     onCapture: (timeSeconds: number) => void;
     onUnavailable: () => void;
     onViewChange: (view: TimingWaveformView) => void;
@@ -42,7 +41,6 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
     lineAutoAdvance = false,
     linePlayAfterSet = false,
     language,
-    onSeek,
     onCapture,
     onUnavailable,
     onViewChange,
@@ -208,6 +206,15 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
         onCapture(timeSeconds);
     }, [onCapture]);
 
+    const captureAtPointer = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const bounds = canvas.getBoundingClientRect();
+        const offset = Math.max(0, Math.min(bounds.width, event.clientX - bounds.left));
+        latestPointerOffsetRef.current = offset;
+        capture(waveformRef.current?.timeAtOffset(offset) || 0);
+    }, [capture]);
+
     const lineMode = timingUnit === "line";
     const title = lineMode ? language.lineWaveformCaptureTitle : language.waveformCaptureTitle;
     const hint = lineMode ? language.lineWaveformCaptureHint : language.waveformCaptureHint;
@@ -280,6 +287,7 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
             <div
                 ref={canvasRef}
                 className="word-waveform-canvas"
+                onClick={captureAtPointer}
                 onPointerMove={onPointerMove}
                 onPointerLeave={onPointerLeave}
             >
@@ -297,8 +305,7 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
                     visualization={view}
                     className="word-capture-waveform"
                     ariaLabel={hint}
-                    onSeek={onSeek}
-                    onPoint={capture}
+                    onSeek={() => undefined}
                     onReady={refreshPlayhead}
                     onUnavailable={onUnavailable}
                 />
@@ -319,6 +326,7 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
                         : language.waveformClickAutoNextWord}
                 </span>
                 {lineMode && linePlayAfterSet && <span>{language.waveformPlayAfterSetActive}</span>}
+                {lineMode && !linePlayAfterSet && <span>{language.waveformKeepPlaybackPosition}</span>}
                 <output aria-live="polite">
                     {lastCaptureMs === null
                         ? ""

@@ -284,12 +284,12 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
     }, [seekTimingWaveform, stampWordAt]);
 
     const setLineStartFromWaveform = useCallback((timeSeconds: number) => {
-        seekTimingWaveform(timeSeconds);
         dispatch({
             type: prefState.lineWaveformAutoAdvance ? ActionType.next : ActionType.time,
             payload: timeSeconds,
         });
         if (prefState.lineWaveformPlayAfterSet) {
+            seekTimingWaveform(timeSeconds);
             void audioRef.current?.play().catch(() => undefined);
         }
     }, [dispatch, prefState.lineWaveformAutoAdvance, prefState.lineWaveformPlayAfterSet, seekTimingWaveform]);
@@ -962,7 +962,6 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                             lineAutoAdvance={prefState.lineWaveformAutoAdvance}
                             linePlayAfterSet={prefState.lineWaveformPlayAfterSet}
                             language={lang.advancedLyrics}
-                            onSeek={seekTimingWaveform}
                             onCapture={captureWaveformTime}
                             onUnavailable={onTimingWaveformUnavailable}
                             onViewChange={onTimingWaveformViewChange}

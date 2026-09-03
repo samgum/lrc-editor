@@ -12,7 +12,6 @@ interface IWaveformProps {
     onSeek: (time: number) => void;
     onUnavailable: () => void;
     onReady?: () => void;
-    onPoint?: (time: number) => void;
     className?: string;
     height?: number;
     minPxPerSec?: number;
@@ -50,7 +49,6 @@ export const Waveform = forwardRef<WaveformHandle, IWaveformProps>(({
     onSeek,
     onUnavailable,
     onReady,
-    onPoint,
     className,
     height = 32,
     minPxPerSec,
@@ -93,7 +91,7 @@ export const Waveform = forwardRef<WaveformHandle, IWaveformProps>(({
         barGap: 1,
         barRadius: 2,
         cursorWidth: 2,
-        interact: true,
+        interact: !pointMode,
         dragToSeek: !pointMode,
         minPxPerSec: creationOptionsRef.current.minPxPerSec,
         autoScroll,
@@ -224,13 +222,6 @@ export const Waveform = forwardRef<WaveformHandle, IWaveformProps>(({
             onSeek(currentTime);
         });
     }, [wavesurfer, onSeek]);
-
-    useEffect(() => {
-        if (!onPoint) return;
-        return wavesurfer?.on("click", (relativeX) => {
-            onPoint(relativeX * wavesurfer.getDuration());
-        });
-    }, [onPoint, wavesurfer]);
 
     useEffect(() => {
         return wavesurfer?.on("error", () => {

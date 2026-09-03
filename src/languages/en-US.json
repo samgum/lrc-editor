@@ -247,6 +247,7 @@
         "waveformClickAutoNext": "Click sets the start and selects the next line",
         "waveformClickAutoNextWord": "Click sets the start and selects the next word",
         "waveformPlayAfterSetActive": "Playback from the new start is on",
+        "waveformKeepPlaybackPosition": "Playback position will not change",
         "waveformStartSet": "Start set to %s",
         "currentLine": "Current line",
         "currentLinePosition": "Line position",
