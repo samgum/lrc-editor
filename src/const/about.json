@@ -26,6 +26,11 @@
             "url": "https://github.com/samgum/lyrics-tools"
         },
         {
+            "name": "Aegisub modified fork",
+            "author": "Aegisub Project / samgum",
+            "url": "https://github.com/samgum/Aegisub"
+        },
+        {
             "name": "LRC Editor AI Aligner Engine",
             "author": "伤感咩吖",
             "url": "https://github.com/samgum/lrc-editor/tree/main/companion/engine-bundle"

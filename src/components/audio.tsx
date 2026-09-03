@@ -1,5 +1,5 @@
 import { convertTimeToTag } from "@lrc-maker/lrc-parser";
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
     AudioActionType,
     audioRef,
@@ -7,6 +7,7 @@ import {
     audioStatePubSub,
     currentTimePubSub,
 } from "../utils/audiomodule.js";
+import { subscribeWaveformTiming, waveformTimingActive } from "../utils/waveform-timing.js";
 import { appContext, ChangBits } from "./app.context";
 import { loadAudioDialogRef } from "./loadaudio.js";
 import { Forward5sSVG, LoadAudioSVG, PauseSVG, PlaySVG, Replay5sSVG } from "./svg.js";
@@ -48,6 +49,11 @@ const TimeLine: React.FC<{ duration: number; paused: boolean }> = ({ duration, p
     const [rate, setRate] = useState(audioRef.playbackRate);
     const [waveformSource, setWaveformSource] = useState("");
     const [waveformFailed, setWaveformFailed] = useState(false);
+    const dedicatedWordWaveform = useSyncExternalStore(
+        subscribeWaveformTiming,
+        waveformTimingActive,
+        waveformTimingActive,
+    );
 
     useEffect(() => {
         return audioStatePubSub.sub(self.current, (data) => {
@@ -113,7 +119,8 @@ const TimeLine: React.FC<{ duration: number; paused: boolean }> = ({ duration, p
 
     const { prefState } = useContext(appContext, ChangBits.prefState);
 
-    const showWaveform = prefState.showWaveform && Boolean(waveformSource) && !waveformFailed;
+    const showWaveform = prefState.showWaveform && Boolean(waveformSource) && !waveformFailed
+        && !dedicatedWordWaveform;
 
     const fixed = showWaveform ? prefState.fixed : 0;
 

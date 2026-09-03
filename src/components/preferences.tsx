@@ -177,6 +177,24 @@ export const Preferences: React.FC = () => {
         [prefDispatch],
     );
 
+    const onLineWaveformAutoAdvanceToggle = useCallback(
+        () =>
+            prefDispatch({
+                type: "lineWaveformAutoAdvance",
+                payload: (state) => !state.lineWaveformAutoAdvance,
+            }),
+        [prefDispatch],
+    );
+
+    const onLineWaveformPlayAfterSetToggle = useCallback(
+        () =>
+            prefDispatch({
+                type: "lineWaveformPlayAfterSet",
+                payload: (state) => !state.lineWaveformPlayAfterSet,
+            }),
+        [prefDispatch],
+    );
+
     const onAllowBackgroundAudioToggle = useCallback(
         () => prefDispatch({ type: "allowBackgroundAudio", payload: (state) => !state.allowBackgroundAudio }),
         [prefDispatch],
@@ -317,6 +335,9 @@ export const Preferences: React.FC = () => {
         <div className="preferences">
             <h1 className="preferences-title">{lang.header.preferences}</h1>
             <ul>
+                <li className="preferences-section-title">
+                    <h2>{lang.preferences.sections.general}</h2>
+                </li>
                 <li>
                     <section className="list-item">
                         <span>{lang.preferences.language}</span>
@@ -331,6 +352,9 @@ export const Preferences: React.FC = () => {
                         </div>
                     </section>
                 </li>
+                <li className="preferences-section-title">
+                    <h2>{lang.preferences.sections.media}</h2>
+                </li>
                 <li>
                     <label className="list-item">
                         <span>{lang.preferences.builtInAudio}</span>
@@ -344,6 +368,23 @@ export const Preferences: React.FC = () => {
                             <span className="toggle-switch-label" />
                         </label>
                     </label>
+                </li>
+                <li>
+                    <label className="list-item">
+                        <span>{lang.preferences.allowBackgroundAudio}</span>
+                        <label className="toggle-switch">
+                            <input
+                                type="checkbox"
+                                checked={prefState.allowBackgroundAudio}
+                                onChange={onAllowBackgroundAudioToggle}
+                                aria-label={lang.preferences.allowBackgroundAudio}
+                            />
+                            <span className="toggle-switch-label" />
+                        </label>
+                    </label>
+                </li>
+                <li className="preferences-section-title">
+                    <h2>{lang.preferences.sections.timing}</h2>
                 </li>
                 <li>
                     <label className="list-item">
@@ -389,17 +430,34 @@ export const Preferences: React.FC = () => {
                 </li>
                 <li>
                     <label className="list-item">
-                        <span>{lang.preferences.allowBackgroundAudio}</span>
+                        <span>{lang.preferences.lineWaveformAutoAdvance}</span>
                         <label className="toggle-switch">
                             <input
                                 type="checkbox"
-                                checked={prefState.allowBackgroundAudio}
-                                onChange={onAllowBackgroundAudioToggle}
-                                aria-label={lang.preferences.allowBackgroundAudio}
+                                checked={prefState.lineWaveformAutoAdvance}
+                                onChange={onLineWaveformAutoAdvanceToggle}
+                                aria-label={lang.preferences.lineWaveformAutoAdvance}
                             />
                             <span className="toggle-switch-label" />
                         </label>
                     </label>
+                </li>
+                <li>
+                    <label className="list-item">
+                        <span>{lang.preferences.lineWaveformPlayAfterSet}</span>
+                        <label className="toggle-switch">
+                            <input
+                                type="checkbox"
+                                checked={prefState.lineWaveformPlayAfterSet}
+                                onChange={onLineWaveformPlayAfterSetToggle}
+                                aria-label={lang.preferences.lineWaveformPlayAfterSet}
+                            />
+                            <span className="toggle-switch-label" />
+                        </label>
+                    </label>
+                </li>
+                <li className="preferences-section-title">
+                    <h2>{lang.preferences.sections.advanced}</h2>
                 </li>
                 <li>
                     <label className="list-item">
@@ -474,6 +532,9 @@ export const Preferences: React.FC = () => {
                     >
                         {lang.preferences.aiStopService}
                     </button>
+                </li>
+                <li className="preferences-section-title">
+                    <h2>{lang.preferences.sections.appearance}</h2>
                 </li>
                 <li>
                     <section className="list-item">
@@ -590,6 +651,9 @@ export const Preferences: React.FC = () => {
                         />
                     </label>
                 </li>
+                <li className="preferences-section-title">
+                    <h2>{lang.preferences.sections.precision}</h2>
+                </li>
                 <li>
                     <label className="list-item">
                         <label htmlFor="seek-step-ms">{lang.preferences.seekStepMs}</label>
@@ -615,6 +679,9 @@ export const Preferences: React.FC = () => {
                             {...useNumberInput(prefState.fineTuneMs, onFineTuneChange)}
                         />
                     </label>
+                </li>
+                <li className="preferences-section-title">
+                    <h2>{lang.preferences.sections.storage}</h2>
                 </li>
                 <li className="ripple">
                     <button className="list-item preferences-button" type="button" onClick={onCacheClear}>

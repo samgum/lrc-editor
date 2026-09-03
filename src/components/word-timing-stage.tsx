@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { WordCursor } from "../hooks/useAdvancedLyrics.js";
+import type { WordCaptureMode } from "../hooks/usePref.js";
 import {
     type AdvancedLyricsDocument,
     formatLrcTimestamp,
@@ -16,7 +17,7 @@ interface WordTimingStageProps {
     fixed: Fixed;
     mediaReady: boolean;
     syncShortcutLabel: string | null;
-    holdMode: boolean;
+    captureMode: WordCaptureMode;
     isHolding: boolean;
     compensationMs: number;
     previewLeadMs: number;
@@ -27,7 +28,7 @@ interface WordTimingStageProps {
     onHoldStart: () => void;
     onHoldEnd: () => void;
     onHoldCancel: () => void;
-    onCaptureModeChange: (holdMode: boolean) => void;
+    onCaptureModeChange: (captureMode: WordCaptureMode) => void;
     onCompensationChange: (milliseconds: number) => void;
     onPreviewLeadChange: (milliseconds: number) => void;
     onPlaybackRateChange: (rate: number) => void;
@@ -49,7 +50,7 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
     fixed,
     mediaReady,
     syncShortcutLabel,
-    holdMode,
+    captureMode,
     isHolding,
     compensationMs,
     previewLeadMs,
@@ -177,19 +178,27 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
                     <span>{language.captureMode}</span>
                     <button
                         type="button"
-                        className={holdMode ? "" : "active"}
-                        aria-pressed={!holdMode}
-                        onClick={() => onCaptureModeChange(false)}
+                        className={captureMode === "tap" ? "active" : ""}
+                        aria-pressed={captureMode === "tap"}
+                        onClick={() => onCaptureModeChange("tap")}
                     >
                         {language.tapMode}
                     </button>
                     <button
                         type="button"
-                        className={holdMode ? "active" : ""}
-                        aria-pressed={holdMode}
-                        onClick={() => onCaptureModeChange(true)}
+                        className={captureMode === "hold" ? "active" : ""}
+                        aria-pressed={captureMode === "hold"}
+                        onClick={() => onCaptureModeChange("hold")}
                     >
                         {language.holdMode}
+                    </button>
+                    <button
+                        type="button"
+                        className={captureMode === "waveform" ? "active" : ""}
+                        aria-pressed={captureMode === "waveform"}
+                        onClick={() => onCaptureModeChange("waveform")}
+                    >
+                        {language.waveformMode}
                     </button>
                 </div>
                 <label>
@@ -368,29 +377,35 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
                 </button>
                 <button
                     type="button"
-                    className={`word-stage-capture${isHolding ? " holding" : ""}`}
-                    disabled={!mediaReady}
-                    onClick={() => !holdMode && onStamp()}
+                    className={`word-stage-capture${isHolding ? " holding" : ""}${
+                        captureMode === "waveform" ? " waveform-mode" : ""
+                    }`}
+                    disabled={!mediaReady || captureMode === "waveform"}
+                    onClick={() => captureMode === "tap" && onStamp()}
                     onPointerDown={(event) => {
-                        if (!holdMode || !mediaReady) return;
+                        if (captureMode !== "hold" || !mediaReady) return;
                         event.preventDefault();
                         event.currentTarget.setPointerCapture(event.pointerId);
                         onHoldStart();
                     }}
                     onPointerUp={(event) => {
-                        if (!holdMode) return;
+                        if (captureMode !== "hold") return;
                         event.preventDefault();
                         if (event.currentTarget.hasPointerCapture(event.pointerId)) {
                             event.currentTarget.releasePointerCapture(event.pointerId);
                         }
                         onHoldEnd();
                     }}
-                    onPointerCancel={() => holdMode && onHoldCancel()}
+                    onPointerCancel={() => captureMode === "hold" && onHoldCancel()}
                 >
                     <span>
-                        {holdMode ? (isHolding ? language.releaseWord : language.holdWord) : language.captureWord}
+                        {captureMode === "waveform"
+                            ? language.waveformCaptureButton
+                            : captureMode === "hold"
+                            ? (isHolding ? language.releaseWord : language.holdWord)
+                            : language.captureWord}
                     </span>
-                    {syncShortcutLabel && <kbd>{syncShortcutLabel}</kbd>}
+                    {syncShortcutLabel && captureMode !== "waveform" && <kbd>{syncShortcutLabel}</kbd>}
                 </button>
                 <button
                     type="button"

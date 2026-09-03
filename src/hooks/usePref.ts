@@ -21,6 +21,10 @@ export const enum ThemeMode {
     dark,
 }
 
+export type WordCaptureMode = "tap" | "hold" | "waveform";
+export type TimingWaveformView = "waveform" | "spectrogram";
+export type LineCaptureMode = "standard" | "waveform";
+
 const initState = {
     lang: "en-US",
     spaceStart: 0,
@@ -39,7 +43,13 @@ const initState = {
     aiGpuAcceleration: true,
     keepAiTaskCache: false,
     advancedLyricsEnabled: false,
-    wordHoldMode: false,
+    lineCaptureMode: "standard" as LineCaptureMode,
+    lineWaveformAutoAdvance: false,
+    lineWaveformPlayAfterSet: false,
+    wordCaptureMode: "tap" as WordCaptureMode,
+    timingWaveformView: "waveform" as TimingWaveformView,
+    timingWaveformZoom: 84,
+    timingWaveformAmplitude: 1,
     wordTimingCompensationMs: 0,
     wordPreviewLeadMs: 750,
     keyBindings: defaultKeyBindings,
@@ -79,17 +89,45 @@ const init = (lazyInit: () => string): State => {
         .find((langCode) => langCodeList.includes(langCode)) || "en-US";
 
     try {
-        const storedState = JSON.parse(lazyInit()) as State;
+        const storedState = JSON.parse(lazyInit()) as Partial<State> & {
+            wordHoldMode?: boolean;
+            wordWaveformView?: TimingWaveformView;
+            wordWaveformZoom?: number;
+            wordWaveformAmplitude?: number;
+        };
         const validKeys = Object.keys(initState) as (keyof State)[];
         for (const key of validKeys) {
             if (key in storedState) {
                 (state[key] as unknown) = storedState[key];
             }
         }
+        if (!("wordCaptureMode" in storedState) && storedState.wordHoldMode) {
+            state.wordCaptureMode = "hold";
+        }
+        if (!("timingWaveformView" in storedState) && storedState.wordWaveformView) {
+            state.timingWaveformView = storedState.wordWaveformView;
+        }
+        if (!("timingWaveformZoom" in storedState) && storedState.wordWaveformZoom) {
+            state.timingWaveformZoom = storedState.wordWaveformZoom;
+        }
+        if (!("timingWaveformAmplitude" in storedState) && storedState.wordWaveformAmplitude) {
+            state.timingWaveformAmplitude = storedState.wordWaveformAmplitude;
+        }
     } catch {
         // It's OK if parsing failed
     }
     state.keyBindings = normalizeKeyBindings(state.keyBindings);
+    if (!(["tap", "hold", "waveform"] as const).includes(state.wordCaptureMode)) {
+        state.wordCaptureMode = "tap";
+    }
+    if (!(["standard", "waveform"] as const).includes(state.lineCaptureMode)) {
+        state.lineCaptureMode = "standard";
+    }
+    if (!(["waveform", "spectrogram"] as const).includes(state.timingWaveformView)) {
+        state.timingWaveformView = "waveform";
+    }
+    state.timingWaveformZoom = Math.max(24, Math.min(420, Number(state.timingWaveformZoom) || 84));
+    state.timingWaveformAmplitude = Math.max(0.5, Math.min(4, Number(state.timingWaveformAmplitude) || 1));
     return state;
 };
 

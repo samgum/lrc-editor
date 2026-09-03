@@ -25,6 +25,7 @@ LRC Editor 是用于编辑 LRC 歌词并配合音频或视频制作时间轴的�
 - 本地导入 FLAC／ALAC／AIFF／CAF 时，使用 FFmpeg WebAssembly 一次性转为 256 kbps AAC；播放与 AI 对轴只共用当前这一份内存 AAC Blob，不会为 AI 再读取或传输体积更大的无损源文件。每次转换结束都会删除 FFmpeg 虚拟输入／输出并终止 Worker；换歌时撤销上一份 Blob URL，转换结果不会写入浏览器持久存储。
 - 为本地媒体和扩展解析媒体显示波形，支持精确跳转、播放速度调节以及可选的后台播放。
 - 使用键盘或指针添加、覆盖、删除、微调时间标签，也可整体平移全部时间标签。默认微调量为 100 ms；键盘操作配合 `Shift` 可减半，配合 `Alt` 可缩小至五分之一。
+- 逐行打轴可在原有“常规打轴”和参考 Aegisub 交互的大波形模式之间切换。波形模式下点击只更新当前行开始时间，可反复校准；`S` 试听当前行，`F`／`Shift+F` 左右翻时间轴，`G` 确认后选择下一行。设置中的“点击后自动下一行”和“设置起点后立即播放”互相独立且默认关闭。波形／频谱、滚轮时间缩放、显示振幅和模式选择都会保存在本地。
 - 对所有重复时间戳行和发生倒退的具体行显示整行警示底色、左侧警示条、矢量警示图标及可访问的问题名称。
 - 选中行自动居中，通过常驻打轴工具栏记录时间，并可撤销或重做时间修改。
 - 在键位设置页修改全部打轴与播放快捷键。
@@ -34,6 +35,7 @@ LRC Editor 是用于编辑 LRC 歌词并配合音频或视频制作时间轴的�
 - 在实用工具中把逐字 Enhanced LRC、KRC 或 TTML 转为逐行标准 LRC、SRT、逐行 TTML 或纯文本。转换器既可直接读取编辑器当前逐字数据，也可单独载入歌词文件；会显示识别格式、行数和定时片段数，原文与结果都能继续修改。
 - 合并 Lyrics Tools 功能：清理 Genius 段落标签、清理复制的曲目列表、批量普通／正则替换，以及不破坏时间戳的歌词大小写转换。
 - 支持跟随系统、亮色和暗色模式，以及自定义强调色。
+- 设置页按常规与语言、媒体与播放、打轴工作流、高级歌词与本机 AI、外观与歌词输出、时间精度、存储与关于分组显示。
 - 支持英语、日语、韩语、波兰语、巴西葡萄牙语、斯洛伐克语、简体中文、繁体中文（香港）和繁体中文（台湾）。
 - 可安装为 PWA，并通过 Web Share Target 接收分享的媒体链接。
 - 首次联网成功访问后，断网仍可重新打开编辑、打轴、工具、设置及内置多语言界面；远程媒体、首次模型下载和首次编解码资源下载仍需联网。
@@ -155,12 +157,13 @@ extension-dist/      扩展构建产物
 
 LRC Editor 由[伤感咩吖](https://github.com/samgum)开发和维护。
 
-实现过程中参考并改编了以下 MIT 许可项目：
+源码与交互参考项目包括：
 
 - [lrc-maker](https://github.com/magic-akari/lrc-maker)，作者 magic-akari
 - [lrc-maker-cdgz](https://github.com/CDGZ-ofc/lrc-maker-cdgz)，作者 重叠广州 / CDGZ-ofc
 - [lrc-utils](https://github.com/magic-akari/lrc-utils)，作者 magic-akari
 - [lyrics-tools](https://github.com/samgum/lyrics-tools)，作者 samgum
+- [Aegisub 修改版](https://github.com/samgum/Aegisub)，作者 Aegisub Project／samgum；S／F／G 音频工作流仅作交互参考，遵循 Aegisub 自身许可证，没有复制其源码
 - [内置本机 AI 对轴引擎](./companion/engine-bundle/README-zh.md)，作者伤感咩吖
 
 媒体配套扩展内置 MIT 许可的 [YouTube.js](https://github.com/LuanRT/YouTube.js)，作者 LuanRT 及贡献者。本地编码兜底使用同为 MIT 许可的 [ffmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm)。

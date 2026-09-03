@@ -16,6 +16,7 @@ import { type Action, ActionType, guard } from "../hooks/useLrc.js";
 import { type State as PrefState } from "../hooks/usePref.js";
 import {
     type AdvancedLyricLine,
+    lineText as advancedLineText,
     type LyricsWorkspaceMode,
     type WordTimingIssue,
     wordTimingIssueAt,
@@ -27,10 +28,13 @@ import { isKeyboardElement } from "../utils/is-keyboard-element.js";
 import { formatKeyBinding, getMatchedAction } from "../utils/keybindings.js";
 import { prependHash } from "../utils/router.js";
 import { timingIssueAt } from "../utils/timing-issues.js";
+import { captureWaveformTime, setWaveformTimingHandler } from "../utils/waveform-timing.js";
 import { appContext } from "./app.context.js";
 import { AsidePanel } from "./asidepanel.js";
 import { Curser } from "./curser.js";
 import { ProblemSVG } from "./svg.js";
+import { TimingWaveformPanel } from "./timing-waveform-panel.js";
+import type { WaveformHandle } from "./waveform.js";
 import { WordTimingStage } from "./word-timing-stage.js";
 
 const SpaceButton: React.FC<{ sync: () => void }> = ({ sync }) => {
@@ -70,12 +74,26 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
     const [mediaReady, setMediaReady] = useState(Boolean(audioRef.duration));
     const [playbackWord, setPlaybackWord] = useState<WordCursor | null>(null);
     const [playbackRate, setPlaybackRate] = useState(audioRef.playbackRate);
+    const [timingWaveformSource, setTimingWaveformSource] = useState(audioRef.src);
+    const [timingWaveformFailed, setTimingWaveformFailed] = useState(false);
     const [isHoldingWord, setIsHoldingWord] = useState(false);
+    const timingWaveformRef = useRef<WaveformHandle>(null);
     const previewEndRef = useRef<number | null>(null);
     const holdingWordRef = useRef(false);
     const heldSyncKeyRef = useRef<string | null>(null);
     const syncShortcut = keyBindings[InputAction.Sync][0];
     const syncShortcutLabel = syncShortcut ? formatKeyBinding(syncShortcut) : null;
+    const onTimingWaveformUnavailable = useCallback(() => setTimingWaveformFailed(true), []);
+    const onTimingWaveformViewChange = useCallback((view: PrefState["timingWaveformView"]) => {
+        setTimingWaveformFailed(false);
+        prefDispatch({ type: "timingWaveformView", payload: view });
+    }, [prefDispatch]);
+    const onTimingWaveformZoomChange = useCallback((zoom: number) => {
+        prefDispatch({ type: "timingWaveformZoom", payload: zoom });
+    }, [prefDispatch]);
+    const onTimingWaveformAmplitudeChange = useCallback((amplitude: number) => {
+        prefDispatch({ type: "timingWaveformAmplitude", payload: amplitude });
+    }, [prefDispatch]);
 
     const [syncMode, setSyncMode] = useState(() =>
         sessionStorage.getItem(SSK.syncMode) === SyncMode.highlight.toString() ? SyncMode.highlight : SyncMode.select
@@ -195,7 +213,11 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
 
     useEffect(() =>
         audioStatePubSub.sub(self.current, (state) => {
-            if (state.type === AudioActionType.getDuration) setMediaReady(state.payload > 0);
+            if (state.type === AudioActionType.getDuration) {
+                setMediaReady(state.payload > 0);
+                setTimingWaveformSource(audioRef.src);
+                setTimingWaveformFailed(false);
+            }
             if (state.type === AudioActionType.rateChange) setPlaybackRate(state.payload);
         }), []);
 
@@ -206,17 +228,21 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
         ],
     );
 
-    const sync = useCallback(() => {
-        if (!audioRef.duration) {
-            return;
-        }
-
+    const stampWordAt = useCallback((timeMs: number) => {
         if (timingMode === "word" && advancedState.document) {
             const next = nextWordCursor(advancedState.document, advancedState.cursor, 1);
-            advancedDispatch({ type: AdvancedActionType.stamp, payload: captureTimeMs() });
+            advancedDispatch({ type: AdvancedActionType.stamp, payload: Math.max(0, Math.round(timeMs)) });
             if (next.lineIndex !== state.selectIndex) {
                 dispatch({ type: ActionType.select, payload: () => next.lineIndex });
             }
+        }
+    }, [advancedDispatch, advancedState.cursor, advancedState.document, dispatch, state.selectIndex, timingMode]);
+
+    const sync = useCallback(() => {
+        if (!audioRef.duration) return;
+
+        if (timingMode === "word") {
+            stampWordAt(captureTimeMs());
             return;
         }
 
@@ -225,12 +251,44 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
             payload: audioRef.currentTime,
         });
     }, [
-        advancedDispatch,
-        advancedState.cursor,
-        advancedState.document,
         captureTimeMs,
         dispatch,
-        state.selectIndex,
+        stampWordAt,
+        timingMode,
+    ]);
+
+    const seekTimingWaveform = useCallback((timeSeconds: number) => {
+        previewEndRef.current = null;
+        audioRef.currentTime = timeSeconds;
+        currentTimePubSub.pub(timeSeconds);
+    }, []);
+
+    const captureWordFromWaveform = useCallback((timeSeconds: number) => {
+        seekTimingWaveform(timeSeconds);
+        stampWordAt(timeSeconds * 1000);
+    }, [seekTimingWaveform, stampWordAt]);
+
+    const setLineStartFromWaveform = useCallback((timeSeconds: number) => {
+        seekTimingWaveform(timeSeconds);
+        dispatch({
+            type: prefState.lineWaveformAutoAdvance ? ActionType.next : ActionType.time,
+            payload: timeSeconds,
+        });
+        if (prefState.lineWaveformPlayAfterSet) {
+            void audioRef.current?.play().catch(() => undefined);
+        }
+    }, [dispatch, prefState.lineWaveformAutoAdvance, prefState.lineWaveformPlayAfterSet, seekTimingWaveform]);
+
+    useEffect(() => {
+        const wordMode = timingMode === "word" && prefState.wordCaptureMode === "waveform";
+        const lineMode = timingMode === "line" && prefState.lineCaptureMode === "waveform";
+        if (!wordMode && !lineMode) return;
+        return setWaveformTimingHandler(wordMode ? captureWordFromWaveform : setLineStartFromWaveform);
+    }, [
+        captureWordFromWaveform,
+        prefState.lineCaptureMode,
+        prefState.wordCaptureMode,
+        setLineStartFromWaveform,
         timingMode,
     ]);
 
@@ -376,6 +434,27 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
         previewRange(previewStart, line.endMs ?? nextLineStart ?? lastWordEnd ?? fallbackEnd);
     }, [advancedState.cursor.lineIndex, advancedState.document, prefState.wordPreviewLeadMs, previewRange]);
 
+    const previewWaveformSelection = useCallback(() => {
+        const document = advancedState.document;
+        const line = document?.lines[advancedState.cursor.lineIndex];
+        const word = line?.words[advancedState.cursor.wordIndex];
+        if (!document || !line || !word || word.startMs === undefined) {
+            previewSelectedLine();
+            return;
+        }
+        const nextStart = line.words.slice(advancedState.cursor.wordIndex + 1)
+            .find((candidate) => candidate.startMs !== undefined)?.startMs;
+        previewRange(word.startMs, word.endMs ?? nextStart ?? line.endMs);
+    }, [advancedState.cursor, advancedState.document, previewRange, previewSelectedLine]);
+
+    const previewLineWaveformSelection = useCallback(() => {
+        if (!audioRef.duration) return;
+        const lineStart = lyric[selectIndex]?.time ?? audioRef.currentTime;
+        const nextStart = lyric.slice(selectIndex + 1).find((candidate) => candidate.time !== undefined)?.time;
+        const lineEnd = Math.min(audioRef.duration, nextStart ?? lineStart + 4);
+        previewRange(lineStart * 1000, Math.max(lineStart + 0.05, lineEnd) * 1000);
+    }, [lyric, previewRange, selectIndex]);
+
     useEffect(() => {
         function onKeydown(ev: KeyboardEvent): void {
             if (isKeyboardElement(ev.target)) {
@@ -414,6 +493,35 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                 return;
             }
 
+            const waveformMode = timingMode === "word"
+                ? prefState.wordCaptureMode === "waveform"
+                : prefState.lineCaptureMode === "waveform";
+            if (waveformMode && !ctrlOrMeta && !ev.altKey) {
+                if (ev.code === "KeyS") {
+                    ev.preventDefault();
+                    if (!ev.repeat) {
+                        if (timingMode === "word") previewWaveformSelection();
+                        else previewLineWaveformSelection();
+                    }
+                    return;
+                }
+                if (ev.code === "KeyF") {
+                    ev.preventDefault();
+                    if (!ev.repeat) timingWaveformRef.current?.scrollPage(ev.shiftKey ? -1 : 1);
+                    return;
+                }
+                if (ev.code === "KeyG") {
+                    ev.preventDefault();
+                    if (!ev.repeat) {
+                        if (timingMode === "word" && audioRef.duration) captureWaveformTime(audioRef.currentTime);
+                        else if (timingMode === "line" && lyric[selectIndex]?.time !== undefined) {
+                            selectLine((index) => index + 1);
+                        }
+                    }
+                    return;
+                }
+            }
+
             const action = getMatchedAction(ev, keyBindings);
 
             switch (action) {
@@ -422,7 +530,13 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                     if (ev.repeat) {
                         break;
                     }
-                    if (timingMode === "word" && prefState.wordHoldMode) {
+                    if (timingMode === "word" && prefState.wordCaptureMode === "waveform") {
+                        break;
+                    }
+                    if (timingMode === "line" && prefState.lineCaptureMode === "waveform") {
+                        break;
+                    }
+                    if (timingMode === "word" && prefState.wordCaptureMode === "hold") {
                         heldSyncKeyRef.current = ev.code;
                         startWordHold();
                     } else {
@@ -521,7 +635,10 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
         dispatch,
         keyBindings,
         prefState.fineTuneMs,
-        prefState.wordHoldMode,
+        prefState.lineCaptureMode,
+        prefState.wordCaptureMode,
+        previewLineWaveformSelection,
+        previewWaveformSelection,
         selectIndex,
         selectLine,
         selectWord,
@@ -667,6 +784,23 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
     const selectedWord = timingMode === "word"
         ? advancedState.document?.lines[advancedState.cursor.lineIndex]?.words[advancedState.cursor.wordIndex]
         : undefined;
+    const selectedAdvancedLine = timingMode === "word"
+        ? advancedState.document?.lines[advancedState.cursor.lineIndex]
+        : undefined;
+    const dedicatedWaveformMode = timingMode === "word"
+        ? prefState.wordCaptureMode === "waveform"
+        : prefState.lineCaptureMode === "waveform";
+    const waveformLineText = timingMode === "word"
+        ? selectedAdvancedLine ? advancedLineText(selectedAdvancedLine) : ""
+        : lyric[selectIndex]?.text || "";
+    const waveformUnitText = timingMode === "word"
+        ? selectedWord?.text || ""
+        : `${selectIndex + 1} / ${lyric.length}`;
+    const waveformStartMs = timingMode === "word"
+        ? selectedWord?.startMs
+        : lyric[selectIndex]?.time === undefined
+        ? undefined
+        : lyric[selectIndex].time * 1000;
     const selectedTime = timingMode === "word"
         ? selectedWord?.startMs === undefined ? undefined : selectedWord.startMs / 1000
         : lyric[selectIndex]?.time;
@@ -679,6 +813,8 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
             ref={page}
             className={`timing-page ${syncMode === SyncMode.highlight ? "follow-playback" : "follow-selection"}${
                 timingMode === "word" ? " word-mode" : ""
+            }${dedicatedWaveformMode ? " waveform-capture" : ""}${
+                timingMode === "line" && dedicatedWaveformMode ? " line-waveform-mode" : ""
             }`}
         >
             <header className="timing-toolbar">
@@ -721,6 +857,28 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                         </button>
                     </div>
                 </div>
+                {timingMode === "line" && (
+                    <div className="line-capture-mode" role="group" aria-label={lang.timing.captureMode}>
+                        <button
+                            type="button"
+                            className={prefState.lineCaptureMode === "standard" ? "active" : ""}
+                            aria-pressed={prefState.lineCaptureMode === "standard"}
+                            onClick={() =>
+                                prefDispatch({ type: "lineCaptureMode", payload: "standard" })}
+                        >
+                            {lang.timing.standardCaptureMode}
+                        </button>
+                        <button
+                            type="button"
+                            className={prefState.lineCaptureMode === "waveform" ? "active" : ""}
+                            aria-pressed={prefState.lineCaptureMode === "waveform"}
+                            onClick={() =>
+                                prefDispatch({ type: "lineCaptureMode", payload: "waveform" })}
+                        >
+                            {lang.timing.waveformCaptureMode}
+                        </button>
+                    </div>
+                )}
                 <div className="timing-actions">
                     {timingMode === "word" && (
                         <a className="timing-review-export" href={prependHash(ROUTER.editor)}>
@@ -751,7 +909,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                     >
                         {lang.timing.redo}
                     </button>
-                    {timingMode === "line" && (
+                    {timingMode === "line" && prefState.lineCaptureMode === "standard" && (
                         <button className="timing-capture" type="button" onClick={sync} disabled={!mediaReady}>
                             <span>{lang.keybindings.actions.sync}</span>
                             {syncShortcutLabel && <kbd>{syncShortcutLabel}</kbd>}
@@ -759,6 +917,49 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                     )}
                 </div>
             </header>
+            {dedicatedWaveformMode && (
+                mediaReady && timingWaveformSource && !timingWaveformFailed
+                    ? (
+                        <TimingWaveformPanel
+                            ref={timingWaveformRef}
+                            source={timingWaveformSource}
+                            themeColor={prefState.themeColor}
+                            timingUnit={timingMode}
+                            lineText={waveformLineText}
+                            wordText={waveformUnitText}
+                            wordStartMs={waveformStartMs}
+                            fixed={prefState.fixed}
+                            view={prefState.timingWaveformView}
+                            zoom={prefState.timingWaveformZoom}
+                            amplitude={prefState.timingWaveformAmplitude}
+                            language={lang.advancedLyrics}
+                            onSeek={seekTimingWaveform}
+                            onCapture={captureWaveformTime}
+                            onUnavailable={onTimingWaveformUnavailable}
+                            onViewChange={onTimingWaveformViewChange}
+                            onZoomChange={onTimingWaveformZoomChange}
+                            onAmplitudeChange={onTimingWaveformAmplitudeChange}
+                        />
+                    )
+                    : (
+                        <section className="word-waveform-empty">
+                            <strong>{waveformLineText || "—"}</strong>
+                            <span>
+                                {timingWaveformFailed
+                                    ? lang.advancedLyrics.waveformUnavailable
+                                    : lang.advancedLyrics.waveformLoadMedia}
+                            </span>
+                            {timingWaveformFailed && (
+                                <button
+                                    type="button"
+                                    onClick={() => setTimingWaveformFailed(false)}
+                                >
+                                    {lang.advancedLyrics.waveformRetry}
+                                </button>
+                            )}
+                        </section>
+                    )
+            )}
             {timingMode === "word" && advancedState.document && (
                 <WordTimingStage
                     document={advancedState.document}
@@ -767,7 +968,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                     fixed={prefState.fixed}
                     mediaReady={mediaReady}
                     syncShortcutLabel={syncShortcutLabel}
-                    holdMode={prefState.wordHoldMode}
+                    captureMode={prefState.wordCaptureMode}
                     isHolding={isHoldingWord}
                     compensationMs={prefState.wordTimingCompensationMs}
                     previewLeadMs={prefState.wordPreviewLeadMs}
@@ -778,9 +979,9 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                     onHoldStart={startWordHold}
                     onHoldEnd={finishWordHold}
                     onHoldCancel={cancelWordHold}
-                    onCaptureModeChange={(holdMode) => {
+                    onCaptureModeChange={(captureMode) => {
                         if (holdingWordRef.current) finishWordHold();
-                        prefDispatch({ type: "wordHoldMode", payload: holdMode });
+                        prefDispatch({ type: "wordCaptureMode", payload: captureMode });
                     }}
                     onCompensationChange={(milliseconds) =>
                         prefDispatch({
@@ -837,7 +1038,9 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                     prefState={prefState}
                 />
             </section>
-            {prefState.screenButton && timingMode === "line" && <SpaceButton sync={sync} />}
+            {prefState.screenButton && timingMode === "line" && prefState.lineCaptureMode === "standard" && (
+                <SpaceButton sync={sync} />
+            )}
         </section>
     );
 };

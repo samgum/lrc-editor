@@ -25,6 +25,7 @@ The web application is static and keeps lyric text, preferences, and local media
 - Convert imported local FLAC/ALAC/AIFF/CAF media once to 256 kbps AAC with FFmpeg WebAssembly. Playback and AI alignment share only the current in-memory AAC Blob, so the AI bridge never reopens or transfers the much larger lossless source. The virtual input/output files and FFmpeg Worker are destroyed after every conversion; replacing the media revokes the previous Blob URL, and no converted audio is written to persistent browser storage.
 - Display a waveform for local or extension-resolved media, seek precisely, change playback speed, and continue playback in the background when enabled.
 - Add, replace, delete, fine-tune, or batch-shift timestamps with keyboard or pointer controls. The default correction step is 100 ms; `Shift` halves it and `Alt` reduces it to one fifth for keyboard adjustments.
+- Switch line timing between the existing Standard workflow and an Aegisub-inspired large-waveform workflow. In waveform mode, clicking updates only the current line start so it can be corrected repeatedly; `S` previews the current line, `F`/`Shift+F` pages the timeline, and `G` confirms and selects the next line. Optional click-to-auto-advance and play-from-new-start settings are independent and disabled by default. Waveform/Spectrogram view, wheel time zoom, display amplitude, and mode choices persist locally.
 - Mark every duplicated timestamp row and each row that moves backwards with a full-width warning background, left rail, warning icon, and accessible issue label.
 - Keep the selected line centered, record from a persistent timing toolbar, and undo or redo timestamp edits.
 - Configure every timing and playback shortcut from the key-binding screen.
@@ -34,6 +35,7 @@ The web application is static and keeps lyric text, preferences, and local media
 - Convert word-timed Enhanced LRC, KRC, or TTML into line-timed Standard LRC, SRT, Line TTML, or plain text from the Tools page. The converter can reuse the current editor word data or load a separate lyric file, reports the detected format and timing counts, and keeps both source and result editable.
 - Use the integrated Lyrics Tools functions to remove Genius section labels, clean copied tracklists, replace plain text or regular expressions in bulk, and convert lyric case without changing timestamps.
 - Switch between system, light, and dark themes; choose an accent color.
+- Navigate categorized Settings sections for general/language, media/playback, timing workflow, advanced lyrics/local AI, appearance/output, timing precision, and storage/about.
 - Use English, Japanese, Korean, Polish, Brazilian Portuguese, Slovak, Simplified Chinese, Traditional Chinese (Hong Kong), or Traditional Chinese (Taiwan).
 - Install the site as a PWA and receive shared media URLs through the Web Share Target API.
 - Reopen the editor, timing workspace, tools, settings, and bundled language interface without a network connection after the first successful online visit. Remote media and first-time model or codec downloads still require a connection.
@@ -157,12 +159,13 @@ extension-firefox-android-dist/    Firefox Android build output
 
 LRC Editor is developed and maintained by [伤感咩吖](https://github.com/samgum).
 
-The implementation studies and adapts MIT-licensed work from:
+Source and interaction references include:
 
 - [lrc-maker](https://github.com/magic-akari/lrc-maker), by magic-akari
 - [lrc-maker-cdgz](https://github.com/CDGZ-ofc/lrc-maker-cdgz), by 重叠广州 / CDGZ-ofc
 - [lrc-utils](https://github.com/magic-akari/lrc-utils), by magic-akari
 - [lyrics-tools](https://github.com/samgum/lyrics-tools), by samgum
+- [Aegisub modified fork](https://github.com/samgum/Aegisub), by the Aegisub Project and samgum; the S/F/G audio workflow is an interaction reference under Aegisub's own license, not copied source code
 - [Bundled local AI alignment engine](./companion/engine-bundle/README.md), by 伤感咩吖
 
 The media companion bundles [YouTube.js](https://github.com/LuanRT/YouTube.js), by LuanRT and contributors, under the MIT license. Local codec fallback uses [ffmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm), also under the MIT license.

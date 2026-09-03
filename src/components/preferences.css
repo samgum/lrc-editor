@@ -36,6 +36,30 @@
     border-bottom: 0;
 }
 
+.preferences li.preferences-section-title {
+    padding: 13px 18px 7px;
+    color: var(--theme-foreground-color);
+    background: color-mix(in srgb, var(--surface-color) 90%, var(--theme-color));
+    border-top: 1px solid rgba(var(--theme-rgb), 0.18);
+    border-bottom: 1px solid rgba(var(--theme-rgb), 0.2);
+}
+
+.preferences li.preferences-section-title:first-child {
+    border-top: 0;
+}
+
+.preferences li.preferences-section-title:hover {
+    background: color-mix(in srgb, var(--surface-color) 90%, var(--theme-color));
+}
+
+.preferences-section-title h2 {
+    max-width: 768px;
+    margin: auto;
+    font-size: 0.78rem;
+    font-weight: 750;
+    letter-spacing: 0.035em;
+}
+
 .preferences-button {
     width: 100%;
     color: inherit;

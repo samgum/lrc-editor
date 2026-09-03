@@ -115,6 +115,13 @@ export const Content: React.FC = () => {
         return () => clearTimeout(saveTimer);
     }, [advancedState.cursor, advancedState.document]);
 
+    useEffect(() => {
+        const saveTimer = setTimeout(() => {
+            localStorage.setItem(LSK.preferences, JSON.stringify(prefState));
+        }, 120);
+        return () => clearTimeout(saveTimer);
+    }, [prefState]);
+
     const updateAdvanced = useCallback((action: AdvancedLyricsAction) => {
         if (
             action.type !== AdvancedActionType.load
