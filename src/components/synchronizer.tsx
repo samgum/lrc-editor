@@ -155,6 +155,24 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
             }
 
             const lineRect = line.getBoundingClientRect();
+            const lineQueue = ul.current?.parentElement;
+            if (
+                prefState.lineCaptureMode === "waveform"
+                && matchMedia("(width > 820px)").matches
+                && lineQueue
+            ) {
+                const queueRect = lineQueue.getBoundingClientRect();
+                const visibleTop = queueRect.top + 8;
+                const visibleBottom = queueRect.bottom - 8;
+                if (lineRect.top < visibleTop || lineRect.bottom > visibleBottom) {
+                    lineQueue.scrollTo({
+                        top: lineQueue.scrollTop + lineRect.top - queueRect.top
+                            - (lineQueue.clientHeight - lineRect.height) / 2,
+                        behavior: "auto",
+                    });
+                }
+                return;
+            }
             const toolbarBottom = document.querySelector(".timing-toolbar")?.getBoundingClientRect().bottom ?? 0;
             page.current?.style.setProperty("--timing-controls-top", `${Math.round(toolbarBottom + 7)}px`);
             const asideBottom = matchMedia("(width <= 820px)").matches
@@ -180,7 +198,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
         });
 
         return () => cancelAnimationFrame(frameId);
-    }, [followLayoutRevision, needScrollLine, syncMode, timingMode]);
+    }, [followLayoutRevision, needScrollLine, prefState.lineCaptureMode, syncMode, timingMode]);
 
     useEffect(() => {
         if (timingMode !== "word") return;
