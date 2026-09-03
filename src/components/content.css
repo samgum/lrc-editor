@@ -59,6 +59,165 @@ body {
     background: var(--theme-color);
 }
 
+.workspace-drop-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1300;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 24rem));
+    place-content: center;
+    gap: 14px;
+    padding: 24px;
+    color: var(--font-color);
+    background: color-mix(in srgb, var(--background-color) 82%, transparent);
+    backdrop-filter: blur(18px) saturate(135%);
+    pointer-events: none;
+    animation: workspace-drop-enter 160ms var(--ease-emphasized);
+}
+
+.workspace-drop-card {
+    display: grid;
+    place-items: center;
+    gap: 10px;
+    min-height: 220px;
+    padding: 24px;
+    text-align: center;
+    background: color-mix(in srgb, var(--surface-color) 91%, var(--theme-color));
+    border: 2px dashed rgba(var(--theme-rgb), 0.62);
+    border-radius: 12px;
+    box-shadow: 0 18px 60px #00000024;
+}
+
+.workspace-drop-card svg {
+    width: 42px;
+    height: 42px;
+    color: var(--theme-foreground-color);
+}
+
+.workspace-drop-card strong {
+    font-size: clamp(1.05rem, 2.5vw, 1.45rem);
+}
+
+.workspace-drop-card span, .workspace-drop-card small, .workspace-drop-overlay > p {
+    color: var(--text-secondary-color);
+}
+
+.workspace-drop-card small {
+    font-family: "Cascadia Mono", Consolas, monospace;
+    font-size: 0.62rem;
+}
+
+.workspace-drop-overlay > p {
+    grid-column: 1 / -1;
+    margin: 2px 0 0;
+    text-align: center;
+    font-size: 0.72rem;
+}
+
+.lyric-overwrite-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 1400;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    margin: 0;
+    padding: 20px;
+    color: var(--font-color);
+    background: #11131868;
+    border: 0;
+    backdrop-filter: blur(10px);
+}
+
+.lyric-overwrite-dialog::backdrop {
+    background: #11131868;
+    backdrop-filter: blur(10px);
+}
+
+.lyric-overwrite-dialog > article {
+    display: grid;
+    width: min(31rem, 100%);
+    gap: 14px;
+    padding: 22px;
+    background: var(--surface-color);
+    border: 1px solid rgba(var(--theme-rgb), 0.4);
+    border-radius: 10px;
+    box-shadow: 0 24px 80px #0000004a;
+    animation: dialog-enter 180ms var(--ease-emphasized);
+}
+
+.lyric-overwrite-dialog h2, .lyric-overwrite-dialog p {
+    margin: 0;
+}
+
+.lyric-overwrite-dialog h2 {
+    font-size: 1.2rem;
+}
+
+.lyric-overwrite-dialog p {
+    color: var(--text-secondary-color);
+    line-height: 1.55;
+}
+
+.lyric-overwrite-dialog dl {
+    display: grid;
+    gap: 1px;
+    margin: 0;
+    overflow: hidden;
+    background: #8888882b;
+    border: 1px solid #8888882b;
+    border-radius: 6px;
+}
+
+.lyric-overwrite-dialog dl > div {
+    display: grid;
+    grid-template-columns: 8rem minmax(0, 1fr);
+    gap: 10px;
+    padding: 9px 11px;
+    background: var(--surface-color);
+}
+
+.lyric-overwrite-dialog dt {
+    color: var(--text-muted-color);
+}
+
+.lyric-overwrite-dialog dd {
+    margin: 0;
+    overflow: hidden;
+    font-weight: 650;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lyric-overwrite-dialog footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.lyric-overwrite-dialog button {
+    min-height: 38px;
+    padding: 0 14px;
+    color: var(--text-secondary-color);
+    border: 1px solid #8888883d;
+    border-radius: 5px;
+}
+
+.lyric-overwrite-dialog button:last-child {
+    color: var(--theme-contrast-color);
+    font-weight: 700;
+    background: var(--theme-color);
+    border-color: var(--theme-color);
+}
+
+.lyric-overwrite-dialog button:hover, .lyric-overwrite-dialog button:focus-visible {
+    border-color: var(--theme-color);
+    transform: translateY(-1px);
+}
+
 @keyframes workspace-spin {
     to {
         transform: rotate(360deg);
@@ -72,6 +231,19 @@ body {
     }
 }
 
+@keyframes workspace-drop-enter {
+    from {
+        opacity: 0;
+    }
+}
+
+@keyframes dialog-enter {
+    from {
+        transform: translateY(8px) scale(0.985);
+        opacity: 0;
+    }
+}
+
 @media (width <= 720px) {
     .app-main {
         min-height: 100svh;
@@ -80,5 +252,25 @@ body {
 
     .workspace-loading, .workspace-empty {
         min-height: calc(100svh - 168px);
+    }
+
+    .workspace-drop-overlay {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 9px;
+        padding: 14px;
+    }
+
+    .workspace-drop-card {
+        min-height: 160px;
+        padding: 17px;
+    }
+
+    .workspace-drop-overlay > p {
+        grid-column: 1;
+    }
+
+    .lyric-overwrite-dialog dl > div {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 3px;
     }
 }

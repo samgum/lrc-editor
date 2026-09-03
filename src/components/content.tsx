@@ -18,8 +18,10 @@ import {
 } from "../utils/advanced-lyrics.js";
 import { prependHash } from "../utils/router.js";
 import { accessibleThemeForeground, hexToRgb, themeContrastColor } from "../utils/theme-color.js";
+import { classifyWorkspaceFiles, droppedMediaFilePubSub } from "../utils/workspace-drop.js";
 import { appContext, ChangBits } from "./app.context.js";
 import { Home } from "./home.js";
+import { EditorSVG, LoadAudioSVG } from "./svg.js";
 import { toastPubSub } from "./toast.js";
 
 const LazyEditor = lazy(async () =>
@@ -83,8 +85,21 @@ export const Content: React.FC = () => {
         sessionStorage.getItem(SSK.editorTimingMode) === "word" ? "word" : "line"
     );
     const [wordTimingOffer, setWordTimingOffer] = useState(false);
+    const [workspaceDragActive, setWorkspaceDragActive] = useState(false);
+    const [pendingLyricFile, setPendingLyricFile] = useState<File | null>(null);
     const advancedNeedsBasicSync = useRef(false);
     const cursorRestored = useRef(false);
+    const workspaceDragDepth = useRef(0);
+    const hasExistingAxisRef = useRef(false);
+    const overwriteDialogRef = useRef<HTMLDialogElement>(null);
+    hasExistingAxisRef.current = lrcState.info.size > 0
+        || lrcState.lyric.some((line) => line.time !== undefined || Boolean(line.text));
+
+    useEffect(() => {
+        const dialog = overwriteDialogRef.current;
+        if (!pendingLyricFile || !dialog || dialog.open) return;
+        dialog.showModal();
+    }, [pendingLyricFile]);
 
     useEffect(() => {
         if (cursorRestored.current) return;
@@ -284,15 +299,61 @@ export const Content: React.FC = () => {
     }, [advancedState.document, lrcDispatch, prefState]);
 
     useEffect(() => {
-        function onDrop(ev: DragEvent) {
-            const file = ev.dataTransfer?.files[0];
-            if (file && (file.type.startsWith("text/") || /(?:\.lrc|\.krc|\.ttml|\.srt|\.txt)$/i.test(file.name))) {
-                void importLyricsFile(file);
+        const containsFiles = (event: DragEvent): boolean =>
+            Array.from(event.dataTransfer?.types || []).includes("Files");
+        const resetDragState = (): void => {
+            workspaceDragDepth.current = 0;
+            setWorkspaceDragActive(false);
+        };
+        const onDragEnter = (event: DragEvent): void => {
+            if (!containsFiles(event)) return;
+            event.preventDefault();
+            workspaceDragDepth.current += 1;
+            setWorkspaceDragActive(true);
+        };
+        const onDragOver = (event: DragEvent): void => {
+            if (!containsFiles(event)) return;
+            event.preventDefault();
+            if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+        };
+        const onDragLeave = (): void => {
+            if (workspaceDragDepth.current === 0) return;
+            workspaceDragDepth.current = Math.max(0, workspaceDragDepth.current - 1);
+            if (workspaceDragDepth.current === 0) setWorkspaceDragActive(false);
+        };
+        const onDrop = (event: DragEvent): void => {
+            if (!containsFiles(event)) return;
+            event.preventDefault();
+            event.stopPropagation();
+            resetDragState();
+            const classified = classifyWorkspaceFiles(Array.from(event.dataTransfer?.files || []));
+            if (classified.media) droppedMediaFilePubSub.pub(classified.media);
+            if (classified.lyric) {
+                if (hasExistingAxisRef.current) setPendingLyricFile(classified.lyric);
+                else void importLyricsFile(classified.lyric);
             }
-        }
-        document.documentElement.addEventListener("drop", onDrop);
-        return () => document.documentElement.removeEventListener("drop", onDrop);
-    }, [importLyricsFile]);
+            if (classified.unsupported.length > 0) {
+                toastPubSub.pub({ type: "warning", text: lang.workspaceDrop.unsupported });
+            }
+            if (classified.extraLyrics.length > 0 || classified.extraMedia.length > 0) {
+                toastPubSub.pub({ type: "warning", text: lang.workspaceDrop.oneOfEach });
+            }
+        };
+
+        const root = document.documentElement;
+        root.addEventListener("dragenter", onDragEnter, true);
+        root.addEventListener("dragover", onDragOver, true);
+        root.addEventListener("dragleave", onDragLeave, true);
+        root.addEventListener("drop", onDrop, true);
+        window.addEventListener("dragend", resetDragState);
+        return () => {
+            root.removeEventListener("dragenter", onDragEnter, true);
+            root.removeEventListener("dragover", onDragOver, true);
+            root.removeEventListener("dragleave", onDragLeave, true);
+            root.removeEventListener("drop", onDrop, true);
+            window.removeEventListener("dragend", resetDragState);
+        };
+    }, [importLyricsFile, lang.workspaceDrop]);
 
     useEffect(() => {
         const values = {
@@ -422,6 +483,23 @@ export const Content: React.FC = () => {
 
     return (
         <main className="app-main">
+            {workspaceDragActive && (
+                <aside className="workspace-drop-overlay" role="status" aria-live="assertive">
+                    <div className="workspace-drop-card media">
+                        <LoadAudioSVG />
+                        <strong>{lang.workspaceDrop.mediaTitle}</strong>
+                        <span>{lang.workspaceDrop.mediaHint}</span>
+                        <small>MP3 · M4A · FLAC · ALAC · WAV · MP4 · NCM · QMC</small>
+                    </div>
+                    <div className="workspace-drop-card lyrics">
+                        <EditorSVG />
+                        <strong>{lang.workspaceDrop.lyricsTitle}</strong>
+                        <span>{lang.workspaceDrop.lyricsHint}</span>
+                        <small>LRC · Enhanced LRC · KRC · TTML · SRT · TXT</small>
+                    </div>
+                    <p>{lang.workspaceDrop.combinedHint}</p>
+                </aside>
+            )}
             <Suspense
                 fallback={
                     <div className="workspace-loading" aria-label={lang.workspace.loading}>
@@ -431,6 +509,47 @@ export const Content: React.FC = () => {
             >
                 {content}
             </Suspense>
+            {pendingLyricFile && (
+                <dialog
+                    ref={overwriteDialogRef}
+                    className="lyric-overwrite-dialog"
+                    aria-labelledby="lyric-overwrite-title"
+                    onCancel={(event) => {
+                        event.preventDefault();
+                        setPendingLyricFile(null);
+                    }}
+                >
+                    <article>
+                        <h2 id="lyric-overwrite-title">{lang.workspaceDrop.overwriteTitle}</h2>
+                        <p>{lang.workspaceDrop.overwriteMessage}</p>
+                        <dl>
+                            <div>
+                                <dt>{lang.workspaceDrop.fileName}</dt>
+                                <dd>{pendingLyricFile.name}</dd>
+                            </div>
+                            <div>
+                                <dt>{lang.workspaceDrop.currentLines}</dt>
+                                <dd>{lrcState.lyric.length}</dd>
+                            </div>
+                        </dl>
+                        <footer>
+                            <button type="button" onClick={() => setPendingLyricFile(null)}>
+                                {lang.workspaceDrop.cancel}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const file = pendingLyricFile;
+                                    setPendingLyricFile(null);
+                                    void importLyricsFile(file);
+                                }}
+                            >
+                                {lang.workspaceDrop.overwriteAction}
+                            </button>
+                        </footer>
+                    </article>
+                </dialog>
+            )}
         </main>
     );
 };

@@ -15,6 +15,7 @@ import {
     parseMediaInput,
     resolveMediaInput,
 } from "../utils/media-source.js";
+import { droppedMediaFilePubSub } from "../utils/workspace-drop.js";
 import { appContext, ChangBits } from "./app.context.js";
 import { LrcAudio } from "./audio.js";
 import { LoadAudio } from "./loadaudio.js";
@@ -44,16 +45,39 @@ const accept = [
 export const Footer: React.FC = () => {
     const { prefState, lang } = useContext(appContext, ChangBits.lang | ChangBits.builtInAudio | ChangBits.prefState);
     const keyBindings = useKeyBindings();
+    const resumeAfterBackgroundRef = useRef(false);
 
     useEffect(() => {
         const onVisibilityChange = (): void => {
-            if (document.hidden && !prefState.allowBackgroundAudio && !audioRef.paused) {
-                audioRef.toggle();
+            if (document.hidden) {
+                resumeAfterBackgroundRef.current = prefState.allowBackgroundAudio && !audioRef.paused;
+                if (!prefState.allowBackgroundAudio && !audioRef.paused) audioRef.current?.pause();
+                return;
             }
+            if (resumeAfterBackgroundRef.current && audioRef.paused) {
+                void audioRef.current?.play().catch(() => undefined);
+            }
+            resumeAfterBackgroundRef.current = false;
         };
         document.addEventListener("visibilitychange", onVisibilityChange);
         return () => document.removeEventListener("visibilitychange", onVisibilityChange);
     }, [prefState.allowBackgroundAudio]);
+
+    useEffect(() => {
+        const preservePlaybackAcrossRoute = (): void => {
+            const shouldKeepPlaying = !audioRef.paused;
+            const time = audioRef.currentTime;
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    if (!shouldKeepPlaying || !audioRef.paused || !audioRef.duration) return;
+                    audioRef.currentTime = time;
+                    void audioRef.current?.play().catch(() => undefined);
+                });
+            });
+        };
+        window.addEventListener("hashchange", preservePlaybackAcrossRoute);
+        return () => window.removeEventListener("hashchange", preservePlaybackAcrossRoute);
+    }, []);
 
     const [audioSrc, setAudioSrcState] = useState<string | undefined>(() =>
         sessionStorage.getItem(SSK.audioSrc) || undefined
@@ -67,6 +91,7 @@ export const Footer: React.FC = () => {
     const localFileRef = useRef<File | null>(null);
     const fallbackAttemptedRef = useRef(false);
     const restoredMediaRef = useRef<string | null>(null);
+    const droppedMediaSubscriber = useRef(Symbol("dropped-media-file"));
     const setAudioSrc = useCallback((newSrc: string): void => {
         setAudioSrcState((oldSrc) => {
             if (oldSrc) {
@@ -75,6 +100,46 @@ export const Footer: React.FC = () => {
             return newSrc;
         });
     }, []);
+
+    useEffect(() => {
+        if (!("mediaSession" in navigator)) return;
+        const setMediaAction = (
+            action: MediaSessionAction,
+            handler: MediaSessionActionHandler | null,
+        ): void => {
+            try {
+                navigator.mediaSession.setActionHandler(action, handler);
+            } catch (error) {
+                console.debug(`Media Session action ${action} is unavailable`, error);
+            }
+        };
+        const seek = (offsetSeconds: number): void => {
+            audioRef.currentTime = Math.max(0, Math.min(audioRef.duration, audioRef.currentTime + offsetSeconds));
+            currentTimePubSub.pub(audioRef.currentTime);
+        };
+        if (typeof MediaMetadata !== "undefined") {
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: currentMediaLabel || "LRC Editor",
+                artist: location.hostname,
+            });
+        }
+        setMediaAction("play", () => {
+            void audioRef.current?.play().catch(() => undefined);
+        });
+        setMediaAction("pause", () => audioRef.current?.pause());
+        setMediaAction("seekbackward", (details) => seek(-(details.seekOffset || 10)));
+        setMediaAction("seekforward", (details) => seek(details.seekOffset || 10));
+        setMediaAction("seekto", (details) => {
+            if (details.seekTime === undefined) return;
+            audioRef.currentTime = details.seekTime;
+            currentTimePubSub.pub(audioRef.currentTime);
+        });
+        return () => {
+            for (const action of ["play", "pause", "seekbackward", "seekforward", "seekto"] as const) {
+                setMediaAction(action, null);
+            }
+        };
+    }, [currentMediaLabel]);
 
     const loadMediaUrl = useCallback(
         async (value: string): Promise<void> => {
@@ -304,16 +369,7 @@ export const Footer: React.FC = () => {
         }
     }, [lang]);
 
-    useEffect(() => {
-        const onDrop = (event: DragEvent): void => {
-            const file = event.dataTransfer?.files[0];
-            if (file && !file.type.startsWith("text/") && !/(?:\.lrc|\.krc|\.ttml|\.srt|\.txt)$/i.test(file.name)) {
-                onAudioFile(file);
-            }
-        };
-        document.documentElement.addEventListener("drop", onDrop);
-        return () => document.documentElement.removeEventListener("drop", onDrop);
-    }, [onAudioFile]);
+    useEffect(() => droppedMediaFilePubSub.sub(droppedMediaSubscriber.current, onAudioFile), [onAudioFile]);
 
     const rafId = useRef(0);
 
@@ -336,6 +392,7 @@ export const Footer: React.FC = () => {
 
     const onAudioPlay = useCallback(() => {
         rafId.current = requestAnimationFrame(syncCurrentTime);
+        if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "playing";
         audioStatePubSub.pub({
             type: AudioActionType.pause,
             payload: false,
@@ -344,6 +401,7 @@ export const Footer: React.FC = () => {
 
     const onAudioPause = useCallback(() => {
         cancelAnimationFrame(rafId.current);
+        if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "paused";
         audioStatePubSub.pub({
             type: AudioActionType.pause,
             payload: true,
@@ -352,6 +410,7 @@ export const Footer: React.FC = () => {
 
     const onAudioEnded = useCallback(() => {
         cancelAnimationFrame(rafId.current);
+        if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "none";
         audioStatePubSub.pub({
             type: AudioActionType.pause,
             payload: true,
@@ -408,6 +467,7 @@ export const Footer: React.FC = () => {
             <audio
                 ref={audioRef}
                 src={audioSrc}
+                playsInline={true}
                 controls={prefState.builtInAudio}
                 hidden={!prefState.builtInAudio}
                 onLoadedMetadata={onAudioLoadedMetadata}
