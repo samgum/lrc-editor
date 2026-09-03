@@ -119,8 +119,8 @@ export const Waveform = forwardRef<WaveformHandle, IWaveformProps>(({
             wavesurfer.setScroll(wavesurfer.getScroll() + pixels);
         },
         centerAt: (timeSeconds) => {
-            if (!wavesurfer) return;
             pendingCenterTimeRef.current = timeSeconds;
+            if (!wavesurfer) return;
             if (!wavesurfer.getDecodedData()) return;
             const pixelsPerSecond = pixelsPerSecondRef.current
                 || wavesurfer.getWidth() / Math.max(wavesurfer.getDuration(), 0.001);

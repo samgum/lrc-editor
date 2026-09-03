@@ -284,7 +284,6 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
     }, [seekTimingWaveform, stampWordAt]);
 
     const setLineStartFromWaveform = useCallback((timeSeconds: number) => {
-        if (!prefState.lineWaveformPlayAfterSet) audioRef.current?.pause();
         seekTimingWaveform(timeSeconds);
         dispatch({
             type: prefState.lineWaveformAutoAdvance ? ActionType.next : ActionType.time,
@@ -466,10 +465,11 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
     const previewLineWaveformSelection = useCallback(() => {
         if (!audioRef.duration) return;
         const lineStart = lyric[selectIndex]?.time ?? audioRef.currentTime;
-        const nextStart = lyric.slice(selectIndex + 1).find((candidate) => candidate.time !== undefined)?.time;
-        const lineEnd = Math.min(audioRef.duration, nextStart ?? lineStart + 4);
-        previewRange(lineStart * 1000, Math.max(lineStart + 0.05, lineEnd) * 1000);
-    }, [lyric, previewRange, selectIndex]);
+        previewEndRef.current = null;
+        audioRef.currentTime = lineStart;
+        currentTimePubSub.pub(lineStart);
+        void audioRef.current?.play().catch(() => undefined);
+    }, [lyric, selectIndex]);
 
     useEffect(() => {
         function onKeydown(ev: KeyboardEvent): void {
@@ -949,6 +949,9 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                             source={timingWaveformSource}
                             themeColor={prefState.themeColor}
                             timingUnit={timingMode}
+                            selectionKey={timingMode === "word"
+                                ? `${advancedState.cursor.lineIndex}:${advancedState.cursor.wordIndex}`
+                                : `${selectIndex}`}
                             lineText={waveformLineText}
                             wordText={waveformUnitText}
                             wordStartMs={waveformStartMs}

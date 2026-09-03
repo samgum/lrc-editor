@@ -239,7 +239,7 @@
         "waveformRetry": "Retry visualization",
         "lineWaveformCaptureTitle": "Line waveform timing",
         "lineWaveformCaptureHint": "Click the large waveform to update this line start; press G for the next line",
-        "lineWaveformPlayHotkey": "Play current line",
+        "lineWaveformPlayHotkey": "Play continuously from current line",
         "lineWaveformCommitHotkey": "Confirm and select next line",
         "playFromLine": "Play from this line",
         "waveformSetAt": "Set start at %s",

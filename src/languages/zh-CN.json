@@ -233,7 +233,7 @@
         "waveformRetry": "重试音频视图",
         "lineWaveformCaptureTitle": "逐行波形打轴",
         "lineWaveformCaptureHint": "点击大波形只更新当前行开始时间；按 G 再切到下一行",
-        "lineWaveformPlayHotkey": "试听当前行",
+        "lineWaveformPlayHotkey": "从当前行持续播放",
         "lineWaveformCommitHotkey": "确认并选择下一行",
         "playFromLine": "从此行开始播放",
         "waveformSetAt": "点击设为 %s",

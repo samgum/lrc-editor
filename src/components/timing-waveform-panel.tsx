@@ -8,6 +8,7 @@ interface TimingWaveformPanelProps {
     source: string;
     themeColor: string;
     timingUnit: "line" | "word";
+    selectionKey: string;
     lineText: string;
     wordText: string;
     wordStartMs?: number;
@@ -30,6 +31,7 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
     source,
     themeColor,
     timingUnit,
+    selectionKey,
     lineText,
     wordText,
     wordStartMs,
@@ -97,7 +99,7 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
             waveformRef.current?.centerAt(Math.max(0, wordStartMs / 1000));
             refreshPlayhead();
         }
-    }, [wordStartMs]);
+    }, [selectionKey]);
 
     useEffect(() => {
         zoomValueRef.current = zoom;
