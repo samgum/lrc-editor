@@ -39,7 +39,7 @@
             "timestampBackwards": "タイムスタンプが前の行より早い",
             "captureMode": "行タイミングモード",
             "standardCaptureMode": "標準タイミング",
-            "waveformCaptureMode": "Aegisub 波形"
+            "waveformCaptureMode": "波形タイミング"
         },
         "editor": {
             "aiAlign": "AI でタイミング調整",
@@ -174,7 +174,7 @@
             "waveformUnavailable": "大きな音声表示を描画できませんでした。",
             "waveformLoadMedia": "波形ワードタイミングを使うにはメディアを読み込んでください。",
             "waveformRetry": "表示を再試行",
-            "lineWaveformCaptureTitle": "Aegisub 風の行波形タイミング",
+            "lineWaveformCaptureTitle": "行波形タイミング",
             "lineWaveformCaptureHint": "大きな波形をクリックして現在行の開始だけを更新し、G で次の行へ",
             "lineWaveformPlayHotkey": "現在行を再生",
             "lineWaveformCommitHotkey": "確定して次の行へ",
@@ -318,7 +318,7 @@
             "timestampBackwards": "타임스탬프가 이전 줄보다 빠름",
             "captureMode": "줄 타이밍 모드",
             "standardCaptureMode": "일반 타이밍",
-            "waveformCaptureMode": "Aegisub 파형"
+            "waveformCaptureMode": "파형 타이밍"
         },
         "editor": {
             "aiAlign": "AI 싱크",
@@ -453,7 +453,7 @@
             "waveformUnavailable": "큰 오디오 보기를 그릴 수 없습니다.",
             "waveformLoadMedia": "파형 단어 타이밍을 사용하려면 미디어를 불러오세요.",
             "waveformRetry": "보기 다시 시도",
-            "lineWaveformCaptureTitle": "Aegisub 스타일 줄 파형 타이밍",
+            "lineWaveformCaptureTitle": "줄 파형 타이밍",
             "lineWaveformCaptureHint": "큰 파형을 클릭해 현재 줄 시작만 수정하고 G로 다음 줄 이동",
             "lineWaveformPlayHotkey": "현재 줄 재생",
             "lineWaveformCommitHotkey": "확정 후 다음 줄",
@@ -597,7 +597,7 @@
             "timestampBackwards": "Znacznik czasu cofa się",
             "captureMode": "Tryb synchronizacji wierszy",
             "standardCaptureMode": "Standardowy",
-            "waveformCaptureMode": "Fala Aegisub"
+            "waveformCaptureMode": "Synchronizacja na fali"
         },
         "editor": {
             "aiAlign": "Wyrównaj przez AI",
@@ -732,7 +732,7 @@
             "waveformUnavailable": "Nie można wyświetlić dużej wizualizacji dźwięku.",
             "waveformLoadMedia": "Wczytaj media, aby używać synchronizacji na fali.",
             "waveformRetry": "Ponów wizualizację",
-            "lineWaveformCaptureTitle": "Synchronizacja wierszy jak w Aegisub",
+            "lineWaveformCaptureTitle": "Synchronizacja wierszy na fali",
             "lineWaveformCaptureHint": "Kliknij dużą falę, aby zmienić początek wiersza; G wybiera następny",
             "lineWaveformPlayHotkey": "Odtwórz bieżący wiersz",
             "lineWaveformCommitHotkey": "Potwierdź i wybierz następny",
@@ -876,7 +876,7 @@
             "timestampBackwards": "O tempo retrocede",
             "captureMode": "Modo de tempo por linha",
             "standardCaptureMode": "Tempo padrão",
-            "waveformCaptureMode": "Forma de onda Aegisub"
+            "waveformCaptureMode": "Tempo pela forma de onda"
         },
         "editor": {
             "aiAlign": "Alinhar com IA",
@@ -1011,7 +1011,7 @@
             "waveformUnavailable": "Não foi possível renderizar a visualização de áudio grande.",
             "waveformLoadMedia": "Carregue mídia para usar a sincronização pela forma de onda.",
             "waveformRetry": "Tentar visualização novamente",
-            "lineWaveformCaptureTitle": "Tempo por linha no estilo Aegisub",
+            "lineWaveformCaptureTitle": "Tempo por linha na forma de onda",
             "lineWaveformCaptureHint": "Clique na forma de onda para atualizar apenas o início; G avança",
             "lineWaveformPlayHotkey": "Reproduzir linha atual",
             "lineWaveformCommitHotkey": "Confirmar e selecionar próxima",
@@ -1155,7 +1155,7 @@
             "timestampBackwards": "Časová značka ide dozadu",
             "captureMode": "Režim časovania riadkov",
             "standardCaptureMode": "Bežné časovanie",
-            "waveformCaptureMode": "Vlna Aegisub"
+            "waveformCaptureMode": "Časovanie podľa vlny"
         },
         "editor": {
             "aiAlign": "Zarovnať pomocou AI",
@@ -1290,7 +1290,7 @@
             "waveformUnavailable": "Veľké zobrazenie zvuku sa nepodarilo vykresliť.",
             "waveformLoadMedia": "Na časovanie podľa vlny načítajte médiá.",
             "waveformRetry": "Znova skúsiť zobrazenie",
-            "lineWaveformCaptureTitle": "Časovanie riadkov v štýle Aegisub",
+            "lineWaveformCaptureTitle": "Časovanie riadkov podľa vlny",
             "lineWaveformCaptureHint": "Kliknutím na vlnu zmeníte iba začiatok; G vyberie ďalší riadok",
             "lineWaveformPlayHotkey": "Prehrať aktuálny riadok",
             "lineWaveformCommitHotkey": "Potvrdiť a vybrať ďalší",
@@ -1434,7 +1434,7 @@
             "timestampBackwards": "時間戳記倒退",
             "captureMode": "逐行打軸模式",
             "standardCaptureMode": "一般打軸",
-            "waveformCaptureMode": "Aegisub 波形"
+            "waveformCaptureMode": "波形打軸"
         },
         "editor": {
             "aiAlign": "AI 對軸",
@@ -1569,7 +1569,7 @@
             "waveformUnavailable": "無法繪製大型音訊視圖。",
             "waveformLoadMedia": "載入媒體後即可使用波形逐字打軸。",
             "waveformRetry": "重試音訊視圖",
-            "lineWaveformCaptureTitle": "Aegisub 風格逐行波形打軸",
+            "lineWaveformCaptureTitle": "逐行波形打軸",
             "lineWaveformCaptureHint": "點擊大波形只更新目前行開始時間；按 G 再切到下一行",
             "lineWaveformPlayHotkey": "試聽目前行",
             "lineWaveformCommitHotkey": "確認並選擇下一行",
@@ -1713,7 +1713,7 @@
             "timestampBackwards": "時間戳記倒退",
             "captureMode": "逐行打軸模式",
             "standardCaptureMode": "一般打軸",
-            "waveformCaptureMode": "Aegisub 波形"
+            "waveformCaptureMode": "波形打軸"
         },
         "editor": {
             "aiAlign": "AI 對軸",
@@ -1848,7 +1848,7 @@
             "waveformUnavailable": "無法繪製大型音訊檢視。",
             "waveformLoadMedia": "載入媒體後即可使用波形逐字打軸。",
             "waveformRetry": "重試音訊檢視",
-            "lineWaveformCaptureTitle": "Aegisub 風格逐行波形打軸",
+            "lineWaveformCaptureTitle": "逐行波形打軸",
             "lineWaveformCaptureHint": "點擊大波形只更新目前行開始時間；按 G 再切到下一行",
             "lineWaveformPlayHotkey": "試聽目前行",
             "lineWaveformCommitHotkey": "確認並選擇下一行",

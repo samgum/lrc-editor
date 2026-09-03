@@ -56,7 +56,7 @@
         "timestampBackwards": "时间戳倒退",
         "captureMode": "逐行打轴模式",
         "standardCaptureMode": "常规打轴",
-        "waveformCaptureMode": "Aegisub 波形"
+        "waveformCaptureMode": "波形打轴"
     },
     "editor": {
         "metaInfo": "作品信息",
@@ -214,7 +214,7 @@
         "waveformUnavailable": "无法绘制大尺寸音频视图。",
         "waveformLoadMedia": "载入媒体后即可使用波形逐字打轴。",
         "waveformRetry": "重试音频视图",
-        "lineWaveformCaptureTitle": "Aegisub 风格逐行波形打轴",
+        "lineWaveformCaptureTitle": "逐行波形打轴",
         "lineWaveformCaptureHint": "点击大波形只更新当前行开始时间；按 G 再切到下一行",
         "lineWaveformPlayHotkey": "试听当前行",
         "lineWaveformCommitHotkey": "确认并选择下一行",

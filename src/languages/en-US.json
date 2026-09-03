@@ -62,7 +62,7 @@
         "timestampBackwards": "Timestamp moves backwards",
         "captureMode": "Line timing mode",
         "standardCaptureMode": "Standard timing",
-        "waveformCaptureMode": "Aegisub waveform"
+        "waveformCaptureMode": "Waveform timing"
     },
     "editor": {
         "metaInfo": "meta info",
@@ -220,7 +220,7 @@
         "waveformUnavailable": "The large audio visualization could not be rendered.",
         "waveformLoadMedia": "Load media to use waveform word timing.",
         "waveformRetry": "Retry visualization",
-        "lineWaveformCaptureTitle": "Aegisub-style line waveform timing",
+        "lineWaveformCaptureTitle": "Line waveform timing",
         "lineWaveformCaptureHint": "Click the large waveform to update this line start; press G for the next line",
         "lineWaveformPlayHotkey": "Play current line",
         "lineWaveformCommitHotkey": "Confirm and select next line",
