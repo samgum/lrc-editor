@@ -1,6 +1,7 @@
 import type { LocalAlignmentProgress } from "./local-ai-alignment.js";
 
 export interface AiAlignmentSessionState extends LocalAlignmentProgress {
+    provider?: "huhu" | "local";
     visible: boolean;
     error?: string;
     showInstall?: boolean;

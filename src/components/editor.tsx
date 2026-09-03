@@ -15,6 +15,7 @@ import {
 } from "../utils/advanced-lyrics.js";
 import { createUntimedTranscript, validateAlignedLyrics } from "../utils/ai-alignment-result.js";
 import {
+    type AiAlignmentSessionState,
     getAiAlignmentSessionSnapshot,
     startAiAlignmentSession,
     stopAiAlignmentSession,
@@ -23,6 +24,8 @@ import {
 } from "../utils/ai-alignment-session.js";
 import { aiEngineDownloadUrl } from "../utils/ai-engine-download.js";
 import { getAlignmentMediaSource } from "../utils/alignment-media.js";
+import { HuhuApiError, isHuhuBrowserOriginAllowed, runHuhuAlignment } from "../utils/huhu-api.js";
+import { readHuhuApiKey } from "../utils/huhu-secret-store.js";
 import {
     LocalAiAlignmentError,
     type LocalAlignmentProgress,
@@ -33,7 +36,7 @@ import { prependHash } from "../utils/router.js";
 import { AdvancedLyricsEditor } from "./advanced-lyrics-editor.js";
 import { appContext } from "./app.context.js";
 import { LyricsModeSwitch } from "./lyrics-mode-switch.js";
-import { AiAlignSVG, CopySVG, DownloadSVG, OpenFileSVG, UtilitySVG } from "./svg.js";
+import { AiAlignSVG, CloudAiSVG, CopySVG, DownloadSVG, OpenFileSVG, UtilitySVG } from "./svg.js";
 import { toastPubSub } from "./toast.js";
 
 const disableCheck = {
@@ -241,24 +244,27 @@ export const Editor: React.FC<{
         [exportExtension, lrcState.info],
     );
 
-    const statusText = useCallback((progress: LocalAlignmentProgress): string => {
+    const statusText = useCallback((progress: AiAlignmentSessionState): string => {
+        const huhu = progress.provider === "huhu";
         switch (progress.phase) {
             case "connecting":
-                return lang.editor.aiConnecting;
+                return huhu ? lang.editor.huhuConnecting : lang.editor.aiConnecting;
             case "uploading":
-                return lang.editor.aiUploading;
+                return huhu ? lang.editor.huhuUploading : lang.editor.aiUploading;
             case "queued":
-                return lang.editor.aiQueued;
+                return huhu ? lang.editor.huhuQueued : lang.editor.aiQueued;
             case "running":
-                return lang.editor.aiRunning;
+                return huhu ? lang.editor.huhuRunning : lang.editor.aiRunning;
+            case "downloading":
+                return huhu ? lang.editor.huhuDownloading : lang.editor.aiDownloading;
             case "stopping":
-                return lang.editor.aiStopping;
+                return huhu ? lang.editor.huhuStopping : lang.editor.aiStopping;
             case "stopped":
-                return lang.editor.aiStopped;
+                return huhu ? lang.editor.huhuStopped : lang.editor.aiStopped;
             case "cleaning":
                 return lang.editor.aiCleaning;
             case "complete":
-                return lang.editor.aiComplete;
+                return huhu ? lang.editor.huhuComplete : lang.editor.aiComplete;
         }
     }, [lang.editor]);
 
@@ -271,6 +277,16 @@ export const Editor: React.FC<{
             if (error.code === "busy") return lang.editor.aiDuplicate;
         }
         return lang.editor.aiFailed;
+    }, [lang.editor]);
+
+    const huhuAlignmentErrorText = useCallback((error: unknown): string => {
+        if (error instanceof HuhuApiError) {
+            if (error.code === "cors") return lang.editor.huhuCorsBlocked;
+            if (error.code === "invalid-key") return lang.editor.huhuInvalidKey;
+            if (error.code === "denied") return lang.editor.huhuDenied;
+            if (error.code === "quota") return lang.editor.huhuQuotaExhausted;
+        }
+        return lang.editor.huhuFailed;
     }, [lang.editor]);
 
     const onAiAlign = useCallback(() => {
@@ -287,7 +303,7 @@ export const Editor: React.FC<{
                 return;
             }
             const initial: LocalAlignmentProgress = { phase: "connecting", progress: 0.01 };
-            updateAiAlignmentSessionState(() => ({ ...initial, visible: true }));
+            updateAiAlignmentSessionState(() => ({ ...initial, provider: "local", visible: true }));
             let media: { blob: Blob; name: string };
             try {
                 media = await getAlignmentMediaSource();
@@ -309,13 +325,19 @@ export const Editor: React.FC<{
                     onProgress: (progress) =>
                         updateAiAlignmentSessionState((state) => ({
                             ...progress,
+                            provider: state?.provider || "local",
                             visible: state?.visible ?? true,
                         })),
                 });
                 const lyric = validateAlignedLyrics(transcript, result.lrc, trimOptions);
                 lrcDispatch({ type: LrcActionType.replaceLyrics, payload: lyric });
                 onBasicLyricsReplaced(lyric);
-                updateAiAlignmentSessionState(() => ({ phase: "complete", progress: 1, visible: true }));
+                updateAiAlignmentSessionState(() => ({
+                    phase: "complete",
+                    progress: 1,
+                    provider: "local",
+                    visible: true,
+                }));
                 toastPubSub.pub({ type: "success", text: lang.editor.aiComplete });
                 if (result.cacheCleanup === "failed") {
                     toastPubSub.pub({ type: "warning", text: lang.editor.aiCacheCleanupFailed });
@@ -325,6 +347,7 @@ export const Editor: React.FC<{
                     updateAiAlignmentSessionState((state) => ({
                         phase: "stopped",
                         progress: state?.progress || 0,
+                        provider: "local",
                         visible: true,
                     }));
                     toastPubSub.pub({ type: "info", text: lang.editor.aiStopped });
@@ -336,6 +359,7 @@ export const Editor: React.FC<{
                 updateAiAlignmentSessionState((state) => ({
                     phase: state?.phase || "connecting",
                     progress: state?.progress || 0,
+                    provider: "local",
                     visible: true,
                     error: message,
                     showInstall,
@@ -368,6 +392,114 @@ export const Editor: React.FC<{
         onAiAlign();
     }, [onAiAlign, prefDispatch, prefState.aiAlignmentEnabled]);
 
+    const onHuhuAlignClick = useCallback(() => {
+        if (!import.meta.env.DEV && !isHuhuBrowserOriginAllowed(location.origin)) {
+            toastPubSub.pub({ type: "warning", text: lang.editor.huhuCorsBlocked });
+            return;
+        }
+        if (aiSession.active) {
+            updateAiAlignmentSessionState((state) => state ? { ...state, visible: true } : state);
+            toastPubSub.pub({ type: "info", text: lang.editor.aiDuplicate });
+            return;
+        }
+        void (async () => {
+            let apiKey: string | null;
+            try {
+                apiKey = await readHuhuApiKey();
+            } catch {
+                toastPubSub.pub({ type: "warning", text: lang.editor.huhuKeyUnavailable });
+                return;
+            }
+            if (!apiKey) {
+                toastPubSub.pub({ type: "warning", text: lang.editor.huhuNoKey });
+                location.hash = ROUTER.preferences;
+                return;
+            }
+            const started = startAiAlignmentSession(async (signal): Promise<void> => {
+                const currentText = textarea.current ? textarea.current.value : text;
+                const transcript = createUntimedTranscript(currentText, trimOptions);
+                if (!transcript.split(/\r\n|\n|\r/).some((line) => line.trim())) {
+                    updateAiAlignmentSessionState(() => null);
+                    toastPubSub.pub({ type: "warning", text: lang.editor.aiNoLyrics });
+                    return;
+                }
+                updateAiAlignmentSessionState(() => ({
+                    phase: "connecting",
+                    progress: 0.01,
+                    provider: "huhu",
+                    visible: true,
+                }));
+                let media: { blob: Blob; name: string };
+                try {
+                    media = await getAlignmentMediaSource();
+                } catch {
+                    updateAiAlignmentSessionState(() => null);
+                    toastPubSub.pub({ type: "warning", text: lang.editor.aiNoMedia });
+                    return;
+                }
+                try {
+                    const lrc = await runHuhuAlignment({
+                        apiKey,
+                        audio: media.blob,
+                        audioName: media.name,
+                        transcript,
+                        language: prefState.huhuAlignmentLanguage,
+                        signal,
+                        onProgress: (progress) =>
+                            updateAiAlignmentSessionState((state) => ({
+                                ...progress,
+                                provider: "huhu",
+                                visible: state?.visible ?? true,
+                            })),
+                    });
+                    const lyric = validateAlignedLyrics(transcript, lrc, trimOptions);
+                    lrcDispatch({ type: LrcActionType.replaceLyrics, payload: lyric });
+                    onBasicLyricsReplaced(lyric);
+                    updateAiAlignmentSessionState(() => ({
+                        phase: "complete",
+                        progress: 1,
+                        provider: "huhu",
+                        visible: true,
+                    }));
+                    toastPubSub.pub({ type: "success", text: lang.editor.huhuComplete });
+                } catch (error) {
+                    if (error instanceof HuhuApiError && error.code === "cancelled") {
+                        updateAiAlignmentSessionState((state) => ({
+                            phase: "stopped",
+                            progress: state?.progress || 0,
+                            provider: "huhu",
+                            visible: true,
+                        }));
+                        toastPubSub.pub({ type: "info", text: lang.editor.huhuStopped });
+                        return;
+                    }
+                    const message = huhuAlignmentErrorText(error);
+                    updateAiAlignmentSessionState((state) => ({
+                        phase: state?.phase || "connecting",
+                        progress: state?.progress || 0,
+                        provider: "huhu",
+                        visible: true,
+                        error: message,
+                    }));
+                    toastPubSub.pub({ type: "warning", text: message });
+                }
+            });
+            if (!started) {
+                updateAiAlignmentSessionState((state) => state ? { ...state, visible: true } : state);
+                toastPubSub.pub({ type: "info", text: lang.editor.aiDuplicate });
+            }
+        })();
+    }, [
+        aiSession.active,
+        huhuAlignmentErrorText,
+        lang.editor,
+        lrcDispatch,
+        onBasicLyricsReplaced,
+        prefState.huhuAlignmentLanguage,
+        text,
+        trimOptions,
+    ]);
+
     const aiStatus = aiState && !aiState.error ? statusText(aiState) : aiState?.error;
     const aiEngineDownload = useMemo(
         () => aiEngineDownloadUrl(BRAND.extensionRelease, import.meta.env.app!.version, navigator.platform),
@@ -377,7 +509,7 @@ export const Editor: React.FC<{
         ? lang.editor.aiRemaining.replace("%s", formatRemainingTime(aiState.remainingSeconds))
         : undefined;
     const canStopAi = aiSession.active && aiState !== null
-        && ["connecting", "uploading", "queued", "running"].includes(aiState.phase);
+        && ["connecting", "uploading", "queued", "running", "downloading"].includes(aiState.phase);
 
     return (
         <div className="app-editor">
@@ -436,6 +568,17 @@ export const Editor: React.FC<{
                     >
                         <AiAlignSVG />
                         <span>AI</span>
+                    </button>
+                    <button
+                        type="button"
+                        className="editor-tools-item ripple huhu-align-button"
+                        title={lang.editor.huhuAlign}
+                        aria-label={lang.editor.huhuAlign}
+                        onClick={onHuhuAlignClick}
+                    >
+                        <CloudAiSVG />
+                        <span>Huhu</span>
+                        <small>(Beta)</small>
                     </button>
                     <label className="editor-tools-item ripple" title={lang.editor.uploadText}>
                         <input
@@ -544,7 +687,9 @@ export const Editor: React.FC<{
                 <dialog className="ai-align-dialog" open={true} aria-labelledby="ai-align-title">
                     <article>
                         <header>
-                            <h2 id="ai-align-title">{lang.editor.aiTitle}</h2>
+                            <h2 id="ai-align-title">
+                                {aiState.provider === "huhu" ? lang.editor.huhuTitle : lang.editor.aiTitle}
+                            </h2>
                             <button
                                 type="button"
                                 onClick={() =>

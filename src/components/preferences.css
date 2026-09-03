@@ -66,6 +66,138 @@
     text-align: left;
 }
 
+.preferences li.huhu-settings-row {
+    padding-top: 14px;
+    padding-bottom: 14px;
+}
+
+.huhu-settings {
+    display: grid;
+    align-items: stretch;
+    gap: 12px;
+}
+
+.huhu-settings > header {
+    display: grid;
+    gap: 4px;
+}
+
+.huhu-settings > header strong {
+    color: var(--font-color);
+    font-size: 0.86rem;
+}
+
+.huhu-settings > header span {
+    color: var(--text-muted-color);
+    font-size: 0.68rem;
+    line-height: 1.5;
+}
+
+.huhu-settings > form {
+    display: grid;
+    grid-template-columns: minmax(12rem, 1fr) auto;
+    gap: 8px;
+}
+
+.huhu-settings > form input {
+    min-width: 0;
+    height: 38px;
+    padding: 0 11px;
+    color: var(--font-color);
+    background: var(--background-color);
+    border: 1px solid #88888848;
+    border-radius: 5px;
+    outline: none;
+}
+
+.huhu-settings > form input:focus {
+    border-color: var(--theme-color);
+    box-shadow: 0 0 0 3px rgba(var(--theme-rgb), 0.14);
+}
+
+.huhu-settings > form .button {
+    min-width: 7rem;
+    padding: 0 12px;
+    color: var(--theme-contrast-color);
+    background: var(--theme-color);
+    border-radius: 5px;
+}
+
+.huhu-settings-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+.huhu-settings-actions > button, .huhu-settings-actions > label {
+    min-height: 34px;
+    padding: 0 10px;
+    color: var(--text-secondary-color);
+    background: #8888880b;
+    border: 1px solid #88888838;
+    border-radius: 5px;
+}
+
+.huhu-settings-actions > button:hover:not(:disabled), .huhu-settings-actions > button:focus-visible {
+    color: var(--theme-foreground-color);
+    border-color: var(--theme-color);
+}
+
+.huhu-settings-actions > label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.huhu-settings-actions select {
+    min-height: 28px;
+    color: var(--font-color);
+    background: var(--surface-color);
+    border: 0;
+    outline: none;
+}
+
+.huhu-key-status {
+    min-height: 1.2rem;
+    margin: 0;
+    color: var(--text-muted-color);
+    font-size: 0.66rem;
+    line-height: 1.45;
+}
+
+.huhu-key-status.status-available, .huhu-key-status.status-saved {
+    color: #16845b;
+}
+
+.huhu-key-status.status-cors,
+.huhu-key-status.status-denied,
+.huhu-key-status.status-failed,
+.huhu-key-status.status-invalid-key {
+    color: #b72f47;
+}
+
+@media (width <= 600px) {
+    .huhu-settings > form {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .huhu-settings > form .button {
+        min-height: 38px;
+    }
+
+    .huhu-settings-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .huhu-settings-actions > label {
+        justify-content: space-between;
+        margin-left: 0;
+    }
+}
+
 .about-dialog {
     width: min(560px, calc(100% - 2rem));
     padding: 0;

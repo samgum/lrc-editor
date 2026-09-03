@@ -62,6 +62,13 @@ export const AiAlignSVG: React.FC = () => (
     </LineIcon>
 );
 
+export const CloudAiSVG: React.FC = () => (
+    <LineIcon>
+        <path d="M7 18h10.5a3.5 3.5 0 0 0 .5-6.96A6 6 0 0 0 6.45 9.4 4.3 4.3 0 0 0 7 18Z" />
+        <path d="M8.5 13h2l1.2-2.5 1.6 5 1.2-2.5h1.5" />
+    </LineIcon>
+);
+
 export const PreferencesSVG: React.FC = () => (
     <LineIcon>
         <path d="M4 7h3M11 7h9M4 17h9M17 17h3" />

@@ -29,7 +29,7 @@
 }
 
 .editor-commandbar.ai-enabled > details {
-    padding-right: 248px;
+    padding-right: 342px;
 }
 
 .app-editor summary {
@@ -149,6 +149,29 @@
 .ai-align-button > svg {
     width: 19px;
     height: 19px;
+}
+
+.huhu-align-button {
+    grid-auto-flow: column;
+    width: 92px;
+    gap: 3px;
+    color: var(--theme-foreground-color);
+    background: rgba(var(--theme-rgb), 0.08);
+    box-shadow: inset 0 0 0 1px rgba(var(--theme-rgb), 0.28);
+    font-family: "Cascadia Mono", Consolas, monospace;
+    font-size: 0.62rem;
+    font-weight: 720;
+}
+
+.huhu-align-button > svg {
+    width: 18px;
+    height: 18px;
+}
+
+.huhu-align-button small {
+    color: var(--theme-foreground-color);
+    font-size: 0.48rem;
+    font-weight: 760;
 }
 
 .ai-align-dialog {
@@ -274,7 +297,7 @@
     }
 
     .editor-commandbar.ai-enabled > details {
-        padding-right: 212px;
+        padding-right: 304px;
     }
 
     .editor-tools {
@@ -287,6 +310,10 @@
 
     .ai-align-button {
         width: 58px;
+    }
+
+    .huhu-align-button {
+        width: 84px;
     }
 
     [open] > .app-editor-infobox {

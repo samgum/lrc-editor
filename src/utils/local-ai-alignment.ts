@@ -37,7 +37,16 @@ export class LocalAiAlignmentError extends Error {
 }
 
 export interface LocalAlignmentProgress {
-    phase: "connecting" | "uploading" | "queued" | "running" | "stopping" | "stopped" | "cleaning" | "complete";
+    phase:
+        | "connecting"
+        | "uploading"
+        | "queued"
+        | "running"
+        | "downloading"
+        | "stopping"
+        | "stopped"
+        | "cleaning"
+        | "complete";
     progress: number;
     detail?: string;
     remainingSeconds?: number;

@@ -2,6 +2,14 @@ import STRINGS from "#const/strings.json" assert { type: "json" };
 import { convertTimeToTag, formatText } from "@lrc-maker/lrc-parser";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { themeColor, ThemeMode } from "../hooks/usePref.js";
+import {
+    checkHuhuAlignmentCapability,
+    type HuhuAlignmentLanguage,
+    HuhuApiError,
+    type HuhuCapability,
+    isHuhuBrowserOriginAllowed,
+} from "../utils/huhu-api.js";
+import { clearHuhuApiKey, hasHuhuApiKey, readHuhuApiKey, saveHuhuApiKey } from "../utils/huhu-secret-store.js";
 import { clearLocalAiCache, stopLocalAiService } from "../utils/local-ai-alignment.js";
 import { unregister } from "../utils/sw.unregister.js";
 import { AboutDialog } from "./about.js";
@@ -48,12 +56,128 @@ const useNumberInput: IUseNumberInput = (defaultValue: number, onChange) => {
 };
 
 const langMap = i18n.langMap;
+type HuhuSettingsStatus =
+    | { kind: "available"; capability: HuhuCapability }
+    | { kind: "cleared" | "cors" | "denied" | "failed" | "invalid-key" | "saved"; reason?: string };
+
 export const Preferences: React.FC = () => {
     const { prefState, prefDispatch, lang } = useContext(appContext, ChangBits.lang | ChangBits.prefState);
     const serviceStopDialog = useRef<HTMLDialogElement>(null);
     const aiCacheDialog = useRef<HTMLDialogElement>(null);
     const [serviceStopping, setServiceStopping] = useState(false);
     const [aiCacheClearing, setAiCacheClearing] = useState(false);
+    const [huhuKeyStored, setHuhuKeyStored] = useState<boolean | null>(null);
+    const [huhuKeyBusy, setHuhuKeyBusy] = useState(false);
+    const [huhuStatus, setHuhuStatus] = useState<HuhuSettingsStatus | null>(null);
+    const huhuKeyInput = useRef<HTMLInputElement>(null);
+    const huhuOriginAvailable = import.meta.env.DEV || isHuhuBrowserOriginAllowed(location.origin);
+
+    useEffect(() => {
+        let active = true;
+        void hasHuhuApiKey().then((stored) => {
+            if (active) setHuhuKeyStored(stored);
+        }).catch(() => {
+            if (active) {
+                setHuhuKeyStored(false);
+                setHuhuStatus({ kind: "failed" });
+            }
+        });
+        return () => {
+            active = false;
+        };
+    }, []);
+
+    const onHuhuKeySave = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (huhuKeyBusy || !huhuOriginAvailable) return;
+        const apiKey = huhuKeyInput.current?.value.trim() || "";
+        if (!apiKey) return;
+        setHuhuKeyBusy(true);
+        try {
+            await saveHuhuApiKey(apiKey);
+            if (huhuKeyInput.current) huhuKeyInput.current.value = "";
+            setHuhuKeyStored(true);
+            setHuhuStatus({ kind: "saved" });
+        } catch {
+            setHuhuStatus({ kind: "failed" });
+        } finally {
+            setHuhuKeyBusy(false);
+        }
+    }, [huhuKeyBusy, huhuOriginAvailable]);
+
+    const onHuhuKeyClear = useCallback(async () => {
+        if (huhuKeyBusy) return;
+        setHuhuKeyBusy(true);
+        try {
+            await clearHuhuApiKey();
+            if (huhuKeyInput.current) huhuKeyInput.current.value = "";
+            setHuhuKeyStored(false);
+            setHuhuStatus({ kind: "cleared" });
+        } catch {
+            setHuhuStatus({ kind: "failed" });
+        } finally {
+            setHuhuKeyBusy(false);
+        }
+    }, [huhuKeyBusy]);
+
+    const onHuhuCapabilityCheck = useCallback(async () => {
+        if (huhuKeyBusy || !huhuOriginAvailable) return;
+        setHuhuKeyBusy(true);
+        try {
+            const apiKey = await readHuhuApiKey();
+            if (!apiKey) {
+                setHuhuKeyStored(false);
+                setHuhuStatus(null);
+                return;
+            }
+            const capability = await checkHuhuAlignmentCapability(apiKey);
+            setHuhuStatus(
+                capability.available
+                    ? { kind: "available", capability }
+                    : { kind: "denied", reason: capability.reason },
+            );
+        } catch (error) {
+            const kind = error instanceof HuhuApiError && error.code === "cors"
+                ? "cors"
+                : error instanceof HuhuApiError && error.code === "invalid-key"
+                ? "invalid-key"
+                : "failed";
+            setHuhuStatus({ kind });
+        } finally {
+            setHuhuKeyBusy(false);
+        }
+    }, [huhuKeyBusy, huhuOriginAvailable]);
+
+    const onHuhuLanguageChange = useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
+        prefDispatch({
+            type: "huhuAlignmentLanguage",
+            payload: event.currentTarget.value as HuhuAlignmentLanguage,
+        });
+    }, [prefDispatch]);
+
+    const huhuStatusText = useMemo(() => {
+        if (!huhuOriginAvailable) return lang.preferences.huhuCorsBlocked;
+        if (huhuKeyStored === null && !huhuStatus) return lang.preferences.huhuWorking;
+        if (!huhuStatus) return huhuKeyStored ? lang.preferences.huhuKeySaved : lang.preferences.huhuKeyNotSaved;
+        if (huhuStatus.kind === "saved") return lang.preferences.huhuKeySaved;
+        if (huhuStatus.kind === "cleared") return lang.preferences.huhuKeyCleared;
+        if (huhuStatus.kind === "cors") return lang.preferences.huhuCorsBlocked;
+        if (huhuStatus.kind === "invalid-key") return lang.preferences.huhuInvalidKey;
+        if (huhuStatus.kind === "denied") {
+            return lang.preferences.huhuPermissionDenied.replace("%s", huhuStatus.reason || "not_granted");
+        }
+        if (huhuStatus.kind === "failed") return lang.preferences.huhuKeyOperationFailed;
+        if (huhuStatus.kind !== "available") return lang.preferences.huhuKeyOperationFailed;
+        const requests = huhuStatus.capability.cycleRequests;
+        if (!requests || requests.limit === null || requests.remaining === null) {
+            return lang.preferences.huhuCapabilityUnlimited;
+        }
+        return lang.preferences.huhuCapabilityQuota
+            .replace("%used", requests.used.toString())
+            .replace("%pending", requests.pending.toString())
+            .replace("%remaining", requests.remaining.toString())
+            .replace("%limit", requests.limit.toString());
+    }, [huhuKeyStored, huhuOriginAvailable, huhuStatus, lang.preferences]);
 
     const onColorPick = useCallback(
         (ev: React.ChangeEvent<HTMLInputElement>) => {
@@ -532,6 +656,72 @@ export const Preferences: React.FC = () => {
                     >
                         {lang.preferences.aiStopService}
                     </button>
+                </li>
+                <li className="huhu-settings-row">
+                    <section className="list-item huhu-settings">
+                        <header>
+                            <strong>{lang.preferences.huhuTitle}</strong>
+                            <span>{lang.preferences.huhuKeyDescription}</span>
+                        </header>
+                        <form onSubmit={onHuhuKeySave}>
+                            <input
+                                ref={huhuKeyInput}
+                                type="password"
+                                name="huhu-api-key-new"
+                                required={true}
+                                maxLength={2048}
+                                autoComplete="new-password"
+                                autoCapitalize="none"
+                                autoCorrect="off"
+                                spellCheck={false}
+                                placeholder={lang.preferences.huhuKeyPlaceholder}
+                                aria-label={lang.preferences.huhuApiKey}
+                                disabled={huhuKeyBusy || !huhuOriginAvailable}
+                            />
+                            <button
+                                type="submit"
+                                className="button"
+                                disabled={huhuKeyBusy || !huhuOriginAvailable}
+                            >
+                                {huhuKeyStored
+                                    ? lang.preferences.huhuReplaceKey
+                                    : lang.preferences.huhuSaveKey}
+                            </button>
+                        </form>
+                        <div className="huhu-settings-actions">
+                            <button
+                                type="button"
+                                disabled={huhuKeyBusy || !huhuKeyStored || !huhuOriginAvailable}
+                                onClick={() => void onHuhuCapabilityCheck()}
+                            >
+                                {lang.preferences.huhuCheckCapability}
+                            </button>
+                            <button
+                                type="button"
+                                disabled={huhuKeyBusy || !huhuKeyStored}
+                                onClick={() => void onHuhuKeyClear()}
+                            >
+                                {lang.preferences.huhuClearKey}
+                            </button>
+                            <label>
+                                <span>{lang.preferences.huhuLanguage}</span>
+                                <select
+                                    value={prefState.huhuAlignmentLanguage}
+                                    onChange={onHuhuLanguageChange}
+                                    aria-label={lang.preferences.huhuLanguage}
+                                >
+                                    <option value="ja">{lang.preferences.huhuLanguageJa}</option>
+                                    <option value="en">{lang.preferences.huhuLanguageEn}</option>
+                                    <option value="ja-en">{lang.preferences.huhuLanguageJaEn}</option>
+                                    <option value="zh-hans-cn">{lang.preferences.huhuLanguageZh}</option>
+                                    <option value="zh-hans-cn-en">{lang.preferences.huhuLanguageZhEn}</option>
+                                </select>
+                            </label>
+                        </div>
+                        <p className={`huhu-key-status status-${huhuStatus?.kind || "idle"}`} aria-live="polite">
+                            {huhuKeyBusy ? lang.preferences.huhuWorking : huhuStatusText}
+                        </p>
+                    </section>
                 </li>
                 <li className="preferences-section-title">
                     <h2>{lang.preferences.sections.appearance}</h2>

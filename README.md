@@ -10,7 +10,7 @@
 
 LRC Editor is a browser-based workspace for editing LRC files and assigning timestamps while audio or video is playing. The production site is intended for `lrc.sgmy.org`.
 
-The web application is static and keeps lyric text, preferences, and local media processing in the browser. YouTube, Bilibili, NetEase, and complete publicly playable QQ Music links are handled by an optional Manifest V3 companion extension, so the site does not require a media-resolution backend. Optional AI alignment runs through a separate local engine only when the user enables and starts it.
+The web application is static and keeps lyric text, preferences, and local media processing in the browser. YouTube, Bilibili, NetEase, and complete publicly playable QQ Music links are handled by an optional Manifest V3 companion extension, so the site does not require a media-resolution backend. Optional alignment can use the separate local engine or the user-keyed Huhu AI Beta; the latter is called directly by the browser without an LRC Editor proxy.
 
 ## Features
 
@@ -35,7 +35,7 @@ The web application is static and keeps lyric text, preferences, and local media
 - Convert word-timed Enhanced LRC, KRC, or TTML into line-timed Standard LRC, SRT, Line TTML, or plain text from the Tools page. The converter can reuse the current editor word data or load a separate lyric file, reports the detected format and timing counts, and keeps both source and result editable.
 - Use the integrated Lyrics Tools functions to remove Genius section labels, clean copied tracklists, replace plain text or regular expressions in bulk, and convert lyric case without changing timestamps.
 - Switch between system, light, and dark themes; choose an accent color.
-- Navigate categorized Settings sections for general/language, media/playback, timing workflow, advanced lyrics/local AI, appearance/output, timing precision, and storage/about.
+- Navigate categorized Settings sections for general/language, media/playback, timing workflow, advanced lyrics/AI, appearance/output, timing precision, and storage/about.
 - Use English, Japanese, Korean, Polish, Brazilian Portuguese, Slovak, Simplified Chinese, Traditional Chinese (Hong Kong), or Traditional Chinese (Taiwan).
 - Install the site as a PWA and receive shared media URLs through the Web Share Target API.
 - Reopen the editor, timing workspace, tools, settings, and bundled language interface without a network connection after the first successful online visit. Remote media and first-time model or codec downloads still require a connection.
@@ -87,6 +87,14 @@ AI alignment is disabled by default. The labeled **AI** button remains visible i
 Media Bridge v0.4.6 is the only browser extension: media resolution and local AI bridging are combined in the same package. The AI installer below is an optional local model engine, not a second browser extension.
 
 Windows, macOS, and Linux companion installers keep the managed runtime, bundled verified engine snapshot, and models in one user-selected directory. They install an isolated uv-managed Python runtime internally, so users do not need a system Python installation or Python commands. NVIDIA CUDA is private to the companion on Windows/Linux; macOS and unsupported GPUs use the complete CPU path. Installation offers the official Hugging Face source or HF-Mirror; mirror-mode Demucs files must match all four complete official SHA-256 hashes before use. Per-task audio, outputs, and analysis work are deleted after the selected LRC has reached the editor unless **Keep and reuse AI task cache** is explicitly enabled in Settings. Website cache and local AI task cache have separate controls; neither task cleanup nor the AI cache control removes model weights or the private runtime. See the [local AI alignment guide](./companion/README.md).
+
+## Huhu AI alignment (Beta)
+
+The editor can send the current in-memory media copy and timestamp-free editor lyrics directly from the browser to `https://huhu.cdgz.top/api/v1`. LRC Editor has no proxy for this path and never receives the user's Huhu API key. Japanese, English, Japanese-English, Simplified Chinese, and Chinese-English requests are selectable, and completed LRC results pass the same line-count/timing validation before replacing editor timing.
+
+The key is encrypted in browser IndexedDB with a non-exportable Web Crypto key. After saving, the application displays only whether a key exists: it never refills, reveals, or offers to copy the stored value. Users can enter a new key to replace it or clear it completely. This protects against accidental UI disclosure, not malicious same-origin code or a compromised device, so keys should be stored only on trusted devices.
+
+Direct browser access is enabled by the Huhu API for `https://lrc.sgmy.org`: its preflight allows `Authorization` and `Content-Type`, and responses use a cross-origin resource policy. The GitHub Pages backup origin is intentionally not allowed, so its Huhu controls are disabled and identify the main site as the supported entry point. No Worker or LRC Editor backend fallback is used.
 
 Every platform package includes matching start, stop, and uninstall commands. Uninstall requires typing `UNINSTALL` and then the complete installation path before it removes the engine, models, private runtime, and task data.
 The website downloads the correct platform-specific Windows or macOS/Linux engine archive directly. Launchers in a downloaded package resolve the recorded installation directory or platform default without asking for a path. If no complete installation exists, the start launcher offers to install first and then continues starting automatically. The website can stop an already-running service through the extension, but it cannot launch an executable after the service has closed without the broader `nativeMessaging` permission, which this project does not request.

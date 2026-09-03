@@ -1,5 +1,6 @@
 import { useReducer } from "react";
 import { defaultKeyBindings } from "../utils/default-keybindings.js";
+import { type HuhuAlignmentLanguage, huhuAlignmentLanguages } from "../utils/huhu-api.js";
 import { normalizeKeyBindings } from "../utils/keybindings.js";
 
 export const themeColor = {
@@ -42,6 +43,7 @@ const initState = {
     aiAlignmentEnabled: false,
     aiGpuAcceleration: true,
     keepAiTaskCache: false,
+    huhuAlignmentLanguage: "ja" as HuhuAlignmentLanguage,
     advancedLyricsEnabled: false,
     lineCaptureMode: "standard" as LineCaptureMode,
     lineWaveformAutoAdvance: false,
@@ -128,6 +130,9 @@ const init = (lazyInit: () => string): State => {
     }
     state.timingWaveformZoom = Math.max(24, Math.min(420, Number(state.timingWaveformZoom) || 84));
     state.timingWaveformAmplitude = Math.max(0.5, Math.min(4, Number(state.timingWaveformAmplitude) || 1));
+    if (!huhuAlignmentLanguages.includes(state.huhuAlignmentLanguage)) {
+        state.huhuAlignmentLanguage = "ja";
+    }
     return state;
 };
 
