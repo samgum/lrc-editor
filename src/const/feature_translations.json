@@ -98,7 +98,9 @@
             "huhuInvalidKey": "Huhu AI API Key が無効または停止中です。",
             "huhuDenied": "この Key には歌詞タイミング調整の権限がありません。",
             "huhuQuotaExhausted": "Huhu AI のタイミング調整上限に達しました。",
-            "huhuFailed": "Huhu AI タイミング調整に失敗しました。"
+            "huhuFailed": "Huhu AI タイミング調整に失敗しました。",
+            "huhuResultTextMismatch": "Huhu は結果を生成しましたが、歌詞が原文と一致しません。エディターは変更していません。保存済みの結果を Huhu で確認してください。",
+            "huhuResultTimingInvalid": "Huhu は結果を生成しましたが、現在の時間精度でタイムスタンプの欠落、重複、逆転があります。エディターは変更していません。保存済みの結果を Huhu で確認してください。"
         },
         "preferences": {
             "seekStepMs": "シーク幅（ミリ秒）",
@@ -444,7 +446,9 @@
             "huhuInvalidKey": "Huhu AI API Key가 유효하지 않거나 비활성 상태입니다.",
             "huhuDenied": "이 Key에는 가사 정렬 권한이 없습니다.",
             "huhuQuotaExhausted": "Huhu AI 정렬 할당량을 모두 사용했습니다.",
-            "huhuFailed": "Huhu AI 정렬에 실패했습니다."
+            "huhuFailed": "Huhu AI 정렬에 실패했습니다.",
+            "huhuResultTextMismatch": "Huhu가 결과를 생성했지만 가사가 원문과 일치하지 않습니다. 편집기는 변경되지 않았습니다. Huhu에서 저장된 결과를 확인하세요.",
+            "huhuResultTimingInvalid": "Huhu가 결과를 생성했지만 현재 시간 정밀도에서 타임스탬프가 누락되거나 중복 또는 역순입니다. 편집기는 변경되지 않았습니다. Huhu에서 저장된 결과를 확인하세요."
         },
         "preferences": {
             "seekStepMs": "탐색 간격(밀리초)",
@@ -790,7 +794,9 @@
             "huhuInvalidKey": "Klucz API Huhu AI jest nieprawidłowy lub nieaktywny.",
             "huhuDenied": "Ten klucz nie ma dostępu do wyrównania tekstu.",
             "huhuQuotaExhausted": "Limit wyrównania Huhu AI został wyczerpany.",
-            "huhuFailed": "Wyrównanie Huhu AI nie powiodło się."
+            "huhuFailed": "Wyrównanie Huhu AI nie powiodło się.",
+            "huhuResultTextMismatch": "Huhu wygenerowało wynik, ale tekst nie zgadza się z oryginałem. Edytor nie został zmieniony. Sprawdź zapisany wynik w Huhu.",
+            "huhuResultTimingInvalid": "Huhu wygenerowało wynik, ale przy obecnej precyzji brakuje znaczników czasu, są one powtórzone lub cofają się. Edytor nie został zmieniony. Sprawdź zapisany wynik w Huhu."
         },
         "preferences": {
             "seekStepMs": "Krok przewijania (ms)",
@@ -1136,7 +1142,9 @@
             "huhuInvalidKey": "A chave de API do Huhu AI é inválida ou está inativa.",
             "huhuDenied": "Esta chave não tem acesso ao alinhamento de letras.",
             "huhuQuotaExhausted": "A cota de alinhamento do Huhu AI acabou.",
-            "huhuFailed": "O alinhamento do Huhu AI falhou."
+            "huhuFailed": "O alinhamento do Huhu AI falhou.",
+            "huhuResultTextMismatch": "O Huhu gerou um resultado, mas a letra não corresponde ao original. O editor não foi alterado. Consulte o resultado salvo no Huhu.",
+            "huhuResultTimingInvalid": "O Huhu gerou um resultado, mas há tempos ausentes, duplicados ou fora de ordem na precisão atual. O editor não foi alterado. Consulte o resultado salvo no Huhu."
         },
         "preferences": {
             "seekStepMs": "Intervalo de avanço (ms)",
@@ -1482,7 +1490,9 @@
             "huhuInvalidKey": "API kľúč Huhu AI je neplatný alebo neaktívny.",
             "huhuDenied": "Tento kľúč nemá prístup k zarovnaniu textu.",
             "huhuQuotaExhausted": "Kvóta zarovnania Huhu AI je vyčerpaná.",
-            "huhuFailed": "Zarovnanie Huhu AI zlyhalo."
+            "huhuFailed": "Zarovnanie Huhu AI zlyhalo.",
+            "huhuResultTextMismatch": "Huhu vytvorilo výsledok, ale text sa nezhoduje s originálom. Editor sa nezmenil. Uložený výsledok si pozrite v Huhu.",
+            "huhuResultTimingInvalid": "Huhu vytvorilo výsledok, ale pri aktuálnej presnosti časové značky chýbajú, opakujú sa alebo idú dozadu. Editor sa nezmenil. Uložený výsledok si pozrite v Huhu."
         },
         "preferences": {
             "seekStepMs": "Krok posunu (ms)",
@@ -1828,7 +1838,9 @@
             "huhuInvalidKey": "Huhu AI API Key 無效或已停用。",
             "huhuDenied": "此 Key 沒有歌詞對軸權限。",
             "huhuQuotaExhausted": "Huhu AI 對軸額度已用完。",
-            "huhuFailed": "Huhu AI 對軸失敗。"
+            "huhuFailed": "Huhu AI 對軸失敗。",
+            "huhuResultTextMismatch": "Huhu 已產生結果，但歌詞內容與原文不一致，未覆寫編輯器。可到 Huhu 查看已儲存的結果。",
+            "huhuResultTimingInvalid": "Huhu 已產生結果，但時間軸有缺漏，或在目前時間精度下仍有重複、倒退，未覆寫編輯器。可到 Huhu 查看已儲存的結果。"
         },
         "preferences": {
             "seekStepMs": "前進／後退時間（毫秒）",
@@ -2174,7 +2186,9 @@
             "huhuInvalidKey": "Huhu AI API Key 無效或已停用。",
             "huhuDenied": "此 Key 沒有歌詞對軸權限。",
             "huhuQuotaExhausted": "Huhu AI 對軸額度已用完。",
-            "huhuFailed": "Huhu AI 對軸失敗。"
+            "huhuFailed": "Huhu AI 對軸失敗。",
+            "huhuResultTextMismatch": "Huhu 已產生結果，但歌詞內容與原文不一致，未覆寫編輯器。可到 Huhu 查看已儲存的結果。",
+            "huhuResultTimingInvalid": "Huhu 已產生結果，但時間軸有缺漏，或在目前時間精度下仍有重複、倒退，未覆寫編輯器。可到 Huhu 查看已儲存的結果。"
         },
         "preferences": {
             "seekStepMs": "前進／後退時間（毫秒）",

@@ -1,4 +1,6 @@
+import { parser, stringify } from "@lrc-maker/lrc-parser";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { validateAlignedLyrics, validateHuhuAlignedLyrics } from "./ai-alignment-result.js";
 import {
     checkHuhuAlignmentCapability,
     huhuApiBaseUrl,
@@ -85,6 +87,97 @@ describe("Huhu AI browser client", () => {
         expect(error).toBeInstanceOf(HuhuApiError);
         expect((error as HuhuApiError).code).toBe("cors");
         expect((error as Error).message).not.toContain("private-test-key");
+    });
+
+    it.each([2, 3] as const)("accepts the completed 48-line regression result at precision %i", async (precision) => {
+        const times = [
+            0.371,
+            4.176,
+            8.101,
+            11.766,
+            14.471,
+            15.953,
+            20.118,
+            24.624,
+            28.269,
+            32.016,
+            35.921,
+            39.165,
+            39.746,
+            44.774,
+            47.397,
+            52.444,
+            54.185,
+            54.146,
+            57.893,
+            61.658,
+            65.603,
+            68.186,
+            69.708,
+            73.875,
+            78.381,
+            82.026,
+            85.793,
+            89.678,
+            92.922,
+            93.503,
+            98.531,
+            101.154,
+            106.201,
+            108.284,
+            109.365,
+            111.989,
+            117.037,
+            119.460,
+            124.226,
+            124.247,
+            129.255,
+            131.838,
+            136.945,
+            138.988,
+            139.829,
+            143.455,
+            147.240,
+            151.145,
+        ];
+        const blankIndexes = new Set([4, 11, 16, 21, 28, 33, 38, 43]);
+        const lyrics = times.map((time, index) => ({
+            time,
+            text: blankIndexes.has(index) ? "" : `Lyric ${index + 1}`,
+        }));
+        const format = { fixed: 3, spaceStart: 0, spaceEnd: 0 } as const;
+        const completedResult = stringify({ lyric: lyrics, info: new Map() }, format);
+        const parsedOriginal = parser(completedResult).lyric;
+        const transcript = lyrics.map((line) => line.text).join("\n");
+        const fetchMock = vi.fn()
+            .mockResolvedValueOnce(jsonResponse({ permission: { available: true }, quota: {} }))
+            .mockResolvedValueOnce(jsonResponse({ job: { id: "completed-regression", status: "completed" } }, 202))
+            .mockResolvedValueOnce(new Response(completedResult, { status: 200 }));
+        vi.stubGlobal("fetch", fetchMock);
+
+        const result = await runHuhuAlignment({
+            apiKey: "test-key",
+            audio: new Blob(["test media"], { type: "audio/mp4" }),
+            audioName: "youtube-extension-audio.m4a",
+            transcript,
+            language: "en",
+        });
+        expect(() => validateAlignedLyrics(transcript, result, {})).toThrow("AI_ALIGNMENT_DUPLICATE_TIME");
+        const repaired = validateHuhuAlignedLyrics(transcript, result, {}, precision);
+        expect(repaired).toHaveLength(48);
+        expect(repaired.map((line) => line.text)).toEqual(lyrics.map((line) => line.text));
+        expect(repaired.filter((line) => line.text).map((line) => line.time)).toEqual(
+            parsedOriginal.filter((line) => line.text).map((line) => line.time),
+        );
+        expect(repaired.filter((line, index) => line.time !== parsedOriginal[index].time)).toHaveLength(1);
+        expect(() =>
+            validateAlignedLyrics(
+                transcript,
+                stringify({ lyric: repaired, info: new Map() }, { ...format, fixed: precision }),
+                {},
+            )
+        ).not.toThrow();
+        expect(fetchMock).toHaveBeenCalledTimes(3);
     });
 
     it("stops before upload when alignment permission or quota is unavailable", async () => {

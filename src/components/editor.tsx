@@ -13,7 +13,12 @@ import {
     type LyricsWorkspaceMode,
     serializeLyrics,
 } from "../utils/advanced-lyrics.js";
-import { createUntimedTranscript, validateAlignedLyrics } from "../utils/ai-alignment-result.js";
+import {
+    AiAlignmentResultError,
+    createUntimedTranscript,
+    validateAlignedLyrics,
+    validateHuhuAlignedLyrics,
+} from "../utils/ai-alignment-result.js";
 import {
     type AiAlignmentSessionState,
     getAiAlignmentSessionSnapshot,
@@ -280,6 +285,11 @@ export const Editor: React.FC<{
     }, [lang.editor]);
 
     const huhuAlignmentErrorText = useCallback((error: unknown): string => {
+        if (error instanceof AiAlignmentResultError) {
+            return error.code === "AI_ALIGNMENT_TEXT_MISMATCH"
+                ? lang.editor.huhuResultTextMismatch
+                : lang.editor.huhuResultTimingInvalid;
+        }
         if (error instanceof HuhuApiError) {
             if (error.code === "cors") return lang.editor.huhuCorsBlocked;
             if (error.code === "invalid-key") return lang.editor.huhuInvalidKey;
@@ -452,7 +462,7 @@ export const Editor: React.FC<{
                                 visible: state?.visible ?? true,
                             })),
                     });
-                    const lyric = validateAlignedLyrics(transcript, lrc, trimOptions);
+                    const lyric = validateHuhuAlignedLyrics(transcript, lrc, trimOptions, prefState.fixed);
                     lrcDispatch({ type: LrcActionType.replaceLyrics, payload: lyric });
                     onBasicLyricsReplaced(lyric);
                     updateAiAlignmentSessionState(() => ({
@@ -495,6 +505,7 @@ export const Editor: React.FC<{
         lang.editor,
         lrcDispatch,
         onBasicLyricsReplaced,
+        prefState.fixed,
         prefState.huhuAlignmentLanguage,
         text,
         trimOptions,

@@ -123,7 +123,9 @@
         "huhuInvalidKey": "Huhu AI API Key 无效或已停用。",
         "huhuDenied": "这个 Huhu AI Key 没有歌词对轴权限。",
         "huhuQuotaExhausted": "Huhu AI 对轴额度已用完。",
-        "huhuFailed": "Huhu AI 对轴失败。"
+        "huhuFailed": "Huhu AI 对轴失败。",
+        "huhuResultTextMismatch": "Huhu 已生成结果，但歌词内容与原文不一致，未覆盖编辑器。可到 Huhu 查看已保存的结果。",
+        "huhuResultTimingInvalid": "Huhu 已生成结果，但时间轴有缺失，或在当前时间精度下仍有重复、倒退，未覆盖编辑器。可到 Huhu 查看已保存的结果。"
     },
     "preferences": {
         "language": "语言(language)",

@@ -129,7 +129,9 @@
         "huhuInvalidKey": "The Huhu AI API key is invalid or inactive.",
         "huhuDenied": "This Huhu AI key does not have alignment access.",
         "huhuQuotaExhausted": "The Huhu AI alignment quota is exhausted.",
-        "huhuFailed": "Huhu AI alignment failed."
+        "huhuFailed": "Huhu AI alignment failed.",
+        "huhuResultTextMismatch": "Huhu generated a result, but its lyrics do not match the original. Your editor was not changed. View the saved result in Huhu.",
+        "huhuResultTimingInvalid": "Huhu generated a result, but timestamps are missing, duplicated, or backwards at the current precision. Your editor was not changed. View the saved result in Huhu."
     },
     "preferences": {
         "language": "Language",
