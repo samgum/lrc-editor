@@ -69,6 +69,8 @@ Microsoft Edge uses `edge://extensions` with the same **Developer mode** and **L
 
 The YouTube resolver uses the private InnerTube interface through `youtubei.js`; the Bilibili resolver uses public web-player endpoints; the QQ Music resolver reads its official public share-page playback state without cookies. Any integration can stop working when a platform changes its clients or playback requirements. Use is subject to the platform terms and the laws applicable to the media.
 
+The current YouTube maintenance pass follows [yt-dlp 2026.08.19](https://github.com/yt-dlp/yt-dlp/releases/tag/2026.08.19) client changes without adding yt-dlp or Python as a runtime dependency. It handles gzip-compressed player requests, refreshes the embedded client version from the browser on each resolution, keeps playback tokens bound to the requested video, and removes retired Android VR/TV-embedded fallbacks. Audio URL refreshes must retain the same format before range chunks are combined. There is no daily monitoring task or remotely executed code: metadata refresh is automatic when used, but algorithm changes still require a new extension build. Replace and reload the unpacked extension even when the project version remains v0.4.6; `YOUTUBE-RESOLVER.txt` identifies this package.
+
 ### Mobile extensions
 
 The same resolver core now produces two separate mobile packages:

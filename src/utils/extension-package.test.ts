@@ -36,6 +36,7 @@ describe("extension package", () => {
     it("includes clear unpacked-extension installation helpers", () => {
         expect(existsSync(resolve(extensionRoot, "INSTALL-EXTENSION.cmd"))).toBe(true);
         expect(existsSync(resolve(extensionRoot, "INSTALL-EXTENSION.txt"))).toBe(true);
+        expect(readFileSync(resolve(extensionRoot, "YOUTUBE-RESOLVER.txt"), "utf8")).toContain("yt-dlp 2026.08.19");
     });
 
     it("keeps the classic content script free of runtime imports", () => {

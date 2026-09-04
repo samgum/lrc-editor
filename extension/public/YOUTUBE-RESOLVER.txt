@@ -1,0 +1,22 @@
+YouTube resolver / YouTube 解析器
+
+Maintenance reference: yt-dlp 2026.08.19; YouTube.js 18.0.0.
+维护参考：yt-dlp 2026.08.19；YouTube.js 18.0.0。
+
+This package reads plain and gzip player requests, refreshes the embedded
+client version and per-video playback context when used, and does not reuse
+a fixed test video's token for a different song. Retired Android VR and
+TV-embedded fallbacks are excluded. No remote code or Python is loaded.
+
+本包支持普通及 gzip 播放器请求，在使用时刷新嵌入客户端版本和本视频的
+播放上下文，不会把固定测试视频的凭证复用于另一首歌。已移除失效的
+Android VR 和 TV-embedded 回退；不会加载远程代码或 Python。
+
+Unpacked extension users must replace the extracted package, reload the
+extension in the browser extension manager, and refresh the editor tab.
+There is no scheduled monitoring task. A new extraction algorithm still
+requires a reviewed extension release; metadata refresh is automatic.
+
+已解压扩展用户需要替换扩展文件，在浏览器扩展管理页重新加载，再刷新
+编辑器标签页。没有定时监测任务。配置和凭证在使用时自动刷新，但全新的
+解析算法仍需要经过验证后发布扩展更新。

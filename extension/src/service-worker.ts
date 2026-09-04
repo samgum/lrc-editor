@@ -26,16 +26,24 @@ import {
 import { LocalAlignerClient, LocalAlignerClientError } from "./local-aligner-client.js";
 import { resolveNeteaseAudioUrl, resolveNeteaseShortLink } from "./netease-link.js";
 import { parseQQMusicPlaybackPage, QQMusicNotPlayableError } from "./qqmusic-link.js";
+import {
+    createYouTubeFetch,
+    decodeYouTubeRequestBody,
+    readYouTubePlaybackContext,
+    youtubeAudioClients,
+    youtubeClientRevision,
+    type YouTubePlaybackContext,
+    youtubePlayerToken,
+} from "./youtube-client.js";
 
 interface YouTubeClientSession {
     client: Innertube;
-    poToken: string;
+    playbackContext: YouTubePlaybackContext | null;
 }
 
-let youtubeClientPromise: Promise<YouTubeClientSession> | undefined;
 let mediaHeaderModePromise: Promise<"dnr" | "legacy"> | undefined;
 let legacyHeaderRulesInstalled = false;
-let qqMusicFrameQueue: Promise<void> = Promise.resolve();
+let mediaFrameQueue: Promise<void> = Promise.resolve();
 let qqMusicFramePending: {
     expectedSongMid: string | null;
     resolve: (value: { html: string; songMid: string }) => void;
@@ -47,7 +55,6 @@ const loadTokenFrameType = "LRC_EDITOR_LOAD_TOKEN_FRAME";
 const loadQQMusicFrameType = "LRC_EDITOR_LOAD_QQMUSIC_FRAME";
 const removeMediaFrameType = "LRC_EDITOR_REMOVE_MEDIA_FRAME";
 const qqMusicFrameResultType = "LRC_EDITOR_QQMUSIC_FRAME_RESULT";
-const tokenVideoId = "jNQXAC9IVRw";
 const qqMusicHeaderRuleId = 90_046;
 const qqMusicMobileUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 "
     + "(KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
@@ -123,60 +130,60 @@ const resolveYouTube = async (
     tabId?: number,
 ): Promise<MediaExtensionResponse> => {
     try {
-        youtubeClientPromise ??= createYouTubeClient(siteBaseUrl, tabId);
-        const { client, poToken } = await youtubeClientPromise;
-        const strategies = [
-            { client: "VISIONOS", format: "mp4" },
-            { client: "WEB_EMBEDDED", format: "mp4" },
-            { client: "WEB", format: "mp4" },
-            { client: "MWEB", format: "mp4" },
-            { client: "ANDROID_VR", format: "mp4" },
-            { client: "TV", format: "mp4" },
-            { client: "TV_SIMPLY", format: "mp4" },
-            { client: "TV_EMBEDDED", format: "mp4" },
-            { client: "IOS", format: "mp4" },
-            { client: "YTMUSIC_ANDROID", format: "mp4" },
-            { client: "ANDROID", format: "mp4" },
-            { client: "ANDROID_VR", format: "any" },
-            { client: "IOS", format: "any" },
-        ] as const;
-
-        for (const strategy of strategies) {
+        const { client, playbackContext } = await createYouTubeClient(request.videoId, siteBaseUrl, tabId);
+        for (const clientName of youtubeAudioClients) {
             try {
-                const loadFormat = () =>
-                    client.getStreamingData(request.videoId, {
-                        ...strategy,
-                        type: "audio",
-                        quality: "best",
-                    });
-                const format = await loadFormat();
-                if (!format.url) {
-                    continue;
-                }
-                const url = new URL(format.url);
-                url.searchParams.set("pot", poToken);
-                const mimeType = format.mime_type?.split(";", 1)[0] || "";
-                if (url.protocol === "https:" && isGoogleVideoHost(url.hostname) && mimeType.startsWith("audio/")) {
-                    const audioData = await downloadMediaAsBase64(url, async () => {
-                        const refreshed = await loadFormat();
-                        if (!refreshed.url) throw new Error("YouTube media URL refresh failed");
-                        const refreshedUrl = new URL(refreshed.url);
-                        refreshedUrl.searchParams.set("pot", poToken);
-                        if (refreshedUrl.protocol !== "https:" || !isGoogleVideoHost(refreshedUrl.hostname)) {
-                            throw new Error("YouTube media URL refresh was invalid");
+                const options = {
+                    client: clientName,
+                    po_token: youtubePlayerToken(playbackContext, request.videoId, clientName),
+                };
+                const info = await client.getBasicInfo(request.videoId, options);
+                const triedItags = new Set<number>();
+                for (const container of ["mp4", "any"] as const) {
+                    try {
+                        const format = info.chooseFormat({ type: "audio", quality: "best", format: container });
+                        if (!format.url || triedItags.has(format.itag)) continue;
+                        triedItags.add(format.itag);
+                        const url = new URL(format.url);
+                        const mimeType = format.mime_type?.split(";", 1)[0] || "";
+                        if (
+                            url.protocol !== "https:" || !isGoogleVideoHost(url.hostname)
+                            || !mimeType.startsWith("audio/")
+                        ) {
+                            continue;
                         }
-                        return refreshedUrl;
-                    });
-                    return success(request.requestId, "youtube", url.href, mimeType, format.bitrate, audioData);
+                        const audioData = await downloadMediaAsBase64(url, async () => {
+                            const refreshed = await client.getStreamingData(request.videoId, {
+                                ...options,
+                                itag: format.itag,
+                                type: "audio",
+                                quality: "best",
+                                format: container,
+                            });
+                            if (
+                                !refreshed.url || refreshed.itag !== format.itag
+                                || refreshed.content_length !== format.content_length
+                                || refreshed.mime_type !== format.mime_type
+                            ) {
+                                throw new Error("YouTube media format changed during refresh");
+                            }
+                            const refreshedUrl = new URL(refreshed.url);
+                            if (refreshedUrl.protocol !== "https:" || !isGoogleVideoHost(refreshedUrl.hostname)) {
+                                throw new Error("YouTube media URL refresh was invalid");
+                            }
+                            return refreshedUrl;
+                        });
+                        return success(request.requestId, "youtube", url.href, mimeType, format.bitrate, audioData);
+                    } catch {
+                        continue;
+                    }
                 }
             } catch {
                 continue;
             }
         }
-        youtubeClientPromise = undefined;
         return failure(request.requestId, "NOT_PLAYABLE");
     } catch (error) {
-        youtubeClientPromise = undefined;
         return failure(
             request.requestId,
             "RESOLVE_FAILED",
@@ -185,30 +192,36 @@ const resolveYouTube = async (
     }
 };
 
-const createYouTubeClient = async (siteBaseUrl: string, tabId?: number): Promise<YouTubeClientSession> => {
-    const { poToken, visitorData } = await requestYouTubePlaybackToken(siteBaseUrl, tabId);
-    const client = await Innertube.create({
-        generate_session_locally: true,
-        po_token: poToken,
-        retrieve_player: false,
-        visitor_data: visitorData,
-    });
-    return { client, poToken };
-};
-
-const requestYouTubePlaybackToken = (
+const createYouTubeClient = async (
+    videoId: string,
     siteBaseUrl: string,
     tabId?: number,
-): Promise<{ poToken: string; visitorData: string }> =>
-    new Promise((resolve, reject) => {
+): Promise<YouTubeClientSession> => {
+    const playbackContext = await queueMediaFrameTask(() => requestYouTubePlaybackContext(videoId, siteBaseUrl, tabId))
+        .catch(() => null);
+    const client = await Innertube.create({
+        generate_session_locally: true,
+        retrieve_player: false,
+        visitor_data: playbackContext?.visitorData,
+        fetch: createYouTubeFetch(siteBaseUrl, playbackContext),
+    });
+    return { client, playbackContext };
+};
+
+const requestYouTubePlaybackContext = (
+    videoId: string,
+    siteBaseUrl: string,
+    tabId?: number,
+): Promise<YouTubePlaybackContext> => {
+    let framePromise: Promise<MediaFrameHost> | undefined;
+    let timeout: ReturnType<typeof setTimeout>;
+    let contextTimeout: ReturnType<typeof setTimeout> | undefined;
+    let removeListener = (): void => undefined;
+    const result = new Promise<YouTubePlaybackContext>((resolve, reject) => {
         let settled = false;
-        let frameHost: MediaFrameHost | undefined;
-        const finish = (result?: { poToken: string; visitorData: string }, error?: Error): void => {
+        const finish = (result?: YouTubePlaybackContext, error?: Error): void => {
             if (settled) return;
             settled = true;
-            clearTimeout(timeout);
-            chrome.webRequest.onBeforeRequest.removeListener(onBeforeRequest);
-            if (frameHost) void closeMediaFrame(frameHost).catch(() => undefined);
             if (result) resolve(result);
             else reject(error || new Error("YouTube playback token was unavailable"));
         };
@@ -216,44 +229,45 @@ const requestYouTubePlaybackToken = (
             details: chrome.webRequest.OnBeforeRequestDetails,
         ): chrome.webRequest.BlockingResponse | undefined => {
             if (details.tabId !== -1 && details.tabId !== tabId || !details.requestBody?.raw) return undefined;
-            try {
-                const payloadText = details.requestBody.raw
-                    .map((part) => part.bytes ? new TextDecoder().decode(part.bytes) : "")
-                    .join("");
-                const payload = JSON.parse(payloadText) as {
-                    videoId?: string;
-                    context?: { client?: { visitorData?: string } };
-                    serviceIntegrityDimensions?: { poToken?: string };
-                };
-                const poToken = payload.serviceIntegrityDimensions?.poToken;
-                const visitorData = payload.context?.client?.visitorData;
-                if (payload.videoId === tokenVideoId && poToken && visitorData) {
-                    finish({ poToken, visitorData });
+            void decodeYouTubeRequestBody(details.requestBody.raw).then((payloadText) => {
+                if (!payloadText || settled) return;
+                const context = readYouTubePlaybackContext(payloadText, videoId);
+                if (context?.poToken) {
+                    finish(context);
+                } else if (context && contextTimeout === undefined) {
+                    contextTimeout = setTimeout(() => finish(context), 900);
                 }
-            } catch {
-                return undefined;
-            }
+            }).catch(() => undefined);
             return undefined;
         };
-        const timeout = setTimeout(() => finish(undefined, new Error("YouTube playback token timed out")), 20_000);
+        timeout = setTimeout(() => finish(undefined, new Error("YouTube playback context timed out")), 15_000);
         chrome.webRequest.onBeforeRequest.addListener(
             onBeforeRequest,
             { urls: ["https://www.youtube.com/youtubei/v1/player*"] },
             ["requestBody"],
         );
-        void (async () => {
-            try {
-                const tokenPageUrl = new URL("youtube-token.html", siteBaseUrl);
-                tokenPageUrl.searchParams.set("video", tokenVideoId);
-                frameHost = await openMediaFrame(
-                    { type: loadTokenFrameType, tokenPageUrl: tokenPageUrl.href },
-                    tabId,
-                );
-            } catch (error) {
-                finish(undefined, error instanceof Error ? error : new Error(String(error)));
-            }
-        })();
+        removeListener = () => chrome.webRequest.onBeforeRequest.removeListener(onBeforeRequest);
+        const tokenPageUrl = new URL("youtube-token.html", siteBaseUrl);
+        tokenPageUrl.searchParams.set("video", videoId);
+        tokenPageUrl.searchParams.set("resolver", youtubeClientRevision);
+        framePromise = openMediaFrame({ type: loadTokenFrameType, tokenPageUrl: tokenPageUrl.href }, tabId);
+        void framePromise.catch((error: unknown) =>
+            finish(undefined, error instanceof Error ? error : new Error("Media frame unavailable"))
+        );
     });
+    return result.finally(async () => {
+        clearTimeout(timeout);
+        clearTimeout(contextTimeout);
+        removeListener();
+        if (framePromise) await framePromise.then(closeMediaFrame).catch(() => undefined);
+    });
+};
+
+const queueMediaFrameTask = <T>(run: () => Promise<T>): Promise<T> => {
+    const task = mediaFrameQueue.then(run);
+    mediaFrameQueue = task.then(() => undefined, () => undefined);
+    return task;
+};
 
 const openMediaFrame = async (request: MediaFrameRequest, tabId?: number): Promise<MediaFrameHost> => {
     if (Number.isInteger(tabId) && tabId !== undefined && tabId >= 0) {
@@ -436,9 +450,7 @@ const queueQQMusicFrame = (
     expectedSongMid: string | null,
     tabId?: number,
 ): Promise<{ html: string; songMid: string }> => {
-    const task = qqMusicFrameQueue.then(() => loadQQMusicFrame(frameUrl, expectedSongMid, tabId));
-    qqMusicFrameQueue = task.then(() => undefined, () => undefined);
-    return task;
+    return queueMediaFrameTask(() => loadQQMusicFrame(frameUrl, expectedSongMid, tabId));
 };
 
 const loadQQMusicFrame = async (
@@ -654,7 +666,11 @@ const downloadMediaAsBase64 = async (initialUrl: URL, refreshUrl: () => Promise<
     let url = initialUrl;
     let mediaLength = Number.parseInt(url.searchParams.get("clen") || "", 10);
     if (!Number.isSafeInteger(mediaLength) || mediaLength <= 0) {
-        const probe = await fetch(url, { headers: { Range: "bytes=0-0" } });
+        const probe = await fetch(url, {
+            headers: { Range: "bytes=0-0" },
+            credentials: "omit",
+            signal: AbortSignal.timeout(10_000),
+        });
         const total = /\/(\d+)$/.exec(probe.headers.get("Content-Range") || "")?.[1];
         mediaLength = Number.parseInt(total || "", 10);
     }
@@ -665,7 +681,11 @@ const downloadMediaAsBase64 = async (initialUrl: URL, refreshUrl: () => Promise<
     const readRange = async (start: number, end: number): Promise<Uint8Array> => {
         for (let attempt = 0; attempt < 3; attempt += 1) {
             try {
-                const response = await fetch(url, { headers: { Range: `bytes=${start}-${end}` } });
+                const response = await fetch(url, {
+                    headers: { Range: `bytes=${start}-${end}` },
+                    credentials: "omit",
+                    signal: AbortSignal.timeout(10_000),
+                });
                 if (response.ok) {
                     const contentRange = /^bytes\s+(\d+)-(\d+)\/(?:\d+|\*)$/i.exec(
                         response.headers.get("Content-Range") || "",
