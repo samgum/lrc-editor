@@ -1,9 +1,10 @@
+import { type HuhuLanguageSelection, resolveHuhuAlignmentLanguage } from "./huhu-language.js";
+
+export { type HuhuAlignmentLanguage, huhuAlignmentLanguages, type HuhuLanguageSelection } from "./huhu-language.js";
+
 export const huhuApiBaseUrl = "https://huhu.cdgz.top/api/v1";
 export const huhuAllowedBrowserOrigin = "https://lrc.sgmy.org";
 export const isHuhuBrowserOriginAllowed = (origin: string): boolean => origin === huhuAllowedBrowserOrigin;
-
-export const huhuAlignmentLanguages = ["ja", "en", "ja-en", "zh-hans-cn", "zh-hans-cn-en"] as const;
-export type HuhuAlignmentLanguage = typeof huhuAlignmentLanguages[number];
 
 export class HuhuApiError extends Error {
     constructor(
@@ -44,7 +45,7 @@ export interface HuhuAlignmentOptions {
     audio: Blob;
     audioName: string;
     transcript: string;
-    language: HuhuAlignmentLanguage;
+    language: HuhuLanguageSelection;
     signal?: AbortSignal;
     onProgress?: (progress: HuhuAlignmentProgress) => void;
 }
@@ -99,7 +100,7 @@ export const runHuhuAlignment = async (options: HuhuAlignmentOptions): Promise<s
     const form = new FormData();
     form.set("audio", options.audio, safeMediaName(options.audioName));
     form.set("lyrics", options.transcript);
-    form.set("language", options.language);
+    form.set("language", resolveHuhuAlignmentLanguage(options.language, options.transcript));
     options.onProgress?.({ phase: "uploading", progress: 0.06 });
 
     let activeJobId: string | undefined;

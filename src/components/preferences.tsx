@@ -4,9 +4,9 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "r
 import { themeColor, ThemeMode } from "../hooks/usePref.js";
 import {
     checkHuhuAlignmentCapability,
-    type HuhuAlignmentLanguage,
     HuhuApiError,
     type HuhuCapability,
+    type HuhuLanguageSelection,
     isHuhuBrowserOriginAllowed,
 } from "../utils/huhu-api.js";
 import { clearHuhuApiKey, hasHuhuApiKey, readHuhuApiKey, saveHuhuApiKey } from "../utils/huhu-secret-store.js";
@@ -151,7 +151,7 @@ export const Preferences: React.FC = () => {
     const onHuhuLanguageChange = useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
         prefDispatch({
             type: "huhuAlignmentLanguage",
-            payload: event.currentTarget.value as HuhuAlignmentLanguage,
+            payload: event.currentTarget.value as HuhuLanguageSelection,
         });
     }, [prefDispatch]);
 
@@ -710,6 +710,7 @@ export const Preferences: React.FC = () => {
                                     onChange={onHuhuLanguageChange}
                                     aria-label={lang.preferences.huhuLanguage}
                                 >
+                                    <option value="auto">{lang.preferences.huhuLanguageAuto}</option>
                                     <option value="ja">{lang.preferences.huhuLanguageJa}</option>
                                     <option value="en">{lang.preferences.huhuLanguageEn}</option>
                                     <option value="ja-en">{lang.preferences.huhuLanguageJaEn}</option>

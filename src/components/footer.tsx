@@ -8,6 +8,7 @@ import { isKeyboardElement } from "../utils/is-keyboard-element.js";
 import { getMatchedAction } from "../utils/keybindings.js";
 import { isLocalMediaFile, needsCodecFallback, shouldCreateCompressedAlignmentMedia } from "../utils/local-media.js";
 import { MediaExtensionError } from "../utils/media-extension-bridge.js";
+import { mediaFileNameFromUrl } from "../utils/media-name.js";
 import {
     extractMediaUrl,
     extractSharedMediaUrl,
@@ -174,7 +175,7 @@ export const Footer: React.FC = () => {
                 const displayInput = extractMediaUrl(value);
                 sessionStorage.setItem(SSK.mediaInputDisplay, displayInput);
                 setRememberedMediaUrl(displayInput);
-                setCurrentMediaLabel(displayInput);
+                setCurrentMediaLabel(source.name || displayInput);
                 if (parsed.kind !== "direct") {
                     sessionStorage.setItem(SSK.mediaInput, parsed.originalUrl);
                     restoredMediaRef.current = `input:${parsed.originalUrl}`;
@@ -191,11 +192,11 @@ export const Footer: React.FC = () => {
                     const blob = await fetch(playableSrc).then((response) => response.blob());
                     setAlignmentMediaSource({
                         blob,
-                        name: alignmentMediaName(source.provider, source.mimeType || blob.type),
+                        name: source.name || alignmentMediaName(source.provider, source.mimeType || blob.type),
                     });
                 } else {
                     setAlignmentMediaSource({
-                        name: alignmentMediaName(source.provider, source.mimeType),
+                        name: source.name || alignmentMediaName(source.provider, source.mimeType),
                         url: playableSrc,
                     });
                 }
@@ -258,7 +259,9 @@ export const Footer: React.FC = () => {
             const key = `audio:${rememberedAudio}`;
             if (restoredMediaRef.current === key) return;
             restoredMediaRef.current = key;
-            setAlignmentMediaSource({ name: alignmentMediaName("remote"), url: rememberedAudio });
+            const name = mediaFileNameFromUrl(rememberedAudio) || alignmentMediaName("remote");
+            setAlignmentMediaSource({ name, url: rememberedAudio });
+            setCurrentMediaLabel(name);
         }
     }, [loadMediaUrl]);
 

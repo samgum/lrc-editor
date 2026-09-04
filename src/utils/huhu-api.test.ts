@@ -89,6 +89,29 @@ describe("Huhu AI browser client", () => {
         expect((error as Error).message).not.toContain("private-test-key");
     });
 
+    it.each([
+        ["This isn't gonna work, I know", "en"],
+        ["君にstay\n君にlove\n君にkiss", "ja-en"],
+        ["爱着你\nHello world\n与你stay", "zh-hans-cn"],
+    ])("resolves auto locally before uploading %s", async (transcript, language) => {
+        const fetchMock = vi.fn()
+            .mockResolvedValueOnce(jsonResponse({ permission: { available: true }, quota: {} }))
+            .mockResolvedValueOnce(jsonResponse({ job: { id: "auto-language", status: "completed" } }, 202))
+            .mockResolvedValueOnce(new Response("[00:01.000]Result", { status: 200 }));
+        vi.stubGlobal("fetch", fetchMock);
+        await runHuhuAlignment({
+            apiKey: "test-key",
+            audio: new Blob(["test media"], { type: "audio/mp4" }),
+            audioName: "CLICK - JISOO.m4a",
+            transcript,
+            language: "auto",
+        });
+        const form = fetchMock.mock.calls[1][1].body as FormData;
+        expect(form.get("language")).toBe(language);
+        expect(form.get("lyrics")).toBe(transcript);
+        expect((form.get("audio") as File).name).toBe("CLICK - JISOO.m4a");
+    });
+
     it.each([2, 3] as const)("accepts the completed 48-line regression result at precision %i", async (precision) => {
         const times = [
             0.371,

@@ -1,5 +1,62 @@
-import { describe, expect, it } from "vitest";
-import { extractMediaUrl, extractSharedMediaUrl, materializeExtensionMedia, parseMediaInput } from "./media-source.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import * as mediaBridge from "./media-extension-bridge.js";
+import {
+    extractMediaUrl,
+    extractSharedMediaUrl,
+    materializeExtensionMedia,
+    parseMediaInput,
+    resolveMediaInput,
+} from "./media-source.js";
+
+afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+});
+
+describe("resolved media upload names", () => {
+    it("carries the YouTube name alongside the existing audio without altering its data", async () => {
+        vi.spyOn(mediaBridge, "requestYouTubeAudio").mockResolvedValue({
+            url: "https://example.googlevideo.com/videoplayback",
+            data: "AQID",
+            mimeType: "audio/mp4",
+        });
+        vi.stubGlobal(
+            "fetch",
+            vi.fn().mockResolvedValue(Response.json({ title: "CLICK", author_name: "JISOO - Topic" })),
+        );
+        await expect(resolveMediaInput("https://music.youtube.com/watch?v=jLCo8597v_g&si=share")).resolves
+            .toMatchObject({
+                name: "CLICK - JISOO.m4a",
+                data: "AQID",
+                mimeType: "audio/mp4",
+                persist: false,
+                provider: "youtube-extension",
+            });
+    });
+
+    it("keeps resolved audio usable when public title metadata cannot be read", async () => {
+        vi.spyOn(mediaBridge, "requestYouTubeAudio").mockResolvedValue({
+            url: "https://example.googlevideo.com/videoplayback",
+            data: "AQID",
+            mimeType: "audio/webm",
+        });
+        vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+        await expect(resolveMediaInput("https://youtu.be/jLCo8597v_g")).resolves.toMatchObject({
+            name: "YouTube - jLCo8597v_g.webm",
+            data: "AQID",
+        });
+    });
+
+    it("preserves direct media filenames without requesting third-party metadata", async () => {
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        await expect(resolveMediaInput("https://example.com/My%20Song.mp3?sig=test")).resolves.toMatchObject({
+            name: "My Song.mp3",
+            provider: "direct",
+        });
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+});
 
 describe("parseMediaInput", () => {
     it("converts NetEase song links to the public media endpoint", () => {

@@ -1,3 +1,5 @@
+import { safeMediaNameStem } from "./media-name.js";
+
 export interface AlignmentMediaSource {
     blob?: Blob;
     name: string;
@@ -26,15 +28,22 @@ export const getAlignmentMediaSource = async (): Promise<{ blob: Blob; name: str
     return { blob, name: currentSource.name };
 };
 
-export const alignmentMediaName = (provider: string, mimeType?: string): string => {
-    const extension = mimeType?.includes("mp4")
-        ? "m4a"
-        : mimeType?.includes("flac")
+export const alignmentMediaName = (provider: string, mimeType?: string, label?: string): string => {
+    const type = mimeType?.split(";", 1)[0].trim().toLowerCase();
+    const extension = type?.includes("mp4")
+        ? type.startsWith("video/") ? "mp4" : "m4a"
+        : type?.includes("webm")
+        ? "webm"
+        : type?.includes("aac")
+        ? "aac"
+        : type?.includes("opus")
+        ? "opus"
+        : type?.includes("flac")
         ? "flac"
-        : mimeType?.includes("ogg")
+        : type?.includes("ogg")
         ? "ogg"
-        : mimeType?.includes("wav")
+        : type?.includes("wav")
         ? "wav"
         : "mp3";
-    return `${provider}-audio.${extension}`;
+    return `${safeMediaNameStem(label || "") || `${provider}-audio`}.${extension}`;
 };

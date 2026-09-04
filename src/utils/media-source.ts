@@ -4,6 +4,7 @@ import {
     isNeteaseShortUrl,
     isQQMusicShortUrl,
 } from "../shared/media-extension-protocol.js";
+import { alignmentMediaName } from "./alignment-media.js";
 import {
     MediaExtensionError,
     requestBilibiliAudio,
@@ -11,6 +12,7 @@ import {
     requestQQMusicAudio,
     requestYouTubeAudio,
 } from "./media-extension-bridge.js";
+import { mediaFileNameFromUrl, readYouTubeMediaLabel } from "./media-name.js";
 
 export type ParsedMediaInput =
     | { kind: "direct"; url: string; persist: boolean }
@@ -24,6 +26,7 @@ export type ParsedMediaInput =
 export interface ResolvedMediaSource {
     data?: string;
     mimeType?: string;
+    name?: string;
     src: string;
     persist: boolean;
     provider:
@@ -88,11 +91,15 @@ export const parseMediaInput = (value: string): ParsedMediaInput => {
 export const resolveMediaInput = async (value: string): Promise<ResolvedMediaSource> => {
     const parsed = parseMediaInput(value);
     if (parsed.kind === "youtube") {
-        const audio = await requestYouTubeAudio(parsed.videoId);
+        const [audio, label] = await Promise.all([
+            requestYouTubeAudio(parsed.videoId),
+            readYouTubeMediaLabel(parsed.videoId),
+        ]);
         return {
             src: audio.url,
             data: audio.data,
             mimeType: audio.mimeType,
+            name: alignmentMediaName("youtube", audio.mimeType, label || `YouTube - ${parsed.videoId}`),
             persist: false,
             provider: "youtube-extension",
         };
@@ -140,6 +147,7 @@ export const resolveMediaInput = async (value: string): Promise<ResolvedMediaSou
 
     return {
         src: parsed.url,
+        name: mediaFileNameFromUrl(parsed.url),
         persist: parsed.persist,
         provider: parsed.url.includes("music.163.com/song/media/outer/url") ? "netease" : "direct",
     };
