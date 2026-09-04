@@ -52,6 +52,8 @@ const initState = {
     timingWaveformView: "waveform" as TimingWaveformView,
     timingWaveformZoom: 84,
     timingWaveformAmplitude: 1,
+    timingSpectrumBrightness: 1,
+    timingWaveformHeight: 42,
     wordTimingCompensationMs: 0,
     wordPreviewLeadMs: 750,
     keyBindings: defaultKeyBindings,
@@ -130,6 +132,8 @@ const init = (lazyInit: () => string): State => {
     }
     state.timingWaveformZoom = Math.max(24, Math.min(420, Number(state.timingWaveformZoom) || 84));
     state.timingWaveformAmplitude = Math.max(0.5, Math.min(4, Number(state.timingWaveformAmplitude) || 1));
+    state.timingSpectrumBrightness = Math.max(0.5, Math.min(4, Number(state.timingSpectrumBrightness) || 1));
+    state.timingWaveformHeight = Math.max(24, Math.min(70, Number(state.timingWaveformHeight) || 42));
     state.huhuAlignmentLanguage = normalizeHuhuLanguageSelection(state.huhuAlignmentLanguage);
     return state;
 };

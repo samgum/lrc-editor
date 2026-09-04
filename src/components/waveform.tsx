@@ -1,6 +1,15 @@
 import { useWavesurfer } from "@wavesurfer/react";
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { audioRef } from "../utils/audiomodule";
+import { clearOtherSpectrogramData } from "../utils/spectrogram-data.js";
+import {
+    cacheTimingPcm,
+    clearOtherTimingPcm,
+    readTimingPcm,
+    timingSampleRate,
+    waveformPixelsPerSecond,
+} from "../utils/waveform-data.js";
+import { SpectrogramCanvas } from "./spectrogram-canvas.js";
 import "./waveform.css";
 
 interface IWaveformProps {
@@ -12,6 +21,7 @@ interface IWaveformProps {
     onSeek: (time: number) => void;
     onUnavailable: () => void;
     onReady?: () => void;
+    onViewportChange?: (viewport: WaveformViewport) => void;
     className?: string;
     height?: number;
     minPxPerSec?: number;
@@ -22,6 +32,14 @@ interface IWaveformProps {
     barHeight?: number;
     visualization?: "waveform" | "spectrogram";
     spectrogramHeight?: number;
+}
+
+export interface WaveformViewport {
+    start: number;
+    end: number;
+    width: number;
+    duration: number;
+    pixelsPerSecond: number;
 }
 
 export interface WaveformHandle {
@@ -49,6 +67,7 @@ export const Waveform = forwardRef<WaveformHandle, IWaveformProps>(({
     onSeek,
     onUnavailable,
     onReady,
+    onViewportChange,
     className,
     height = 32,
     minPxPerSec,
@@ -61,6 +80,14 @@ export const Waveform = forwardRef<WaveformHandle, IWaveformProps>(({
     spectrogramHeight = height,
 }, ref) => {
     const containerRef = useRef<HTMLDivElement>(null);
+    const [decodedAudio, setDecodedAudio] = useState<{ source: string; data: AudioBuffer } | null>(null);
+    const [viewport, setViewport] = useState<WaveformViewport>({
+        start: 0,
+        end: 0,
+        width: 0,
+        duration: 0,
+        pixelsPerSecond: 1,
+    });
     const initialThemeColor = useRef(themeColor);
     const pixelsPerSecondRef = useRef(minPxPerSec || 0);
     const barHeightRef = useRef(barHeight);
@@ -72,11 +99,12 @@ export const Waveform = forwardRef<WaveformHandle, IWaveformProps>(({
     });
     const errorReportedRef = useRef(false);
     const pendingCenterTimeRef = useRef<number | null>(null);
-    const cachedPeaksRef = useRef({ source, value: waveformPeakCache.get(source) });
+    const cachedPeaksRef = useRef({ source, value: waveformPeakCache.get(source), pcm: readTimingPcm(source) });
     if (cachedPeaksRef.current.source !== source) {
-        cachedPeaksRef.current = { source, value: waveformPeakCache.get(source) };
+        cachedPeaksRef.current = { source, value: waveformPeakCache.get(source), pcm: readTimingPcm(source) };
     }
     const cachedPeaks = cachedPeaksRef.current.value;
+    const cachedPcm = cachedPeaksRef.current.pcm;
     const { wavesurfer } = useWavesurfer({
         container: containerRef,
         url: source,
@@ -96,14 +124,15 @@ export const Waveform = forwardRef<WaveformHandle, IWaveformProps>(({
         minPxPerSec: creationOptionsRef.current.minPxPerSec,
         autoScroll,
         autoCenter: autoScroll,
-        peaks: cachedPeaks?.peaks,
-        duration: cachedPeaks?.duration,
+        sampleRate: pointMode ? timingSampleRate : 8_000,
+        peaks: pointMode ? cachedPcm?.channels : cachedPeaks?.peaks,
+        duration: pointMode ? cachedPcm?.duration : cachedPeaks?.duration,
     });
 
     const timeAtOffset = (offsetPixels: number): number => {
         if (!wavesurfer) return 0;
         const duration = wavesurfer.getDuration();
-        const pixelsPerSecond = pixelsPerSecondRef.current || wavesurfer.getWidth() / Math.max(duration, 0.001);
+        const pixelsPerSecond = waveformPixelsPerSecond(pixelsPerSecondRef.current, wavesurfer.getWidth(), duration);
         return Math.max(0, Math.min(duration, (wavesurfer.getScroll() + offsetPixels) / pixelsPerSecond));
     };
 
@@ -120,8 +149,11 @@ export const Waveform = forwardRef<WaveformHandle, IWaveformProps>(({
             pendingCenterTimeRef.current = timeSeconds;
             if (!wavesurfer) return;
             if (!wavesurfer.getDecodedData()) return;
-            const pixelsPerSecond = pixelsPerSecondRef.current
-                || wavesurfer.getWidth() / Math.max(wavesurfer.getDuration(), 0.001);
+            const pixelsPerSecond = waveformPixelsPerSecond(
+                pixelsPerSecondRef.current,
+                wavesurfer.getWidth(),
+                wavesurfer.getDuration(),
+            );
             wavesurfer.setScroll(Math.max(0, timeSeconds * pixelsPerSecond - wavesurfer.getWidth() / 2));
             pendingCenterTimeRef.current = null;
         },
@@ -145,8 +177,11 @@ export const Waveform = forwardRef<WaveformHandle, IWaveformProps>(({
         timeAtOffset,
         offsetAtTime: (timeSeconds) => {
             if (!wavesurfer) return -1;
-            const pixelsPerSecond = pixelsPerSecondRef.current
-                || wavesurfer.getWidth() / Math.max(wavesurfer.getDuration(), 0.001);
+            const pixelsPerSecond = waveformPixelsPerSecond(
+                pixelsPerSecondRef.current,
+                wavesurfer.getWidth(),
+                wavesurfer.getDuration(),
+            );
             return timeSeconds * pixelsPerSecond - wavesurfer.getScroll();
         },
     }), [wavesurfer]);
@@ -161,8 +196,11 @@ export const Waveform = forwardRef<WaveformHandle, IWaveformProps>(({
             });
             const pendingCenterTime = pendingCenterTimeRef.current;
             if (pendingCenterTime !== null) {
-                const pixelsPerSecond = pixelsPerSecondRef.current
-                    || wavesurfer.getWidth() / Math.max(wavesurfer.getDuration(), 0.001);
+                const pixelsPerSecond = waveformPixelsPerSecond(
+                    pixelsPerSecondRef.current,
+                    wavesurfer.getWidth(),
+                    wavesurfer.getDuration(),
+                );
                 wavesurfer.setScroll(
                     Math.max(0, pendingCenterTime * pixelsPerSecond - wavesurfer.getWidth() / 2),
                 );
@@ -197,11 +235,20 @@ export const Waveform = forwardRef<WaveformHandle, IWaveformProps>(({
 
     useEffect(() => {
         errorReportedRef.current = false;
+        clearOtherTimingPcm(source);
+        clearOtherSpectrogramData(source);
     }, [source]);
 
     useEffect(() => {
         if (!wavesurfer) return;
-        return wavesurfer.on("ready", () => {
+        const ready = (): void => {
+            const decoded = wavesurfer.getDecodedData();
+            if (pointMode && decoded) {
+                cacheTimingPcm(source, decoded);
+                setDecodedAudio((previous) =>
+                    previous?.source === source && previous.data === decoded ? previous : { source, data: decoded }
+                );
+            }
             if (!waveformPeakCache.has(source) && wavesurfer.getDecodedData()) {
                 waveformPeakCache.set(source, {
                     duration: wavesurfer.getDuration(),
@@ -213,9 +260,43 @@ export const Waveform = forwardRef<WaveformHandle, IWaveformProps>(({
                     waveformPeakCache.delete(oldestSource);
                 }
             }
-            onReady?.();
-        });
-    }, [onReady, source, wavesurfer]);
+            if (visualization === "waveform") onReady?.();
+        };
+        if (wavesurfer.getDecodedData()) ready();
+        return wavesurfer.on("ready", ready);
+    }, [onReady, pointMode, source, visualization, wavesurfer]);
+
+    useEffect(() => {
+        if (!wavesurfer || !pointMode && !onViewportChange) return;
+        let frame = 0;
+        const schedule = (): void => {
+            cancelAnimationFrame(frame);
+            frame = requestAnimationFrame(() => {
+                const duration = wavesurfer.getDuration();
+                const width = wavesurfer.getWidth();
+                const pixelsPerSecond = waveformPixelsPerSecond(pixelsPerSecondRef.current, width, duration);
+                const start = wavesurfer.getScroll() / pixelsPerSecond;
+                const next = { start, end: start + width / pixelsPerSecond, width, duration, pixelsPerSecond };
+                setViewport((previous) =>
+                    previous.start === next.start && previous.width === next.width
+                        && previous.duration === next.duration && previous.pixelsPerSecond === next.pixelsPerSecond
+                        ? previous
+                        : next
+                );
+                onViewportChange?.(next);
+            });
+        };
+        const unsubscribe = [
+            wavesurfer.on("scroll", schedule),
+            wavesurfer.on("redraw", schedule),
+            wavesurfer.on("ready", schedule),
+        ];
+        schedule();
+        return () => {
+            cancelAnimationFrame(frame);
+            unsubscribe.forEach((stop) => stop());
+        };
+    }, [onViewportChange, pointMode, wavesurfer]);
 
     useEffect(() => {
         return wavesurfer?.on("interaction", (currentTime) => {
@@ -239,58 +320,29 @@ export const Waveform = forwardRef<WaveformHandle, IWaveformProps>(({
         });
     }, [themeColor, wavesurfer]);
 
-    useEffect(() => {
-        if (!wavesurfer || visualization !== "spectrogram") return;
-        let active = true;
-        let plugin: { destroy: () => void } | undefined;
-        void import("wavesurfer.js/dist/plugins/spectrogram.esm.js").then(({ default: Spectrogram }) => {
-            if (!active) return;
-            plugin = wavesurfer.registerPlugin(Spectrogram.create({
-                height: spectrogramHeight,
-                labels: true,
-                scale: "mel",
-                frequencyMin: 60,
-                frequencyMax: 12_000,
-                fftSamples: 1024,
-                colorMap: createSpectrogramColorMap(themeColor),
-                gainDB: 40,
-                rangeDB: 75,
-                useWebWorker: true,
-            }));
-        }).catch(() => {
-            if (errorReportedRef.current) return;
-            errorReportedRef.current = true;
-            onUnavailable();
-        });
-        return () => {
-            active = false;
-            plugin?.destroy();
-        };
-    }, [onUnavailable, spectrogramHeight, themeColor, visualization, wavesurfer]);
-
     return (
         <div
-            className={`waveform ${className || ""}`}
-            ref={containerRef}
+            className={`waveform visualization-${visualization} ${pointMode ? "waveform-point" : ""} ${
+                className || ""
+            }`}
             aria-label={ariaLabel}
             style={visualization === "spectrogram" ? { filter: `brightness(${barHeight})` } : undefined}
         >
+            <div className="waveform-renderer" ref={containerRef} />
+            {visualization === "spectrogram" && (
+                <SpectrogramCanvas
+                    key={source}
+                    source={source}
+                    audio={decodedAudio?.source === source ? decodedAudio.data : null}
+                    viewport={viewport}
+                    height={spectrogramHeight}
+                    themeColor={themeColor}
+                    onUnavailable={onUnavailable}
+                    onReady={onReady}
+                />
+            )}
         </div>
     );
 });
 
 Waveform.displayName = "Waveform";
-
-const createSpectrogramColorMap = (themeColor: string): number[][] => {
-    const channels = /^#([\da-f]{2})([\da-f]{2})([\da-f]{2})$/iu.exec(themeColor)?.slice(1)
-        .map((channel) => Number.parseInt(channel, 16) / 255) || [0.96, 0.56, 0.66];
-    return Array.from({ length: 256 }, (_, index) => {
-        const strength = index / 255;
-        if (strength < 0.68) {
-            const ratio = strength / 0.68;
-            return channels.map((channel) => channel * ratio) as number[];
-        }
-        const ratio = (strength - 0.68) / 0.32;
-        return [...channels.map((channel) => channel + (1 - channel) * ratio), 1];
-    }).map((entry) => entry.length === 4 ? entry : [...entry, 1]);
-};

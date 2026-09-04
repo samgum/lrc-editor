@@ -106,7 +106,15 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
         prefDispatch({ type: "timingWaveformZoom", payload: zoom });
     }, [prefDispatch]);
     const onTimingWaveformAmplitudeChange = useCallback((amplitude: number) => {
-        prefDispatch({ type: "timingWaveformAmplitude", payload: amplitude });
+        prefDispatch({
+            type: prefState.timingWaveformView === "spectrogram"
+                ? "timingSpectrumBrightness"
+                : "timingWaveformAmplitude",
+            payload: amplitude,
+        });
+    }, [prefDispatch, prefState.timingWaveformView]);
+    const onTimingWaveformHeightChange = useCallback((height: number) => {
+        prefDispatch({ type: "timingWaveformHeight", payload: height });
     }, [prefDispatch]);
 
     const [syncMode, setSyncMode] = useState(() =>
@@ -158,7 +166,6 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
             const lineQueue = ul.current?.parentElement;
             if (
                 prefState.lineCaptureMode === "waveform"
-                && matchMedia("(width > 820px)").matches
                 && lineQueue
             ) {
                 const queueRect = lineQueue.getBoundingClientRect();
@@ -963,6 +970,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                 mediaReady && timingWaveformSource && !timingWaveformFailed
                     ? (
                         <TimingWaveformPanel
+                            key={timingWaveformSource}
                             ref={timingWaveformRef}
                             source={timingWaveformSource}
                             themeColor={prefState.themeColor}
@@ -976,7 +984,10 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                             fixed={prefState.fixed}
                             view={prefState.timingWaveformView}
                             zoom={prefState.timingWaveformZoom}
-                            amplitude={prefState.timingWaveformAmplitude}
+                            amplitude={prefState.timingWaveformView === "spectrogram"
+                                ? prefState.timingSpectrumBrightness
+                                : prefState.timingWaveformAmplitude}
+                            heightPercent={prefState.timingWaveformHeight}
                             lineAutoAdvance={prefState.lineWaveformAutoAdvance}
                             linePlayAfterSet={prefState.lineWaveformPlayAfterSet}
                             language={lang.advancedLyrics}
@@ -985,6 +996,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                             onViewChange={onTimingWaveformViewChange}
                             onZoomChange={onTimingWaveformZoomChange}
                             onAmplitudeChange={onTimingWaveformAmplitudeChange}
+                            onHeightChange={onTimingWaveformHeightChange}
                         />
                     )
                     : (

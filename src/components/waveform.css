@@ -13,3 +13,30 @@
     background-color: #eeeeee;
     opacity: 0.5;
 }
+
+.visualization-spectrogram::before {
+    display: none;
+}
+
+.visualization-spectrogram ::part(canvases),
+.visualization-spectrogram ::part(progress),
+.waveform-point ::part(cursor) {
+    display: none;
+}
+
+.visualization-spectrogram .waveform-renderer,
+.visualization-spectrogram .waveform-renderer > div,
+.visualization-spectrogram ::part(scroll),
+.visualization-spectrogram ::part(wrapper) {
+    height: 100%;
+}
+
+.timing-spectrogram {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 3;
+    width: 100%;
+    height: calc(100% - 16px);
+    pointer-events: none;
+}

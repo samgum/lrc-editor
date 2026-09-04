@@ -1,8 +1,18 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { TimingWaveformView } from "../hooks/usePref.js";
 import { formatLrcTimestamp } from "../utils/advanced-lyrics.js";
 import { audioRef, currentTimePubSub } from "../utils/audiomodule.js";
-import { Waveform, type WaveformHandle } from "./waveform.js";
+import {
+    type BeatGrid,
+    beatGridLines,
+    normalizeBeatGrid,
+    readBeatGrid,
+    saveBeatGrid,
+    snapToBeatGrid,
+} from "../utils/beat-grid.js";
+import { timingPanelHeights } from "../utils/waveform-data.js";
+import { BeatGridControls } from "./beat-grid-controls.js";
+import { Waveform, type WaveformHandle, type WaveformViewport } from "./waveform.js";
 
 interface TimingWaveformPanelProps {
     source: string;
@@ -16,6 +26,7 @@ interface TimingWaveformPanelProps {
     view: TimingWaveformView;
     zoom: number;
     amplitude: number;
+    heightPercent: number;
     lineAutoAdvance?: boolean;
     linePlayAfterSet?: boolean;
     language: Language["advancedLyrics"];
@@ -24,6 +35,7 @@ interface TimingWaveformPanelProps {
     onViewChange: (view: TimingWaveformView) => void;
     onZoomChange: (zoom: number) => void;
     onAmplitudeChange: (amplitude: number) => void;
+    onHeightChange: (height: number) => void;
 }
 
 export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPanelProps>(({
@@ -38,6 +50,7 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
     view,
     zoom,
     amplitude,
+    heightPercent,
     lineAutoAdvance = false,
     linePlayAfterSet = false,
     language,
@@ -46,6 +59,7 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
     onViewChange,
     onZoomChange,
     onAmplitudeChange,
+    onHeightChange,
 }, ref) => {
     const waveformRef = useRef<WaveformHandle>(null);
     const canvasRef = useRef<HTMLDivElement>(null);
@@ -57,12 +71,69 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
     const renderPlayheadRef = useRef<(timeSeconds: number) => void>(() => undefined);
     const playbackSubscriberRef = useRef(Symbol("timing-waveform-playhead"));
     const latestPointerOffsetRef = useRef<number | null>(null);
+    const pointerBypassRef = useRef(false);
     const zoomTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const zoomValueRef = useRef(zoom);
     const [displayZoom, setDisplayZoom] = useState(zoom);
     const [lastCaptureMs, setLastCaptureMs] = useState<number | null>(null);
+    const [grid, setGrid] = useState(() => readBeatGrid(source));
+    const [readyView, setReadyView] = useState<TimingWaveformView | null>(null);
+    const plotReady = readyView === view;
+    const [canvasHeight, setCanvasHeight] = useState(() =>
+        Math.max(220, Math.min(660, window.innerHeight * heightPercent / 100))
+    );
+    const [viewport, setViewport] = useState<WaveformViewport>({
+        start: 0,
+        end: 0,
+        width: 0,
+        duration: 0,
+        pixelsPerSecond: zoom,
+    });
+    const heights = timingPanelHeights(canvasHeight, view === "spectrogram");
+    const gridLines = useMemo(
+        () => beatGridLines(grid, viewport.start, viewport.end, viewport.pixelsPerSecond, viewport.duration),
+        [grid, viewport],
+    );
     const refreshPlayhead = useCallback((): void => {
         requestAnimationFrame(() => renderPlayheadRef.current(audioRef.currentTime));
+    }, []);
+    const onPlotReady = useCallback(() => {
+        setReadyView(view);
+        refreshPlayhead();
+    }, [refreshPlayhead, view]);
+    const onViewportChange = useCallback((next: WaveformViewport) => {
+        setViewport((previous) =>
+            previous.start === next.start && previous.width === next.width
+                && previous.pixelsPerSecond === next.pixelsPerSecond
+                && previous.duration === next.duration
+                ? previous
+                : next
+        );
+        refreshPlayhead();
+    }, [refreshPlayhead]);
+    const onGridChange = useCallback((next: BeatGrid) => {
+        const normalized = normalizeBeatGrid(next);
+        saveBeatGrid(source, normalized);
+        setGrid(normalized);
+        if (hoverGuideRef.current) hoverGuideRef.current.hidden = true;
+        if (hoverTooltipRef.current) hoverTooltipRef.current.hidden = true;
+    }, [source]);
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const measure = (): void => setCanvasHeight(canvas.clientHeight);
+        const observer = new ResizeObserver(() => {
+            clearTimeout(timer);
+            timer = setTimeout(measure, 140);
+        });
+        observer.observe(canvas);
+        measure();
+        return () => {
+            observer.disconnect();
+            clearTimeout(timer);
+        };
     }, []);
 
     useImperativeHandle(ref, () => ({
@@ -171,23 +242,59 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
         });
     }, [formatTime]);
 
-    const onPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const updatePointerPreview = useCallback((offset: number, bypass: boolean) => {
         const canvas = canvasRef.current;
-        if (!canvas) return;
-        const bounds = canvas.getBoundingClientRect();
-        const offset = Math.max(0, Math.min(bounds.width, event.clientX - bounds.left));
+        if (!canvas || !plotReady) return;
         const time = waveformRef.current?.timeAtOffset(offset) || 0;
-        latestPointerOffsetRef.current = offset;
+        const resolved = snapToBeatGrid(time, grid, viewport.pixelsPerSecond, viewport.duration, bypass);
+        const guideOffset = waveformRef.current?.offsetAtTime(resolved.time) ?? offset;
         if (hoverGuideRef.current) {
             hoverGuideRef.current.hidden = false;
-            hoverGuideRef.current.style.left = `${offset}px`;
+            hoverGuideRef.current.style.left = `${guideOffset}px`;
+            hoverGuideRef.current.classList.toggle("snapped", resolved.snapped);
         }
         if (hoverTooltipRef.current) {
             hoverTooltipRef.current.hidden = false;
-            hoverTooltipRef.current.style.left = `${Math.max(54, Math.min(bounds.width - 54, offset))}px`;
-            hoverTooltipRef.current.textContent = language.waveformSetAt.replace("%s", formatTime(time));
+            hoverTooltipRef.current.style.left = `${Math.max(54, Math.min(canvas.clientWidth - 54, offset))}px`;
+            hoverTooltipRef.current.textContent = language.waveformSetAt.replace("%s", formatTime(resolved.time))
+                + (resolved.snapped ? ` · ${language.beatSnapped}` : "");
         }
-    }, [formatTime, language.waveformSetAt]);
+    }, [formatTime, grid, language.beatSnapped, language.waveformSetAt, plotReady, viewport]);
+
+    useEffect(() => {
+        const refresh = (): void => {
+            const offset = latestPointerOffsetRef.current;
+            if (offset !== null) updatePointerPreview(offset, pointerBypassRef.current);
+        };
+        const onAlt = (event: KeyboardEvent): void => {
+            if (event.key !== "Alt") return;
+            pointerBypassRef.current = event.altKey;
+            refresh();
+        };
+        refresh();
+        document.addEventListener("keydown", onAlt);
+        document.addEventListener("keyup", onAlt);
+        return () => {
+            document.removeEventListener("keydown", onAlt);
+            document.removeEventListener("keyup", onAlt);
+        };
+    }, [updatePointerPreview]);
+
+    const onPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+        const canvas = canvasRef.current;
+        if (!canvas || !plotReady) return;
+        const bounds = canvas.getBoundingClientRect();
+        if (event.clientY - bounds.top >= canvas.clientHeight - 16) {
+            latestPointerOffsetRef.current = null;
+            if (hoverGuideRef.current) hoverGuideRef.current.hidden = true;
+            if (hoverTooltipRef.current) hoverTooltipRef.current.hidden = true;
+            return;
+        }
+        const offset = Math.max(0, Math.min(canvas.clientWidth, event.clientX - bounds.left - canvas.clientLeft));
+        latestPointerOffsetRef.current = offset;
+        pointerBypassRef.current = event.altKey;
+        updatePointerPreview(offset, event.altKey);
+    }, [plotReady, updatePointerPreview]);
 
     const onPointerLeave = useCallback(() => {
         latestPointerOffsetRef.current = null;
@@ -198,8 +305,8 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
     const capture = useCallback((timeSeconds: number) => {
         const milliseconds = Math.max(0, Math.round(timeSeconds * 1000));
         setLastCaptureMs(milliseconds);
-        const offset = latestPointerOffsetRef.current;
-        if (captureMarkerRef.current && offset !== null) {
+        const offset = waveformRef.current?.offsetAtTime(timeSeconds) ?? -1;
+        if (captureMarkerRef.current && offset >= 0) {
             captureMarkerRef.current.hidden = false;
             captureMarkerRef.current.style.left = `${offset}px`;
         }
@@ -208,23 +315,31 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
 
     const captureAtPointer = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
         const canvas = canvasRef.current;
-        if (!canvas) return;
+        if (!canvas || !plotReady) return;
         const bounds = canvas.getBoundingClientRect();
-        const offset = Math.max(0, Math.min(bounds.width, event.clientX - bounds.left));
+        if (event.clientY - bounds.top >= canvas.clientHeight - 16) return;
+        const offset = Math.max(0, Math.min(canvas.clientWidth, event.clientX - bounds.left - canvas.clientLeft));
         latestPointerOffsetRef.current = offset;
-        capture(waveformRef.current?.timeAtOffset(offset) || 0);
-    }, [capture]);
+        pointerBypassRef.current = event.altKey;
+        updatePointerPreview(offset, event.altKey);
+        const time = waveformRef.current?.timeAtOffset(offset) || 0;
+        capture(snapToBeatGrid(time, grid, viewport.pixelsPerSecond, viewport.duration, event.altKey).time);
+    }, [capture, grid, plotReady, updatePointerPreview, viewport]);
 
     const lineMode = timingUnit === "line";
     const title = lineMode ? language.lineWaveformCaptureTitle : language.waveformCaptureTitle;
-    const hint = lineMode ? language.lineWaveformCaptureHint : language.waveformCaptureHint;
+    const hint = view === "spectrogram"
+        ? lineMode ? language.lineSpectrumCaptureHint : language.spectrumCaptureHint
+        : lineMode
+        ? language.lineWaveformCaptureHint
+        : language.waveformCaptureHint;
 
     return (
         <section className="word-waveform-panel" aria-label={title}>
             <header>
                 <div>
                     <span>{lineMode ? language.currentLine : language.activeLine}</span>
-                    <strong>{lineText || language.untimed}</strong>
+                    <strong title={lineText}>{lineText || language.untimed}</strong>
                 </div>
                 <div className="word-waveform-current">
                     <span>{lineMode ? language.currentLinePosition : language.currentWord}</span>
@@ -236,7 +351,15 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
                     </time>
                 </div>
             </header>
-            <div className="word-waveform-view-controls">
+            <div
+                className="word-waveform-view-controls"
+                onKeyDown={(event) => {
+                    if (event.key === " " || event.key === "Enter") event.stopPropagation();
+                }}
+                onKeyUp={(event) => {
+                    if (event.key === " " || event.key === "Enter") event.stopPropagation();
+                }}
+            >
                 <div className="word-waveform-view-switch" role="group" aria-label={language.waveformView}>
                     <button
                         type="button"
@@ -271,8 +394,8 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
                     />
                     <output>{Math.round(displayZoom)} px/s</output>
                 </label>
-                <label>
-                    <span>{language.waveformAmplitude}</span>
+                <label className="word-waveform-amplitude">
+                    <span>{view === "spectrogram" ? language.waveformBrightness : language.waveformAmplitude}</span>
                     <input
                         type="range"
                         min={0.5}
@@ -283,10 +406,25 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
                     />
                     <output>×{amplitude.toFixed(1)}</output>
                 </label>
+                <label className="word-waveform-height">
+                    <span>{language.waveformHeight}</span>
+                    <input
+                        type="range"
+                        min={24}
+                        max={70}
+                        step={2}
+                        value={heightPercent}
+                        onChange={(event) => onHeightChange(Number(event.currentTarget.value))}
+                    />
+                    <output>{Math.round(canvasHeight)} px</output>
+                </label>
             </div>
+            <BeatGridControls grid={grid} selectedStart={wordStartMs} language={language} onChange={onGridChange} />
             <div
                 ref={canvasRef}
                 className="word-waveform-canvas"
+                style={{ height: `clamp(220px, ${heightPercent}svh, 660px)` }}
+                aria-busy={!plotReady}
                 onClick={captureAtPointer}
                 onPointerMove={onPointerMove}
                 onPointerLeave={onPointerLeave}
@@ -295,8 +433,8 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
                     ref={waveformRef}
                     source={source}
                     themeColor={themeColor}
-                    height={view === "spectrogram" ? 46 : 168}
-                    spectrogramHeight={122}
+                    height={heights.wave}
+                    spectrogramHeight={heights.spectrum}
                     minPxPerSec={zoom}
                     autoScroll={false}
                     pointMode={true}
@@ -306,9 +444,19 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
                     className="word-capture-waveform"
                     ariaLabel={hint}
                     onSeek={() => undefined}
-                    onReady={refreshPlayhead}
+                    onReady={onPlotReady}
+                    onViewportChange={onViewportChange}
                     onUnavailable={onUnavailable}
                 />
+                {grid.enabled && (
+                    <div className="word-beat-grid" aria-hidden="true">
+                        {gridLines.map((line) => (
+                            <i key={line.time} className={`word-beat-line ${line.kind}`} style={{ left: line.x }}>
+                                {line.kind === "bar" && line.x > 44 && <span>{line.bar}</span>}
+                            </i>
+                        ))}
+                    </div>
+                )}
                 <span ref={hoverGuideRef} className="word-waveform-hover-guide" hidden />
                 <span ref={captureMarkerRef} className="word-waveform-capture-marker" hidden />
                 <span ref={playheadRef} className="word-waveform-playhead" hidden>
