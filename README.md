@@ -14,6 +14,11 @@ The web application is static and keeps lyric text, preferences, and local media
 
 ## Features
 
+- Timing sidebars keep selected, playing, and warning states readable together, including narrow layouts. Each workspace restores its own page position instead of inheriting another page's scroll.
+- Waveform and spectrogram timing include a fixed, zoom-aware time ruler. Short screens group secondary controls under Display settings; changing the view or settings preserves playback and timing progress.
+- The line editor marks duplicate, backwards, and malformed timestamps beside their original text, with previous/next issue navigation. Native text selection, IME input, and undo remain in the textarea.
+- Settings and file import support keyboard access, visible focus, and mobile custom colors. Theme foregrounds are checked against neutral and selected surfaces. Notifications merge repeats, update media progress in one card, and can be dismissed.
+
 - Import plain text, standard or Enhanced LRC, binary or plaintext KRC, TTML, and SRT. Every supported file first opens as stable line-timed lyrics; when genuine word timestamps are present, the editor offers a choice between staying in line mode and switching to word mode.
 - Keep advanced formats disabled by default. After enabling them in Settings, ordinary line timing and focused word timing use separate navigation pages; the editor alone switches between line text and structured word editing.
 - Edit word or syllable text, line boundaries, word starts, and word ends in a structured word editor. Duplicate, backwards, and invalid word timing is marked on the exact segment and its row instead of being silently repaired.

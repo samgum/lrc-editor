@@ -71,10 +71,12 @@
     padding-bottom: 14px;
 }
 
-.huhu-settings {
+.list-item.huhu-settings {
     display: grid;
     align-items: stretch;
     gap: 12px;
+    width: 100%;
+    justify-content: stretch;
 }
 
 .huhu-settings > header {
@@ -268,6 +270,13 @@
     background-color: var(--theme-color);
 }
 
+.about-dialog button.service-stop-cancel {
+    color: var(--font-color);
+    background: transparent;
+    opacity: 1;
+    box-shadow: inset 0 0 0 1px #88888870;
+}
+
 .list-item {
     display: flex;
     flex-wrap: wrap;
@@ -322,11 +331,12 @@
 }
 
 .color-picker {
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 30px;
-    height: 30px;
+    min-width: 36px;
+    height: 36px;
     margin: 2px;
     line-height: normal;
     vertical-align: middle;
@@ -368,13 +378,29 @@
 }
 
 .user-color-label, .user-color-input-text {
-    display: none;
+    display: inline-flex;
+    min-height: 36px;
 }
 
-@media (width >= 768px) {
-    .user-color-label, .user-color-input-text {
-        display: inline-flex;
-    }
+.color-picker input[type="radio"], .native-color-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.color-picker:focus-within {
+    outline: 2px solid var(--theme-foreground-color);
+    outline-offset: 2px;
+}
+
+.user-color-input-text {
+    width: 100%;
+    padding: 5px;
+    color: var(--font-color);
 }
 
 .format-example-time, .format-example-text {
@@ -389,11 +415,13 @@
 }
 
 .option-select > select {
-    padding-right: 16px;
+    min-height: 36px;
+    max-width: 100%;
+    padding: 5px 22px 5px 8px;
     text-align-last: right;
     background-color: transparent;
     border: none;
-    outline: 0;
+    border-radius: 5px;
     appearance: none;
 }
 
@@ -508,7 +536,14 @@ input[type="number"] {
     grid-template-columns: repeat(5, 1fr);
     align-items: center;
     justify-items: center;
-    width: 200px;
+    width: min(240px, calc(100vw - 48px));
+}
+
+.option-select > select:focus-visible,
+.huhu-settings-actions select:focus-visible,
+.user-color-input-text:focus-visible {
+    outline: 2px solid var(--theme-foreground-color);
+    outline-offset: 2px;
 }
 
 [open] > .color-wall {

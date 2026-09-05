@@ -9,7 +9,7 @@ export const hexToRgb = (hex: string): [number, number, number] => {
 export const relativeLuminance = (rgb: Rgb): number =>
     rgb
         .map((value) => value / 255)
-        .map((value) => value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4))
+        .map((value) => value <= 0.04045 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4))
         .reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
 
 export const contrastRatio = (first: Rgb, second: Rgb): number => {
@@ -42,3 +42,29 @@ export const themeContrastColor = (theme: Rgb): "var(--black)" | "var(--white)" 
     contrastRatio(theme, [17, 17, 17]) >= contrastRatio(theme, [238, 238, 238])
         ? "var(--black)"
         : "var(--white)";
+
+export const mixColor = (foreground: Rgb, background: Rgb, opacity: number): [number, number, number] =>
+    background.map((value, index) => value * (1 - opacity) + foreground[index] * opacity) as [number, number, number];
+
+export const themeSurfaces = (theme: Rgb, dark: boolean): Rgb[] =>
+    dark
+        ? [[16, 18, 24], [25, 28, 35], mixColor(theme, [25, 28, 35], 0.3)]
+        : [
+            [255, 255, 255],
+            [243, 244, 246],
+            mixColor([0, 0, 0], [243, 244, 246], 18 / 255),
+            mixColor(theme, [255, 255, 255], 0.3),
+        ];
+
+export const themeForegroundPalette = (theme: Rgb): { light: Rgb; dark: Rgb } => {
+    const shade = (dark: boolean): Rgb => {
+        const surfaces = themeSurfaces(theme, dark);
+        const target: Rgb = dark ? [255, 255, 255] : [0, 0, 0];
+        for (let step = 0; step <= 100; step++) {
+            const candidate = mixColor(target, theme, step / 100).map(Math.round) as [number, number, number];
+            if (surfaces.every((surface) => contrastRatio(candidate, surface) >= 4.5)) return candidate;
+        }
+        return target;
+    };
+    return { light: shade(false), dark: shade(true) };
+};

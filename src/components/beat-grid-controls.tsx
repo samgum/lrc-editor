@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useDismissibleDetails } from "../hooks/useDismissibleDetails.js";
 import { audioRef } from "../utils/audiomodule.js";
 import { addTempoTap, type BeatGrid, defaultBeatGrid, tappedBpm } from "../utils/beat-grid.js";
 
@@ -10,6 +11,8 @@ export const BeatGridControls: React.FC<{
 }> = ({ grid, selectedStart, language, onChange }) => {
     const taps = useRef<number[]>([]);
     const tapPlaying = useRef(false);
+    const settings = useRef<HTMLDetailsElement>(null);
+    useDismissibleDetails(settings);
     const [tapCount, setTapCount] = useState(0);
     const update = (patch: Partial<BeatGrid>): void => onChange({ ...grid, ...patch });
     const tap = (): void => {
@@ -47,7 +50,17 @@ export const BeatGridControls: React.FC<{
                 {grid.enabled && grid.snap && <span className="word-beat-bypass">{language.beatBypass}</span>}
             </div>
             {grid.enabled && (
-                <details className="word-beat-settings">
+                <details
+                    className="word-beat-settings"
+                    ref={settings}
+                    onKeyDown={(event) => {
+                        if (event.key !== "Escape") return;
+                        event.preventDefault();
+                        event.stopPropagation();
+                        event.currentTarget.open = false;
+                        event.currentTarget.querySelector("summary")?.focus();
+                    }}
+                >
                     <summary>
                         {language.beatSettings}
                         <span>{grid.bpm} BPM</span>
@@ -155,7 +168,11 @@ const GridNumberInput: React.FC<{
                 }}
                 onKeyDown={(event) => {
                     if (event.key === "Enter") event.currentTarget.blur();
-                    if (event.key === "Escape") setDraft(String(value));
+                    if (event.key === "Escape" && draft !== String(value)) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setDraft(String(value));
+                    }
                 }}
             />
         </label>

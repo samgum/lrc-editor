@@ -1,4 +1,18 @@
 {
+    "visual": {
+        "flexibleMatch": "模糊匹配",
+        "lyricEditor": "歌词",
+        "timingIssues": "时间问题：%d",
+        "lineIssue": "第 %line 行：%issue",
+        "previousIssue": "上一个时间问题",
+        "nextIssue": "下一个时间问题",
+        "timeRuler": "时间标尺",
+        "displayOptions": "显示设置",
+        "customColor": "自定义颜色",
+        "dismissNotification": "关闭通知",
+        "playbackPosition": "播放位置",
+        "playbackSpeed": "播放速度"
+    },
     "languageName": "简体中文",
     "header": {
         "home": "主页",

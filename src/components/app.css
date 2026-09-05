@@ -64,7 +64,7 @@ select, input, textarea {
 }
 
 :focus-visible {
-    outline: 2px solid var(--theme-color);
+    outline: 2px solid var(--theme-foreground-color);
     outline-offset: 2px;
 }
 

@@ -153,6 +153,20 @@ input[type="range"]:focus {
     outline: none;
 }
 
+input[type="range"]:focus-visible {
+    outline: 2px solid var(--theme-foreground-color);
+    outline-offset: 3px;
+    border-radius: 4px;
+}
+
+.lrc-audio input[type="range"]:focus-visible {
+    outline-color: var(--theme-on-dark-color);
+}
+
+.lrc-audio input[type="range"] {
+    color: var(--theme-on-dark-color);
+}
+
 input[type="range"]::-webkit-slider-runnable-track {
     height: var(--slider-height);
     background-color: transparent;

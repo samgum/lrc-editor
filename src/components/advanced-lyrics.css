@@ -133,7 +133,7 @@
 
 .advanced-word-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 12.5rem), 1fr));
     gap: 7px;
     padding: 9px;
 }
@@ -216,26 +216,32 @@
 .advanced-time-field > span {
     overflow: hidden;
     color: var(--text-muted-color);
-    font-size: 0.58rem;
+    font-size: 0.75rem;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .advanced-time-field > input {
     min-width: 0;
-    padding: 4px 2px;
+    min-height: 36px;
+    padding: 5px 3px;
     color: var(--text-secondary-color);
     background: transparent;
     border: 0;
     border-bottom: 1px solid #88888845;
     border-radius: 0;
-    font: 0.68rem "Cascadia Mono", Consolas, monospace;
+    font: 0.875rem "Cascadia Mono", Consolas, monospace;
 }
 
 .advanced-time-field > input:focus {
     color: var(--theme-foreground-color);
     border-bottom-color: var(--theme-color);
     outline: 0;
+}
+
+.advanced-time-field > input:focus-visible {
+    outline: 2px solid var(--theme-foreground-color);
+    outline-offset: 1px;
 }
 
 .advanced-word-actions {
@@ -345,7 +351,7 @@
     }
 
     .advanced-word-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 12.5rem), 1fr));
         gap: 6px;
         padding: 7px;
     }

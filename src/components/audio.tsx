@@ -20,9 +20,10 @@ interface ISliderProps {
     value: number;
     onInput: (event: React.ChangeEvent<HTMLInputElement>) => void;
     className: string;
+    label: string;
 }
 
-const Slider: React.FC<ISliderProps> = ({ min, max, step, value, onInput, className }) => {
+const Slider: React.FC<ISliderProps> = ({ min, max, step, value, onInput, className, label }) => {
     const total = max - min || 1;
     const percent = (value - min) / total;
 
@@ -32,7 +33,7 @@ const Slider: React.FC<ISliderProps> = ({ min, max, step, value, onInput, classN
             <input
                 type="range"
                 className={className}
-                aria-label={className}
+                aria-label={label}
                 min={min}
                 max={max}
                 step={step}
@@ -117,7 +118,7 @@ const TimeLine: React.FC<{ duration: number; paused: boolean }> = ({ duration, p
         });
     }, []);
 
-    const { prefState } = useContext(appContext, ChangBits.prefState);
+    const { prefState, lang } = useContext(appContext, ChangBits.prefState | ChangBits.lang);
 
     const showWaveform = prefState.showWaveform && Boolean(waveformSource) && !waveformFailed
         && !dedicatedWordWaveform;
@@ -147,6 +148,7 @@ const TimeLine: React.FC<{ duration: number; paused: boolean }> = ({ duration, p
                 )
                 : (
                     <Slider
+                        label={lang.visual.playbackPosition}
                         min={0}
                         max={duration}
                         step={1}
@@ -199,6 +201,7 @@ const RateSlider: React.FC<{ lang: Language }> = ({ lang }) => {
             </button>
 
             <Slider
+                label={lang.visual.playbackSpeed}
                 className="playbackrate"
                 min={-1}
                 max={1}

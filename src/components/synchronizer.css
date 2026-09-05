@@ -14,6 +14,24 @@
     padding-bottom: 150px;
 }
 
+.line-waveform-mode .timing-selection {
+    grid-template-columns: minmax(0, 1fr);
+}
+.line-waveform-mode .timing-selection > span, .line-waveform-mode .timing-selection > strong {
+    display: none;
+}
+.line-waveform-mode .timing-toolbar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.line-waveform-mode .timing-fine-tune {
+    width: max-content;
+    max-width: 100%;
+}
+.line-waveform-mode .line-capture-mode {
+    justify-self: center;
+}
+
 .word-mode .timing-toolbar, .line-waveform-mode .timing-toolbar {
     grid-column: 1 / -1;
     margin-bottom: 0;
@@ -74,16 +92,52 @@
 }
 
 .word-mode .line, .line-waveform-mode .line {
-    grid-template-columns: 2rem 6.2rem minmax(0, 1fr);
-    min-height: 45px;
-    padding-right: 8px;
+    grid-template-columns: 1.75rem minmax(0, 1fr) 28px;
+    gap: 4px 6px;
+    min-height: 64px;
+    padding: 6px 9px;
+}
+
+.word-mode .line-index, .line-waveform-mode .line-index {
+    grid-column: 1;
+    grid-row: 1;
+}
+.word-mode .line-time, .line-waveform-mode .line-time {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: start;
+}
+.word-mode .line-warning, .line-waveform-mode .line-warning {
+    position: static;
+    grid-column: 3;
+    grid-row: 1;
+}
+.word-mode .line-text, .line-waveform-mode .line-text {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    gap: 5px;
+    padding: 0;
+}
+.word-mode .line-state-badges, .line-waveform-mode .line-state-badges {
+    justify-content: flex-end;
+}
+.word-mode .line-state-badges > span, .line-waveform-mode .line-state-badges > span {
+    max-width: 100%;
+    font-size: 0.75rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 .word-mode .line-copy, .line-waveform-mode .line-copy {
-    display: block;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.4;
 }
 
 .word-mode .line-text, .word-mode .line-copy, .word-mode .timed-word {
@@ -91,6 +145,7 @@
 }
 
 .word-waveform-panel {
+    position: relative;
     display: grid;
     gap: 9px;
     padding: 13px;
@@ -133,36 +188,38 @@
     overflow-wrap: anywhere;
 }
 
-.word-waveform-current {
-    min-width: 9rem !important;
-    padding: 8px 14px;
+.word-waveform-panel .word-waveform-current {
+    min-width: 7rem;
+    padding: 7px 10px;
     text-align: center;
     background: rgba(var(--theme-rgb), 0.18);
     border: 1px solid rgba(var(--theme-rgb), 0.55);
     border-radius: 7px;
 }
 
-.word-waveform-current strong {
-    color: var(--theme-color) !important;
-    font-size: clamp(1.5rem, 3vw, 2.2rem) !important;
+.word-waveform-panel .word-waveform-current strong {
+    color: var(--theme-color);
+    font-size: clamp(1.25rem, 2.3vw, 1.8rem);
+    line-height: 1.2;
 }
 
 .word-waveform-current time {
     color: #d9d9de;
-    font: 0.66rem "Cascadia Mono", Consolas, monospace;
+    font: 0.8125rem "Cascadia Mono", Consolas, monospace;
 }
 
 .word-waveform-view-controls {
+    position: relative;
     display: flex;
     align-items: center;
     flex-wrap: wrap;
     gap: 8px;
     color: #c8c9d0;
-    font-size: 0.64rem;
+    font-size: 0.8125rem;
 }
 
 .word-waveform-view-controls button, .word-waveform-view-switch {
-    min-height: 30px;
+    min-height: 36px;
     border: 1px solid #ffffff26;
     border-radius: 5px;
 }
@@ -179,7 +236,7 @@
 }
 
 .word-waveform-view-switch button {
-    min-height: 25px;
+    min-height: 32px;
     border: 0;
 }
 
@@ -188,9 +245,9 @@
     background: var(--theme-color);
 }
 
-.word-waveform-view-controls > label {
+.word-waveform-view-controls > label, .waveform-display-settings-body > label {
     display: grid;
-    grid-template-columns: auto minmax(7rem, 11rem) 3rem;
+    grid-template-columns: auto minmax(5rem, 11rem) 4rem;
     align-items: center;
     gap: 7px;
     margin-left: 0;
@@ -208,12 +265,109 @@
 }
 
 .word-waveform-view-controls output {
-    font: 0.61rem "Cascadia Mono", Consolas, monospace;
+    font: 0.75rem "Cascadia Mono", Consolas, monospace;
+}
+
+.waveform-display-settings {
+    margin-left: auto;
+}
+.waveform-display-settings > summary {
+    display: flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 4px 10px;
+    color: #e6e8ee;
+    border: 1px solid #ffffff36;
+    border-radius: 5px;
+    cursor: pointer;
+    list-style: none;
+}
+.waveform-display-settings > summary::-webkit-details-marker {
+    display: none;
+}
+.waveform-display-settings > summary::after {
+    width: 6px;
+    height: 6px;
+    margin-left: 10px;
+    border-right: 1.5px solid;
+    border-bottom: 1.5px solid;
+    transform: rotate(45deg);
+    content: "";
+}
+.waveform-display-settings[open] > summary::after {
+    transform: rotate(225deg);
+}
+.waveform-display-settings-body {
+    position: absolute;
+    top: calc(100% + 5px);
+    right: 0;
+    z-index: 30;
+    display: grid;
+    gap: 12px;
+    width: min(420px, 100%);
+    max-height: min(60svh, 340px);
+    padding: 12px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    color: #e6e8ee;
+    background: #20232c;
+    border: 1px solid #ffffff40;
+    border-radius: 7px;
+    box-shadow: 0 8px 25px #00000066;
+}
+.waveform-display-settings:not([open]) .waveform-display-settings-body {
+    display: none;
+}
+.waveform-display-settings-body > label {
+    grid-template-columns: auto minmax(5rem, 1fr) 4rem;
+}
+.word-waveform-panel :is(button, summary, input):focus-visible {
+    outline: 2px solid var(--theme-on-dark-color);
+    outline-offset: 2px;
+}
+.timing-time-ruler {
+    position: relative;
+    height: 28px;
+    min-width: 0;
+    margin: 0 1px -9px;
+    overflow: hidden;
+    color: #ecedf2;
+    background: #17191f;
+    border-bottom: 1px solid #ffffff3d;
+    font: 0.75rem "Cascadia Mono", Consolas, monospace;
+    pointer-events: none;
+}
+.timing-time-ruler > span {
+    position: absolute;
+    top: 3px;
+    white-space: nowrap;
+    transform: translateX(-50%);
+}
+.timing-time-ruler > span::after {
+    position: absolute;
+    top: 18px;
+    left: 50%;
+    height: 6px;
+    border-left: 1px solid #ffffff55;
+    content: "";
+}
+.timing-time-ruler > .start {
+    transform: none;
+}
+.timing-time-ruler > .end {
+    transform: translateX(-100%);
+}
+.timing-time-ruler > .start::after {
+    left: 0;
+}
+.timing-time-ruler > .end::after {
+    left: 100%;
 }
 
 .word-waveform-canvas {
     position: relative;
-    min-height: 220px;
+    min-height: 100px;
+    height: clamp(100px, var(--preferred-plot-height, 42svh), min(660px, var(--available-plot-height, 660px)));
     overflow: hidden;
     overflow-anchor: none;
     background: #0d0f14;
@@ -306,7 +460,7 @@
     justify-content: space-between;
     gap: 8px;
     color: #e6e8ee;
-    font-size: 0.64rem;
+    font-size: 0.8125rem;
 }
 
 .word-beat-grid-toggles, .word-beat-grid-controls {
@@ -395,7 +549,7 @@
 
 .word-beat-settings > summary > span {
     color: #c8cbd4;
-    font: 0.58rem "Cascadia Mono", Consolas, monospace;
+    font: 0.75rem "Cascadia Mono", Consolas, monospace;
 }
 
 .word-beat-grid-controls label {
@@ -426,8 +580,15 @@
 }
 
 .word-beat-grid-tools :is(button, input, select):focus-visible {
-    outline: 2px solid var(--theme-color);
+    outline: 2px solid var(--theme-on-dark-color);
     outline-offset: 2px;
+}
+
+.word-waveform-panel input[type="range"] {
+    color: var(--theme-on-dark-color);
+}
+.word-waveform-panel input[type="range"]:focus-visible {
+    outline-color: var(--theme-on-dark-color);
 }
 
 .word-beat-bypass {
@@ -697,7 +858,7 @@
     padding: 0 9px;
     color: var(--text-secondary-color);
     border-radius: 4px;
-    font-size: 0.68rem;
+    font-size: 0.8125rem;
     white-space: nowrap;
 }
 
@@ -866,6 +1027,7 @@
 
 .line-text {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     min-width: 0;
@@ -875,6 +1037,7 @@
 
 .line-copy {
     min-width: 0;
+    flex: 1 1 10rem;
 }
 
 .line-copy.word-timed-line {
@@ -884,6 +1047,8 @@
 .line-state-badges {
     display: inline-flex;
     flex: 0 0 auto;
+    flex-wrap: wrap;
+    max-width: 100%;
     align-items: center;
     gap: 5px;
 }
@@ -897,7 +1062,9 @@
     font-size: 0.62rem;
     font-weight: 750;
     line-height: 1.2;
-    white-space: nowrap;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 .selected-line-badge {
@@ -1039,7 +1206,7 @@
 }
 
 .error .line-index, .error .line-time {
-    color: #c64255;
+    color: var(--error-color);
     font-weight: 750;
 }
 
@@ -1710,17 +1877,17 @@
         gap: 7px;
     }
 
-    .word-waveform-current {
+    .word-waveform-panel .word-waveform-current {
         grid-template-columns: minmax(0, 1fr);
         align-items: center;
-        min-width: 5.5rem !important;
+        min-width: 5.5rem;
         max-width: 7.5rem;
         padding: 6px 8px;
         text-align: center;
     }
 
-    .word-waveform-current strong {
-        font-size: 1.3rem !important;
+    .word-waveform-panel .word-waveform-current strong {
+        font-size: 1.3rem;
         text-align: center;
     }
 
@@ -1751,12 +1918,47 @@
 
     .word-waveform-canvas {
         grid-column: 1 / -1;
+        grid-row: 5;
+    }
+
+    .timing-time-ruler {
+        grid-column: 1 / -1;
         grid-row: 4;
+    }
+
+    .word-waveform-view-controls {
+        display: flex;
+        grid-column: 1 / -1;
+        grid-row: 2;
+    }
+
+    .waveform-mobile-zoom {
+        grid-column: 1 / -1;
+        grid-row: 6;
+    }
+
+    .waveform-mobile-zoom > label {
+        display: grid;
+        grid-template-columns: auto minmax(5rem, 1fr) 4rem;
+        align-items: center;
+        gap: 8px;
+        color: #e6e8ee;
+        font-size: 0.8125rem;
+    }
+    .waveform-mobile-zoom input {
+        --slider-height: 34px;
+        background: linear-gradient(90deg, #ffffff38, var(--theme-color), #ffffff38) center / 100% 3px no-repeat;
+    }
+    .waveform-mobile-zoom output {
+        font: 0.75rem "Cascadia Mono", Consolas, monospace;
+    }
+    .waveform-display-settings {
+        position: static;
     }
 
     .word-waveform-feedback {
         grid-column: 1 / -1;
-        grid-row: 5;
+        grid-row: 7;
     }
 
     .word-waveform-view-controls > label {
@@ -1764,18 +1966,6 @@
         grid-template-columns: auto minmax(6rem, 1fr) 2.8rem;
         width: 100%;
         margin-left: 0;
-    }
-
-    .word-waveform-zoom {
-        grid-row: 6;
-    }
-
-    .word-waveform-amplitude {
-        grid-row: 7;
-    }
-
-    .word-waveform-height {
-        grid-row: 8;
     }
 
     .word-beat-grid-controls label {
@@ -1789,7 +1979,7 @@
 
     .word-waveform-panel > footer {
         grid-column: 1 / -1;
-        grid-row: 9;
+        grid-row: 8;
         gap: 6px 10px;
     }
 
@@ -2013,5 +2203,100 @@
 
     .line {
         grid-template-columns: 1.8rem 6rem minmax(0, 1fr);
+    }
+}
+
+@media (height <= 620px) {
+    .app-main:has(.line-waveform-mode), .app-main:has(.word-mode.waveform-capture) {
+        padding-top: 64px;
+    }
+    .line-waveform-mode .timing-toolbar, .word-mode.waveform-capture .timing-toolbar {
+        position: sticky;
+        top: 64px;
+        display: flex;
+        flex-flow: row nowrap;
+        gap: 8px;
+        min-height: 42px;
+        padding: 4px 7px;
+        overflow-x: auto;
+        scrollbar-width: thin;
+    }
+    .line-waveform-mode .timing-selection {
+        flex: 1 0 auto;
+    }
+    .line-waveform-mode .line-capture-mode, .line-waveform-mode .timing-actions {
+        flex: 0 0 auto;
+        width: auto;
+    }
+    .line-waveform-mode .timing-actions button, .line-waveform-mode .line-capture-mode button {
+        min-height: 32px;
+    }
+    .compact-timing {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 6px 8px;
+    }
+    .compact-timing > header {
+        gap: 8px;
+    }
+    .compact-timing > header > div > span {
+        display: none;
+    }
+    .compact-timing > header > div > strong {
+        font-size: 1.125rem;
+        line-height: 1.3;
+        -webkit-line-clamp: 1;
+    }
+    .compact-timing .word-waveform-current {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0 !important;
+        max-width: none;
+        padding: 3px 7px;
+    }
+    .compact-timing .word-waveform-current > strong {
+        font-size: 1rem;
+    }
+    .compact-timing .word-waveform-view-controls {
+        display: flex;
+    }
+    .compact-timing .word-waveform-view-controls button,
+    .compact-timing .word-waveform-view-switch,
+    .compact-timing .waveform-display-settings > summary {
+        min-height: 32px;
+    }
+    .compact-timing .timing-time-ruler {
+        flex: 0 0 26px;
+        height: 26px;
+        margin-bottom: -4px;
+    }
+    .compact-timing .word-waveform-canvas {
+        flex: 0 0 auto;
+    }
+    .compact-timing .waveform-display-settings-body {
+        position: fixed;
+        top: 72px;
+        right: max(16px, env(safe-area-inset-right));
+        width: min(420px, calc(100vw - 32px));
+        max-height: calc(100svh - 150px);
+    }
+
+    .compact-timing .word-waveform-hint {
+        display: none;
+    }
+    .compact-timing .word-beat-grid-controls {
+        position: static;
+        margin-top: 6px;
+    }
+    .compact-timing .word-beat-settings {
+        width: 100%;
+    }
+    .compact-timing .word-waveform-feedback {
+        flex-wrap: wrap;
+    }
+    .compact-timing > footer {
+        font-size: 0.7rem;
     }
 }

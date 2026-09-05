@@ -1,5 +1,19 @@
 {
     "ja": {
+        "visual": {
+            "flexibleMatch": "柔軟な一致",
+            "lyricEditor": "歌詞",
+            "timingIssues": "タイミングの問題：%d",
+            "lineIssue": "%line 行目：%issue",
+            "previousIssue": "前のタイミング問題",
+            "nextIssue": "次のタイミング問題",
+            "timeRuler": "時間目盛り",
+            "displayOptions": "表示設定",
+            "customColor": "カスタムカラー",
+            "dismissNotification": "通知を閉じる",
+            "playbackPosition": "再生位置",
+            "playbackSpeed": "再生速度"
+        },
         "header": {
             "wordSynchronizer": "単語タイミング"
         },
@@ -369,6 +383,20 @@
         }
     },
     "ko-KR": {
+        "visual": {
+            "flexibleMatch": "유연한 일치",
+            "lyricEditor": "가사",
+            "timingIssues": "타이밍 문제: %d",
+            "lineIssue": "%line행: %issue",
+            "previousIssue": "이전 타이밍 문제",
+            "nextIssue": "다음 타이밍 문제",
+            "timeRuler": "시간 눈금",
+            "displayOptions": "표시 설정",
+            "customColor": "사용자 지정 색상",
+            "dismissNotification": "알림 닫기",
+            "playbackPosition": "재생 위치",
+            "playbackSpeed": "재생 속도"
+        },
         "header": {
             "wordSynchronizer": "단어 타이밍"
         },
@@ -738,6 +766,20 @@
         }
     },
     "pl-PL": {
+        "visual": {
+            "flexibleMatch": "Elastyczne dopasowanie",
+            "lyricEditor": "Tekst piosenki",
+            "timingIssues": "Problemy z czasem: %d",
+            "lineIssue": "Wiersz %line: %issue",
+            "previousIssue": "Poprzedni problem z czasem",
+            "nextIssue": "Następny problem z czasem",
+            "timeRuler": "Podziałka czasu",
+            "displayOptions": "Ustawienia widoku",
+            "customColor": "Własny kolor",
+            "dismissNotification": "Zamknij powiadomienie",
+            "playbackPosition": "Pozycja odtwarzania",
+            "playbackSpeed": "Szybkość odtwarzania"
+        },
         "header": {
             "wordSynchronizer": "Synchronizacja słów"
         },
@@ -1107,6 +1149,20 @@
         }
     },
     "pt-BR": {
+        "visual": {
+            "flexibleMatch": "Correspondência flexível",
+            "lyricEditor": "Letra",
+            "timingIssues": "Problemas de tempo: %d",
+            "lineIssue": "Linha %line: %issue",
+            "previousIssue": "Problema de tempo anterior",
+            "nextIssue": "Próximo problema de tempo",
+            "timeRuler": "Escala de tempo",
+            "displayOptions": "Opções de exibição",
+            "customColor": "Cor personalizada",
+            "dismissNotification": "Fechar notificação",
+            "playbackPosition": "Posição de reprodução",
+            "playbackSpeed": "Velocidade de reprodução"
+        },
         "header": {
             "wordSynchronizer": "Sincronização de palavras"
         },
@@ -1476,6 +1532,20 @@
         }
     },
     "sk-SK": {
+        "visual": {
+            "flexibleMatch": "Flexibilné porovnávanie",
+            "lyricEditor": "Text piesne",
+            "timingIssues": "Problémy časovania: %d",
+            "lineIssue": "Riadok %line: %issue",
+            "previousIssue": "Predchádzajúci problém časovania",
+            "nextIssue": "Nasledujúci problém časovania",
+            "timeRuler": "Časová stupnica",
+            "displayOptions": "Nastavenia zobrazenia",
+            "customColor": "Vlastná farba",
+            "dismissNotification": "Zavrieť oznámenie",
+            "playbackPosition": "Poloha prehrávania",
+            "playbackSpeed": "Rýchlosť prehrávania"
+        },
         "header": {
             "wordSynchronizer": "Časovanie slov"
         },
@@ -1845,6 +1915,20 @@
         }
     },
     "zh-HK": {
+        "visual": {
+            "flexibleMatch": "模糊比對",
+            "lyricEditor": "歌詞",
+            "timingIssues": "時間問題：%d",
+            "lineIssue": "第 %line 行：%issue",
+            "previousIssue": "上一個時間問題",
+            "nextIssue": "下一個時間問題",
+            "timeRuler": "時間標尺",
+            "displayOptions": "顯示設定",
+            "customColor": "自訂顏色",
+            "dismissNotification": "關閉通知",
+            "playbackPosition": "播放位置",
+            "playbackSpeed": "播放速度"
+        },
         "header": {
             "wordSynchronizer": "逐字打軸"
         },
@@ -2214,6 +2298,20 @@
         }
     },
     "zh-TW": {
+        "visual": {
+            "flexibleMatch": "模糊比對",
+            "lyricEditor": "歌詞",
+            "timingIssues": "時間問題：%d",
+            "lineIssue": "第 %line 行：%issue",
+            "previousIssue": "上一個時間問題",
+            "nextIssue": "下一個時間問題",
+            "timeRuler": "時間標尺",
+            "displayOptions": "顯示設定",
+            "customColor": "自訂顏色",
+            "dismissNotification": "關閉通知",
+            "playbackPosition": "播放位置",
+            "playbackSpeed": "播放速度"
+        },
         "header": {
             "wordSynchronizer": "逐字打軸"
         },

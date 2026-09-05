@@ -189,7 +189,7 @@ export const Tools: React.FC<{
                     regex: regexMode,
                     caseSensitive,
                 });
-                return { text: result.text, error: result.error };
+                return { text: result.text, error: result.error ? lang.tools.invalidRegex : undefined };
             }
             if (tool === "case") {
                 return {
@@ -421,7 +421,12 @@ export const Tools: React.FC<{
                             {lang.tools.splitPattern}
                             <select value={splitPattern} onChange={(ev) => setSplitPattern(ev.target.value)}>
                                 {splitPatterns.map((pattern) => (
-                                    <option key={pattern.value} value={pattern.value}>{pattern.label}</option>
+                                    <option key={pattern.value} value={pattern.value}>
+                                        {pattern.label === "模糊匹配"
+                                            ? lang.visual.flexibleMatch
+                                            : pattern.label.replace("歌词", lang.visual.lyricEditor)
+                                                .replace("翻译", lang.tools.translation)}
+                                    </option>
                                 ))}
                             </select>
                         </label>

@@ -1,4 +1,16 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import {
+    forwardRef,
+    useCallback,
+    useContext,
+    useEffect,
+    useImperativeHandle,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
+import { useDismissibleDetails } from "../hooks/useDismissibleDetails.js";
+import { useMediaQuery } from "../hooks/useMediaQuery.js";
 import type { TimingWaveformView } from "../hooks/usePref.js";
 import { formatLrcTimestamp } from "../utils/advanced-lyrics.js";
 import { audioRef, currentTimePubSub } from "../utils/audiomodule.js";
@@ -10,7 +22,9 @@ import {
     saveBeatGrid,
     snapToBeatGrid,
 } from "../utils/beat-grid.js";
+import { timeRulerTicks } from "../utils/time-ruler.js";
 import { timingPanelHeights } from "../utils/waveform-data.js";
+import { appContext, ChangBits } from "./app.context.js";
 import { BeatGridControls } from "./beat-grid-controls.js";
 import { Waveform, type WaveformHandle, type WaveformViewport } from "./waveform.js";
 
@@ -61,6 +75,11 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
     onAmplitudeChange,
     onHeightChange,
 }, ref) => {
+    const { lang } = useContext(appContext, ChangBits.lang);
+    const compact = useMediaQuery("(max-height: 620px)");
+    const narrow = useMediaQuery("(max-width: 720px)");
+    const displaySettings = useRef<HTMLDetailsElement>(null);
+    useDismissibleDetails(displaySettings);
     const waveformRef = useRef<WaveformHandle>(null);
     const canvasRef = useRef<HTMLDivElement>(null);
     const hoverGuideRef = useRef<HTMLSpanElement>(null);
@@ -94,6 +113,15 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
         () => beatGridLines(grid, viewport.start, viewport.end, viewport.pixelsPerSecond, viewport.duration),
         [grid, viewport],
     );
+    const rulerTicks = useMemo(() =>
+        timeRulerTicks(
+            viewport.start,
+            viewport.end,
+            viewport.width,
+            viewport.pixelsPerSecond,
+            fixed,
+        ), [fixed, viewport]);
+
     const refreshPlayhead = useCallback((): void => {
         requestAnimationFrame(() => renderPlayheadRef.current(audioRef.currentTime));
     }, []);
@@ -119,22 +147,39 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
         if (hoverTooltipRef.current) hoverTooltipRef.current.hidden = true;
     }, [source]);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
         let timer: ReturnType<typeof setTimeout> | undefined;
-        const measure = (): void => setCanvasHeight(canvas.clientHeight);
+        const measure = (): void => {
+            const footerHeight = document.querySelector(".app-footer")?.getBoundingClientRect().height ?? 56;
+            const documentTop = canvas.getBoundingClientRect().top + window.scrollY;
+            const available = Math.max(100, Math.floor(window.innerHeight - footerHeight - documentTop - 12));
+            canvas.style.setProperty("--available-plot-height", `${available}px`);
+            setCanvasHeight(canvas.clientHeight);
+        };
         const observer = new ResizeObserver(() => {
             clearTimeout(timer);
             timer = setTimeout(measure, 140);
         });
-        observer.observe(canvas);
+        for (
+            const element of [
+                canvas,
+                ...Array.from(canvas.parentElement?.children ?? []),
+                document.querySelector(".timing-toolbar"),
+                document.querySelector(".app-footer"),
+            ]
+        ) {
+            if (element) observer.observe(element);
+        }
+        window.addEventListener("resize", measure);
         measure();
         return () => {
             observer.disconnect();
+            window.removeEventListener("resize", measure);
             clearTimeout(timer);
         };
-    }, []);
+    }, [compact, narrow]);
 
     useImperativeHandle(ref, () => ({
         scrollPage: (direction) => {
@@ -334,8 +379,26 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
         ? language.lineWaveformCaptureHint
         : language.waveformCaptureHint;
 
+    const zoomControl = (
+        <label className="word-waveform-zoom">
+            <span>{language.waveformZoom}</span>
+            <input
+                type="range"
+                min={24}
+                max={420}
+                step={4}
+                value={displayZoom}
+                onInput={(event) => updateZoom(Number(event.currentTarget.value))}
+            />
+            <output>{Math.round(displayZoom)} px/s</output>
+        </label>
+    );
+    const beatControls = (
+        <BeatGridControls grid={grid} selectedStart={wordStartMs} language={language} onChange={onGridChange} />
+    );
+
     return (
-        <section className="word-waveform-panel" aria-label={title}>
+        <section className={`word-waveform-panel${compact ? " compact-timing" : ""}`} aria-label={title}>
             <header>
                 <div>
                     <span>{lineMode ? language.currentLine : language.activeLine}</span>
@@ -378,52 +441,71 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
                         {language.waveformViewSpectrum}
                     </button>
                 </div>
-                <span>{language.waveformWheelZoom}</span>
-                <button type="button" onClick={() => updateZoom(84)}>
-                    {language.waveformResetZoom}
-                </button>
-                <label className="word-waveform-zoom">
-                    <span>{language.waveformZoom}</span>
-                    <input
-                        type="range"
-                        min={24}
-                        max={420}
-                        step={4}
-                        value={displayZoom}
-                        onInput={(event) => updateZoom(Number(event.currentTarget.value))}
-                    />
-                    <output>{Math.round(displayZoom)} px/s</output>
-                </label>
-                <label className="word-waveform-amplitude">
-                    <span>{view === "spectrogram" ? language.waveformBrightness : language.waveformAmplitude}</span>
-                    <input
-                        type="range"
-                        min={0.5}
-                        max={4}
-                        step={0.1}
-                        value={amplitude}
-                        onChange={(event) => updateAmplitude(Number(event.target.value))}
-                    />
-                    <output>×{amplitude.toFixed(1)}</output>
-                </label>
-                <label className="word-waveform-height">
-                    <span>{language.waveformHeight}</span>
-                    <input
-                        type="range"
-                        min={24}
-                        max={70}
-                        step={2}
-                        value={heightPercent}
-                        onChange={(event) => onHeightChange(Number(event.currentTarget.value))}
-                    />
-                    <output>{Math.round(canvasHeight)} px</output>
-                </label>
+                {!compact && !narrow && zoomControl}
+                <details
+                    className="waveform-display-settings"
+                    ref={displaySettings}
+                    onKeyDown={(event) => {
+                        if (event.key !== "Escape") return;
+                        event.preventDefault();
+                        event.stopPropagation();
+                        event.currentTarget.open = false;
+                        event.currentTarget.querySelector("summary")?.focus();
+                    }}
+                >
+                    <summary>{lang.visual.displayOptions}</summary>
+                    <div className="waveform-display-settings-body">
+                        {compact && zoomControl}
+                        <button type="button" onClick={() => updateZoom(84)}>
+                            {language.waveformResetZoom}
+                        </button>
+                        <label className="word-waveform-amplitude">
+                            <span>
+                                {view === "spectrogram" ? language.waveformBrightness : language.waveformAmplitude}
+                            </span>
+                            <input
+                                type="range"
+                                min={0.5}
+                                max={4}
+                                step={0.1}
+                                value={amplitude}
+                                onChange={(event) => updateAmplitude(Number(event.target.value))}
+                            />
+                            <output>×{amplitude.toFixed(1)}</output>
+                        </label>
+                        <label className="word-waveform-height">
+                            <span>{language.waveformHeight}</span>
+                            <input
+                                type="range"
+                                min={24}
+                                max={70}
+                                step={2}
+                                value={heightPercent}
+                                onChange={(event) => onHeightChange(Number(event.currentTarget.value))}
+                            />
+                            <output>{Math.round(canvasHeight)} px</output>
+                        </label>
+                        {compact && beatControls}
+                        <span>{language.waveformWheelZoom}</span>
+                    </div>
+                </details>
             </div>
-            <BeatGridControls grid={grid} selectedStart={wordStartMs} language={language} onChange={onGridChange} />
+            {!compact && beatControls}
+            <div
+                className="timing-time-ruler"
+                role="img"
+                aria-label={`${lang.visual.timeRuler}: ${formatTime(viewport.start)} – ${formatTime(viewport.end)}`}
+            >
+                {rulerTicks.map((tick) => (
+                    <span key={tick.time} aria-hidden="true" className={tick.edge || ""} style={{ left: tick.x }}>
+                        {formatTime(tick.time)}
+                    </span>
+                ))}
+            </div>
             <div
                 ref={canvasRef}
                 className="word-waveform-canvas"
-                style={{ height: `clamp(220px, ${heightPercent}svh, 660px)` }}
+                style={{ "--preferred-plot-height": `${heightPercent}svh` } as React.CSSProperties}
                 aria-busy={!plotReady}
                 onClick={captureAtPointer}
                 onPointerMove={onPointerMove}
@@ -465,6 +547,7 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
                 <output ref={hoverTooltipRef} className="word-waveform-hover-time" hidden />
                 <span className="word-waveform-hint">{hint}</span>
             </div>
+            {narrow && !compact && <div className="waveform-mobile-zoom">{zoomControl}</div>}
             <div className="word-waveform-feedback">
                 <span>
                     {lineMode

@@ -1,4 +1,18 @@
 {
+    "visual": {
+        "flexibleMatch": "Flexible matching",
+        "lyricEditor": "Lyrics",
+        "timingIssues": "Timing issues: %d",
+        "lineIssue": "Line %line: %issue",
+        "previousIssue": "Previous timing issue",
+        "nextIssue": "Next timing issue",
+        "timeRuler": "Timeline",
+        "displayOptions": "Display settings",
+        "customColor": "Custom color",
+        "dismissNotification": "Dismiss notification",
+        "playbackPosition": "Playback position",
+        "playbackSpeed": "Playback speed"
+    },
     "languageName": "English",
     "header": {
         "home": "Home",

@@ -160,6 +160,7 @@ export const Footer: React.FC = () => {
                         ? "qqmusic"
                         : parsed.kind;
                     toastPubSub.pub({
+                        channel: "media",
                         type: "info",
                         text: provider === "youtube"
                             ? lang.notify.youtubeResolving
@@ -217,7 +218,7 @@ export const Footer: React.FC = () => {
                             : lang.notify.qqmusicResolveFailed
                         : lang.notify.youtubeResolveFailed
                     : lang.notify.invalidMediaUrl;
-                toastPubSub.pub({ type: "warning", text: message });
+                toastPubSub.pub({ channel: "media", type: "warning", text: message });
                 throw error;
             }
         },
@@ -346,7 +347,7 @@ export const Footer: React.FC = () => {
                         setAudioSrc(URL.createObjectURL(file));
                     }
                 } catch {
-                    toastPubSub.pub({ type: "warning", text: lang.notify.mediaConversionFailed });
+                    toastPubSub.pub({ channel: "media", type: "warning", text: lang.notify.mediaConversionFailed });
                 }
             })();
         } else {
@@ -366,7 +367,7 @@ export const Footer: React.FC = () => {
                     setAlignmentMediaSource({ blob: media, name });
                     setAudioSrc(URL.createObjectURL(media));
                 })().catch(() => {
-                    toastPubSub.pub({ type: "warning", text: lang.notify.mediaConversionFailed });
+                    toastPubSub.pub({ channel: "media", type: "warning", text: lang.notify.mediaConversionFailed });
                 });
             });
         }
@@ -382,10 +383,7 @@ export const Footer: React.FC = () => {
             type: AudioActionType.getDuration,
             payload: audioRef.duration,
         });
-        toastPubSub.pub({
-            type: "success",
-            text: lang.notify.audioLoaded,
-        });
+        toastPubSub.pub({ channel: "media", type: "success", text: lang.notify.audioLoaded });
     }, [lang]);
 
     const syncCurrentTime = useCallback(() => {
@@ -449,10 +447,7 @@ export const Footer: React.FC = () => {
             const audio = ev.target as HTMLAudioElement;
             const error = audio.error!;
             const message = lang.audio.error[error.code] || error.message || lang.audio.error[0];
-            toastPubSub.pub({
-                type: "warning",
-                text: message,
-            });
+            toastPubSub.pub({ channel: "media", type: "warning", text: message });
         },
         [lang, setAudioSrc],
     );
@@ -505,10 +500,7 @@ const receiveEncryptedFile = (
                     setAlignmentMedia(musicFile, decodedMediaName(file.name, mimeType));
                 }
                 if (ev.data.type === "error") {
-                    toastPubSub.pub({
-                        type: "warning",
-                        text: ev.data.payload,
-                    });
+                    toastPubSub.pub({ channel: "media", type: "warning", text: ev.data.payload });
                 }
             },
             { once: true },
@@ -517,10 +509,7 @@ const receiveEncryptedFile = (
         worker.addEventListener(
             "error",
             (ev) => {
-                toastPubSub.pub({
-                    type: "warning",
-                    text: ev.message,
-                });
+                toastPubSub.pub({ channel: "media", type: "warning", text: ev.message });
                 worker.terminate();
             },
             { once: true },
@@ -551,15 +540,15 @@ const receiveEncryptedFile = (
 };
 
 const convertLocalFile = async (file: File, lang: Language): Promise<Blob | null> => {
-    toastPubSub.pub({ type: "info", text: lang.notify.transcodingMedia });
+    toastPubSub.pub({ channel: "media", type: "info", text: lang.notify.transcodingMedia });
     try {
         const { transcodeAudioForBrowser } = await import("../utils/audio-transcoder.js");
         const converted = await transcodeAudioForBrowser(file);
-        toastPubSub.pub({ type: "success", text: lang.notify.mediaConverted });
+        toastPubSub.pub({ channel: "media", type: "success", text: lang.notify.mediaConverted });
         return converted;
     } catch (error) {
         console.error("Local audio conversion failed", error);
-        toastPubSub.pub({ type: "warning", text: lang.notify.mediaConversionFailed });
+        toastPubSub.pub({ channel: "media", type: "warning", text: lang.notify.mediaConversionFailed });
         return null;
     }
 };

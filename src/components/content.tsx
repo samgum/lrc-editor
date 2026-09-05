@@ -17,12 +17,13 @@ import {
     toLineLrc,
 } from "../utils/advanced-lyrics.js";
 import { prependHash } from "../utils/router.js";
-import { accessibleThemeForeground, hexToRgb, themeContrastColor } from "../utils/theme-color.js";
+import { hexToRgb, themeContrastColor, themeForegroundPalette } from "../utils/theme-color.js";
 import { classifyWorkspaceFiles, droppedMediaFilePubSub } from "../utils/workspace-drop.js";
 import { appContext, ChangBits } from "./app.context.js";
 import { Home } from "./home.js";
 import { EditorSVG, LoadAudioSVG } from "./svg.js";
 import { toastPubSub } from "./toast.js";
+import { WorkspaceScroll } from "./workspace-scroll.js";
 
 const LazyEditor = lazy(async () =>
     import("./editor.js").then(({ Editor }) => {
@@ -61,14 +62,23 @@ export const Content: React.FC = () => {
     );
 
     const [path, setPath] = useState(location.hash);
+    const scrollPositions = useRef(new Map<string, number>());
+    const activePath = useRef(location.hash);
     useEffect(() => {
+        const previousRestoration = history.scrollRestoration;
+        history.scrollRestoration = "manual";
         function onHashchange() {
+            scrollPositions.current.set(activePath.current, window.scrollY);
+            activePath.current = location.hash;
             setPath(location.hash);
         }
 
         window.addEventListener("hashchange", onHashchange);
 
-        return () => window.removeEventListener("hashchange", onHashchange);
+        return () => {
+            window.removeEventListener("hashchange", onHashchange);
+            history.scrollRestoration = previousRestoration;
+        };
     }, []);
 
     const [lrcState, lrcDispatch] = useLrc(() => {
@@ -367,8 +377,7 @@ export const Content: React.FC = () => {
 
     useEffect(() => {
         const rgb = hexToRgb(prefState.themeColor);
-        const lightForeground = accessibleThemeForeground(rgb, [255, 255, 255]);
-        const darkForeground = accessibleThemeForeground(rgb, [25, 28, 35]);
+        const { light: lightForeground, dark: darkForeground } = themeForegroundPalette(rgb);
         document.documentElement.style.setProperty("--theme-rgb", rgb.join(", "));
         document.documentElement.style.setProperty("--theme-foreground-light-rgb", lightForeground.join(", "));
         document.documentElement.style.setProperty("--theme-foreground-dark-rgb", darkForeground.join(", "));
@@ -508,6 +517,7 @@ export const Content: React.FC = () => {
                 }
             >
                 {content}
+                <WorkspaceScroll path={path} positions={scrollPositions.current} />
             </Suspense>
             {pendingLyricFile && (
                 <dialog

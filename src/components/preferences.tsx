@@ -1,6 +1,7 @@
 import STRINGS from "#const/strings.json" assert { type: "json" };
 import { convertTimeToTag, formatText } from "@lrc-maker/lrc-parser";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useDismissibleDetails } from "../hooks/useDismissibleDetails.js";
 import { themeColor, ThemeMode } from "../hooks/usePref.js";
 import {
     checkHuhuAlignmentCapability,
@@ -12,6 +13,7 @@ import {
 import { clearHuhuApiKey, hasHuhuApiKey, readHuhuApiKey, saveHuhuApiKey } from "../utils/huhu-secret-store.js";
 import { clearLocalAiCache, stopLocalAiService } from "../utils/local-ai-alignment.js";
 import { unregister } from "../utils/sw.unregister.js";
+import { consumePreferenceFocus } from "../utils/workspace-navigation.js";
 import { AboutDialog } from "./about.js";
 import { appContext, ChangBits } from "./app.context.js";
 import { toastPubSub } from "./toast.js";
@@ -63,6 +65,8 @@ type HuhuSettingsStatus =
 export const Preferences: React.FC = () => {
     const { prefState, prefDispatch, lang } = useContext(appContext, ChangBits.lang | ChangBits.prefState);
     const serviceStopDialog = useRef<HTMLDialogElement>(null);
+    const colorPopover = useRef<HTMLDetailsElement>(null);
+    useDismissibleDetails(colorPopover);
     const aiCacheDialog = useRef<HTMLDialogElement>(null);
     const [serviceStopping, setServiceStopping] = useState(false);
     const [aiCacheClearing, setAiCacheClearing] = useState(false);
@@ -70,7 +74,14 @@ export const Preferences: React.FC = () => {
     const [huhuKeyBusy, setHuhuKeyBusy] = useState(false);
     const [huhuStatus, setHuhuStatus] = useState<HuhuSettingsStatus | null>(null);
     const huhuKeyInput = useRef<HTMLInputElement>(null);
+    const huhuSection = useRef<HTMLElement>(null);
     const huhuOriginAvailable = import.meta.env.DEV || isHuhuBrowserOriginAllowed(location.origin);
+
+    useEffect(() => {
+        if (consumePreferenceFocus() !== "huhu") return;
+        huhuSection.current?.scrollIntoView({ block: "center", behavior: "instant" });
+        huhuKeyInput.current?.focus({ preventScroll: true });
+    }, []);
 
     useEffect(() => {
         let active = true;
@@ -193,7 +204,7 @@ export const Preferences: React.FC = () => {
 
     const onUserInput = useCallback(
         (input: EventTarget & HTMLInputElement) => {
-            let value = input.value;
+            let value = input.value.toLowerCase();
 
             if (!input.validity.valid) {
                 input.value = input.defaultValue;
@@ -423,9 +434,9 @@ export const Preferences: React.FC = () => {
             return (
                 <label className={classNames.join(STRINGS.space)} key={color} style={{ backgroundColor: color }}>
                     <input
-                        hidden={true}
                         type="radio"
                         name="theme-color"
+                        aria-label={`${lang.preferences.themeColor} ${color}`}
                         value={color}
                         checked={checked}
                         onChange={onColorPick}
@@ -433,7 +444,7 @@ export const Preferences: React.FC = () => {
                 </label>
             );
         });
-    }, [onColorPick, prefState.themeColor]);
+    }, [lang.preferences.themeColor, onColorPick, prefState.themeColor]);
 
     const currentThemeColorStyle = useMemo(() => {
         return {
@@ -658,7 +669,7 @@ export const Preferences: React.FC = () => {
                     </button>
                 </li>
                 <li className="huhu-settings-row">
-                    <section className="list-item huhu-settings">
+                    <section className="list-item huhu-settings" ref={huhuSection}>
                         <header>
                             <strong>{lang.preferences.huhuTitle}</strong>
                             <span>{lang.preferences.huhuKeyDescription}</span>
@@ -748,7 +759,17 @@ export const Preferences: React.FC = () => {
                 <li>
                     <section className="list-item">
                         <span>{lang.preferences.themeColor}</span>
-                        <details className="dropdown">
+                        <details
+                            className="dropdown"
+                            ref={colorPopover}
+                            onKeyDown={(event) => {
+                                if (event.key !== "Escape") return;
+                                event.preventDefault();
+                                event.stopPropagation();
+                                event.currentTarget.open = false;
+                                event.currentTarget.querySelector("summary")?.focus();
+                            }}
+                        >
                             <summary>
                                 <span className="color-picker ripple hash" style={currentThemeColorStyle}>
                                     {"#"}
@@ -766,7 +787,8 @@ export const Preferences: React.FC = () => {
                                     {"#"}
                                     <input
                                         type="color"
-                                        className="color-picker pseudo-hidden"
+                                        className="native-color-input"
+                                        aria-label={lang.visual.customColor}
                                         value={prefState.themeColor}
                                         onChange={onColorPick}
                                         ref={userColorInput}
@@ -778,7 +800,8 @@ export const Preferences: React.FC = () => {
                                     name="user-color-input-text"
                                     className="user-color-input-text"
                                     type="text"
-                                    pattern="[\da-f]{3,6}"
+                                    pattern="[\da-fA-F]{3}|[\da-fA-F]{6}"
+                                    aria-label={`${lang.visual.customColor} (HEX)`}
                                     required={true}
                                     autoCapitalize="none"
                                     autoComplete="off"
@@ -808,7 +831,7 @@ export const Preferences: React.FC = () => {
                                 name="fixed"
                                 value={prefState.fixed}
                                 onChange={onFixedChanged}
-                                aria-label={lang.preferences.lrcFormat}
+                                aria-label={lang.preferences.fixed}
                             >
                                 <option value={0}>0</option>
                                 <option value={1}>1</option>

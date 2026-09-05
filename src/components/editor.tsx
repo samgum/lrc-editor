@@ -38,8 +38,10 @@ import {
 } from "../utils/local-ai-alignment.js";
 import { lrcFileName } from "../utils/lrc-file-name.js";
 import { prependHash } from "../utils/router.js";
+import { requestPreferenceFocus } from "../utils/workspace-navigation.js";
 import { AdvancedLyricsEditor } from "./advanced-lyrics-editor.js";
 import { appContext } from "./app.context.js";
+import { LyricTextEditor } from "./lyric-text-editor.js";
 import { LyricsModeSwitch } from "./lyrics-mode-switch.js";
 import { AiAlignSVG, CloudAiSVG, CopySVG, DownloadSVG, OpenFileSVG, UtilitySVG } from "./svg.js";
 import { toastPubSub } from "./toast.js";
@@ -138,7 +140,7 @@ export const Editor: React.FC<{
     }, []);
 
     const textarea = useRef<HTMLInputLikeElement>(null);
-    const textareaDefaultValue = useDefaultValue(text, textarea);
+    const lyricFileInput = useRef<HTMLInputElement>(null);
     const [exportFormat, setExportFormat] = useState<ExportLyricFormat>("lrc");
     const aiSession = useSyncExternalStore(
         subscribeAiAlignmentSession,
@@ -422,6 +424,7 @@ export const Editor: React.FC<{
             }
             if (!apiKey) {
                 toastPubSub.pub({ type: "warning", text: lang.editor.huhuNoKey });
+                requestPreferenceFocus("huhu");
                 location.hash = ROUTER.preferences;
                 return;
             }
@@ -591,15 +594,22 @@ export const Editor: React.FC<{
                         <span>Huhu</span>
                         <small>(Beta)</small>
                     </button>
-                    <label className="editor-tools-item ripple" title={lang.editor.uploadText}>
-                        <input
-                            hidden={true}
-                            type="file"
-                            accept="text/*,.txt,.lrc,.krc,.ttml,.srt,application/xml,application/octet-stream"
-                            onChange={onTextFileUpload}
-                        />
+                    <button
+                        type="button"
+                        className="editor-tools-item ripple"
+                        title={lang.editor.uploadText}
+                        aria-label={lang.editor.uploadText}
+                        onClick={() => lyricFileInput.current?.click()}
+                    >
                         <OpenFileSVG />
-                    </label>
+                    </button>
+                    <input
+                        ref={lyricFileInput}
+                        hidden={true}
+                        type="file"
+                        accept="text/*,.txt,.lrc,.krc,.ttml,.srt,application/xml,application/octet-stream"
+                        onChange={onTextFileUpload}
+                    />
                     <button
                         className="editor-tools-item ripple"
                         title={lang.advancedLyrics.copyExport}
@@ -669,15 +679,7 @@ export const Editor: React.FC<{
                         />
                     </>
                 )
-                : (
-                    <textarea
-                        className="app-textarea"
-                        aria-label="lrc input here"
-                        onBlur={parse}
-                        {...disableCheck}
-                        {...textareaDefaultValue}
-                    />
-                )}
+                : <LyricTextEditor text={text} inputRef={textarea} onBlur={parse} language={lang} />}
             {wordTimingOffer && (
                 <dialog className="word-timing-offer" open={true} aria-labelledby="word-timing-offer-title">
                     <article>
