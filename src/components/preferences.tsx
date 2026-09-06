@@ -727,6 +727,8 @@ export const Preferences: React.FC = () => {
                                     <option value="ja-en">{lang.preferences.huhuLanguageJaEn}</option>
                                     <option value="zh-hans-cn">{lang.preferences.huhuLanguageZh}</option>
                                     <option value="zh-hans-cn-en">{lang.preferences.huhuLanguageZhEn}</option>
+                                    <option value="ko">{lang.preferences.huhuLanguageKo}</option>
+                                    <option value="ko-en">{lang.preferences.huhuLanguageKoEn}</option>
                                 </select>
                             </label>
                         </div>

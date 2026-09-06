@@ -1,4 +1,4 @@
-export const huhuAlignmentLanguages = ["ja", "en", "ja-en", "zh-hans-cn", "zh-hans-cn-en"] as const;
+export const huhuAlignmentLanguages = ["ja", "en", "ja-en", "zh-hans-cn", "zh-hans-cn-en", "ko", "ko-en"] as const;
 export type HuhuAlignmentLanguage = typeof huhuAlignmentLanguages[number];
 export type HuhuLanguageSelection = HuhuAlignmentLanguage | "auto";
 
@@ -16,6 +16,7 @@ export const detectHuhuAlignmentLanguage = (transcript: string): HuhuAlignmentLa
     const kana = /[\p{Script=Hiragana}\p{Script=Katakana}]/u;
     const cjk = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
     const hasKana = lines.some((line) => kana.test(line));
+    const hasHangul = lines.some((line) => /\p{Script=Hangul}/u.test(line));
     const hasCjk = lines.some((line) => cjk.test(line));
     const hasEnglish = lines.some((line) => /[a-z]/iu.test(line));
     if (hasEnglish && !hasCjk) return "en";
@@ -26,6 +27,7 @@ export const detectHuhuAlignmentLanguage = (transcript: string): HuhuAlignmentLa
         return words.some((word) => word.replace(/['’]/gu, "").length > 1);
     }).length;
     if (hasKana) return englishLineCount >= 3 ? "ja-en" : "ja";
+    if (hasHangul) return englishLineCount >= 3 ? "ko-en" : "ko";
     return englishLineCount >= 3 ? "zh-hans-cn-en" : "zh-hans-cn";
 };
 

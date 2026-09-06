@@ -188,6 +188,8 @@
         "huhuLanguageJaEn": "日英混合",
         "huhuLanguageZh": "简体中文",
         "huhuLanguageZhEn": "中英混合",
+        "huhuLanguageKo": "韩语",
+        "huhuLanguageKoEn": "韩英混合",
         "huhuCorsBlocked": "Huhu AI 对轴（Beta）仅在 lrc.sgmy.org 可用；当前部署来源未被 API 的 CORS 策略允许。",
         "huhuInvalidKey": "保存的 Key 无效或已停用。",
         "huhuPermissionDenied": "当前无法使用歌词对轴：%s",

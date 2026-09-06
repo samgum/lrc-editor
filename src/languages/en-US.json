@@ -194,6 +194,8 @@
         "huhuLanguageJaEn": "Japanese + English",
         "huhuLanguageZh": "Simplified Chinese",
         "huhuLanguageZhEn": "Chinese + English",
+        "huhuLanguageKo": "Korean",
+        "huhuLanguageKoEn": "Korean + English",
         "huhuCorsBlocked": "Huhu AI Beta is available only on lrc.sgmy.org; this deployment origin is not allowed by the API CORS policy.",
         "huhuInvalidKey": "The saved key is invalid or inactive.",
         "huhuPermissionDenied": "Alignment is unavailable: %s",

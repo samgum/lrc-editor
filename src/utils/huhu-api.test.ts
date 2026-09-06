@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { validateAlignedLyrics, validateHuhuAlignedLyrics } from "./ai-alignment-result.js";
 import {
     checkHuhuAlignmentCapability,
+    huhuAlignmentLanguages,
     huhuApiBaseUrl,
     HuhuApiError,
     isHuhuBrowserOriginAllowed,
@@ -55,7 +56,7 @@ describe("Huhu AI browser client", () => {
         );
     });
 
-    it("uploads the current media and lyrics, then downloads completed LRC", async () => {
+    it.each(huhuAlignmentLanguages)("uploads a manual %s selection and downloads completed LRC", async (language) => {
         const fetchMock = vi.fn()
             .mockResolvedValueOnce(jsonResponse({ permission: { available: true }, quota: {} }))
             .mockResolvedValueOnce(jsonResponse({ job: { id: "job-1", status: "completed" } }, 202))
@@ -68,7 +69,7 @@ describe("Huhu AI browser client", () => {
             audio: new Blob([new Uint8Array([1, 2, 3])], { type: "audio/mpeg" }),
             audioName: "track.mp3",
             transcript: "Line one",
-            language: "en",
+            language,
             onProgress: (state) => progress.push(state.phase),
         })).resolves.toBe("[00:01.000]Line one");
 
@@ -76,7 +77,7 @@ describe("Huhu AI browser client", () => {
         const form = (upload[1] as RequestInit).body as FormData;
         expect(upload[0]).toBe(`${huhuApiBaseUrl}/alignment`);
         expect(form.get("lyrics")).toBe("Line one");
-        expect(form.get("language")).toBe("en");
+        expect(form.get("language")).toBe(language);
         expect((form.get("audio") as File).name).toBe("track.mp3");
         expect(progress).toEqual(["connecting", "uploading", "downloading", "complete"]);
     });
@@ -93,6 +94,8 @@ describe("Huhu AI browser client", () => {
         ["This isn't gonna work, I know", "en"],
         ["君にstay\n君にlove\n君にkiss", "ja-en"],
         ["爱着你\nHello world\n与你stay", "zh-hans-cn"],
+        ["사랑해\nHello world\n너와stay", "ko"],
+        ["사랑해\nHello world\n너와stay\n함께tonight", "ko-en"],
     ])("resolves auto locally before uploading %s", async (transcript, language) => {
         const fetchMock = vi.fn()
             .mockResolvedValueOnce(jsonResponse({ permission: { available: true }, quota: {} }))

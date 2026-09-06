@@ -15,6 +15,18 @@ describe("Huhu automatic language selection", () => {
         ["爱着你\nHello world\n与你stay", "zh-hans-cn"],
         ["爱着你\nHello world\n与你stay\n等你tonight", "zh-hans-cn-en"],
         ["This isn't gonna work, I know", "en"],
+        ["사랑해\n함께 있어", "ko"],
+        ["사랑해\nHello world\n너와stay", "ko"],
+        ["사랑해\nHello world\n너와stay\n함께tonight", "ko-en"],
+        ["너와love, stay, tonight", "ko"],
+        ["한글\n너와A\n너와B\n너와C", "ko"],
+        ["한글\nA\nB\nC", "ko-en"],
+        ["한글\n너와can't\n너와I'm\n너와we’re", "ko-en"],
+        ["한글\n123 !!! 🎵\n🅰️ 🆘\nⅠ Ⅱ Ⅲ Ⓐ", "ko"],
+        ["한글\nㅎㅏㄴㄱㅡㄹ", "ko"],
+        ["한글 漢字\n함께 있어", "ko"],
+        ["かな 한글\n君へlove\nHello\nStay", "ja-en"],
+        ["너와stay\r너와love\r너와kiss", "ko-en"],
         ["I\n123\n🎵", "en"],
         ["漢字\nI'm here", "zh-hans-cn"],
         ["漢字\nI'm here\nYou are here\nStay", "zh-hans-cn-en"],
@@ -42,7 +54,11 @@ describe("Huhu automatic language selection", () => {
         expect(normalizeHuhuLanguageSelection(undefined)).toBe("auto");
         expect(normalizeHuhuLanguageSelection("invalid")).toBe("auto");
         expect(normalizeHuhuLanguageSelection("ja")).toBe("ja");
+        expect(normalizeHuhuLanguageSelection("ko")).toBe("ko");
+        expect(normalizeHuhuLanguageSelection("ko-en")).toBe("ko-en");
         expect(resolveHuhuAlignmentLanguage("ja", "Hello world")).toBe("ja");
         expect(resolveHuhuAlignmentLanguage("auto", "Hello world")).toBe("en");
+        expect(resolveHuhuAlignmentLanguage("ko", "Hello world")).toBe("ko");
+        expect(resolveHuhuAlignmentLanguage("ko-en", "한글")).toBe("ko-en");
     });
 });

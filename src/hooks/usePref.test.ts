@@ -9,6 +9,8 @@ describe("Huhu language preference", () => {
         ["{}", "auto"],
         ["{\"huhuAlignmentLanguage\":\"auto\"}", "auto"],
         ["{\"huhuAlignmentLanguage\":\"en\"}", "en"],
+        ["{\"huhuAlignmentLanguage\":\"ko\"}", "ko"],
+        ["{\"huhuAlignmentLanguage\":\"ko-en\"}", "ko-en"],
         ["{\"huhuAlignmentLanguage\":\"invalid\"}", "auto"],
     ])("initializes %s as %s", async (stored, expected) => {
         vi.stubGlobal("i18n", { langCodeList: ["en-US"] });
