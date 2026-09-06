@@ -35,6 +35,7 @@ window.addEventListener("message", (event: MessageEvent<unknown>) => {
             requestId: request.requestId,
             version: chrome.runtime.getManifest().version,
             mobile: mobileExtension,
+            youtubeMusic: true,
         },
         location.origin,
     );

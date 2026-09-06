@@ -356,6 +356,8 @@
         "mediaExtensionMissing": "The Media Bridge is not connected. Install or update it, then refresh this page.",
         "mediaExtensionOutdated": "The Media Bridge is outdated. Replace it with the latest release, reload the extension, then refresh this page.",
         "youtubeResolveFailed": "Unable to resolve this YouTube audio.",
+        "youtubeMusicTrackUnavailable": "No matching song version could be confirmed. Copy the song link from its album in YouTube Music, or use a www.youtube.com link to load the video's own audio.",
+        "youtubeMusicTrackLoaded": "Song audio loaded: %s",
         "invalidMediaUrl": "Enter a valid media, NetEase, QQ Music, YouTube, or Bilibili URL.",
         "transcodingMedia": "Preparing a compact AAC copy locally for playback and AI alignment…",
         "mediaConverted": "AAC media is ready.",

@@ -3,5 +3,6 @@ export const isKeyboardElement = (element: EventTarget | null): boolean => {
         return false;
     }
 
-    return element.isContentEditable || element.closest("input, textarea, select") !== null;
+    return element.isContentEditable
+        || element.closest("input, textarea, select, [role=\"combobox\"], [role=\"listbox\"]") !== null;
 };

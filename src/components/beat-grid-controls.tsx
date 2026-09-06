@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useDismissibleDetails } from "../hooks/useDismissibleDetails.js";
 import { audioRef } from "../utils/audiomodule.js";
 import { addTempoTap, type BeatGrid, defaultBeatGrid, tappedBpm } from "../utils/beat-grid.js";
+import { StyledSelect } from "./styled-select.js";
 
 export const BeatGridControls: React.FC<{
     grid: BeatGrid;
@@ -80,18 +81,19 @@ export const BeatGridControls: React.FC<{
                         </button>
                         <label>
                             <span>{language.beatSubdivision}</span>
-                            <select
+                            <StyledSelect
+                                tone="dark"
                                 value={grid.subdivision}
-                                onChange={(event) =>
-                                    update({
-                                        subdivision: Number(event.currentTarget.value) as BeatGrid["subdivision"],
-                                    })}
-                            >
-                                <option value={1}>{language.beatWhole}</option>
-                                <option value={2}>{language.beatHalf}</option>
-                                <option value={4}>{language.beatQuarter}</option>
-                                <option value={8}>{language.beatEighth}</option>
-                            </select>
+                                onValueChange={(value) =>
+                                    update({ subdivision: Number(value) as BeatGrid["subdivision"] })}
+                                label={language.beatSubdivision}
+                                options={[
+                                    { value: 1, label: language.beatWhole },
+                                    { value: 2, label: language.beatHalf },
+                                    { value: 4, label: language.beatQuarter },
+                                    { value: 8, label: language.beatEighth },
+                                ]}
+                            />
                         </label>
                         <GridNumberInput
                             label={language.beatMeter}

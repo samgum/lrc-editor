@@ -14,6 +14,35 @@ afterEach(() => {
 });
 
 describe("resolved media upload names", () => {
+    it("preserves Music intent and uses the resolved song's name instead of the MV name", async () => {
+        const resolve = vi.spyOn(mediaBridge, "requestYouTubeAudio").mockResolvedValue({
+            url: "https://example.googlevideo.com/videoplayback",
+            data: "AQID",
+            mimeType: "audio/mp4",
+            youtubeMusic: { videoId: "cOARkf5ZmtI", title: "FALLEN ANGEL", artist: "JENNIE" },
+        });
+        vi.stubGlobal(
+            "fetch",
+            vi.fn().mockResolvedValue(Response.json({ title: "FALLEN ANGEL (Official Video)", author_name: "JENNIE" })),
+        );
+        await expect(resolveMediaInput("https://music.youtube.com/watch?v=s466YCiHfKw&si=share")).resolves
+            .toMatchObject({
+                name: "FALLEN ANGEL - JENNIE.m4a",
+                youtubeMusicName: "FALLEN ANGEL - JENNIE",
+                data: "AQID",
+            });
+        expect(resolve).toHaveBeenCalledWith("s466YCiHfKw", 90_000, true);
+    });
+
+    it("does not request song substitution for regular YouTube links", async () => {
+        const resolve = vi.spyOn(mediaBridge, "requestYouTubeAudio").mockResolvedValue({
+            url: "https://example.googlevideo.com/videoplayback",
+            mimeType: "audio/mp4",
+        });
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ title: "MV", author_name: "Artist" })));
+        await resolveMediaInput("https://www.youtube.com/watch?v=s466YCiHfKw");
+        expect(resolve).toHaveBeenCalledWith("s466YCiHfKw", 90_000, false);
+    });
     it("carries the YouTube name alongside the existing audio without altering its data", async () => {
         vi.spyOn(mediaBridge, "requestYouTubeAudio").mockResolvedValue({
             url: "https://example.googlevideo.com/videoplayback",

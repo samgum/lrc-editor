@@ -14,6 +14,7 @@ The web application is static and keeps lyric text, preferences, and local media
 
 ## Features
 
+- Language, theme, precision, export, tool, preview-lead, and beat-subdivision selectors share themed menus with clear selection marks, hover feedback, keyboard navigation/type-ahead, and viewport-aware placement. Escape cancels a pending choice; Enter/Space or Tab confirms it without triggering timing shortcuts.
 - Timing sidebars keep selected, playing, and warning states readable together, including narrow layouts. Each workspace restores its own page position instead of inheriting another page's scroll.
 - Waveform and spectrogram timing include a fixed, zoom-aware time ruler. Short screens group secondary controls under Display settings; changing the view or settings preserves playback and timing progress.
 - The line editor marks duplicate, backwards, and malformed timestamps beside their original text, with previous/next issue navigation. Native text selection, IME input, and undo remain in the textarea.
@@ -77,6 +78,8 @@ Microsoft Edge uses `edge://extensions` with the same **Developer mode** and **L
 The YouTube resolver uses the private InnerTube interface through `youtubei.js`; the Bilibili resolver uses public web-player endpoints; the QQ Music resolver reads its official public share-page playback state without cookies. Any integration can stop working when a platform changes its clients or playback requirements. Use is subject to the platform terms and the laws applicable to the media.
 
 The current YouTube maintenance pass follows [yt-dlp 2026.08.19](https://github.com/yt-dlp/yt-dlp/releases/tag/2026.08.19) client changes without adding yt-dlp or Python as a runtime dependency. It handles gzip-compressed player requests, refreshes the embedded client version from the browser on each resolution, keeps playback tokens bound to the requested video, and removes retired Android VR/TV-embedded fallbacks. Audio URL refreshes must retain the same format before range chunks are combined. There is no daily monitoring task or remotely executed code: metadata refresh is automatic when used, but algorithm changes still require a new extension build. Replace and reload the unpacked extension even when the project version remains v0.4.6; `YOUTUBE-RESOLVER.txt` identifies this package.
+
+YouTube Music links now request a **song recording**, while regular YouTube links preserve the supplied video's audio. The extension first checks YouTube Music's song/video counterpart mapping. For an official MV without a mapping, it accepts only one exact-title album track with the same artist channel IDs; covers, remixes, live versions, and ambiguous results are not silently substituted. If no song can be confirmed, copy its album track link or use `www.youtube.com` to intentionally load the video audio. The original pasted link remains visible, while the loaded file uses the resolved song title and artist. Playback tokens and URL refreshes are tied to the resolved song ID. This change requires replacing/reloading the Media Bridge package, including the mobile variants; version remains **v0.4.6**, permissions are unchanged, and the AI installer does not need updating. Platform sign-in or anti-bot checks are not bypassed.
 
 ### Mobile extensions
 

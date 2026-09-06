@@ -1,0 +1,181 @@
+.styled-select, .styled-select-popup {
+    --select-surface: var(--surface-color);
+    --select-text: var(--font-color);
+    --select-accent: var(--theme-foreground-color);
+    --select-border: #88888865;
+}
+
+:is(.styled-select, .styled-select-popup)[data-tone="dark"] {
+    --select-surface: #20232c;
+    --select-text: #f2f3f5;
+    --select-accent: var(--theme-on-dark-color);
+    --select-border: #ffffff4d;
+    color-scheme: dark;
+}
+
+.styled-select {
+    display: inline-flex;
+    min-width: 0;
+    max-width: 100%;
+    vertical-align: middle;
+}
+
+.styled-select .styled-select-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    padding: 8px 11px;
+    color: var(--select-text);
+    background: var(--select-surface);
+    border: 1px solid var(--select-border);
+    border-radius: 9px;
+    font: inherit;
+    line-height: 1.4;
+    text-align: start;
+    box-shadow: 0 1px 2px #00000005;
+    transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.styled-select-value {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.styled-select-chevron {
+    flex: 0 0 18px;
+    width: 18px;
+    height: 18px;
+    color: var(--select-accent);
+    transition: transform 160ms var(--ease-standard);
+}
+
+.styled-select-trigger[aria-expanded="true"] .styled-select-chevron {
+    transform: rotate(180deg);
+}
+
+.styled-select .styled-select-trigger:is(:focus-visible, [aria-expanded="true"]) {
+    border-color: var(--select-accent);
+    outline: 2px solid var(--select-accent);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba(var(--theme-rgb), 0.12);
+}
+
+@media (hover: hover) {
+    .styled-select .styled-select-trigger:hover:not(:disabled) {
+        background: color-mix(in srgb, var(--select-surface) 95%, var(--theme-color));
+        border-color: var(--select-accent);
+    }
+}
+
+.styled-select .styled-select-trigger:active:not(:disabled) {
+    transform: none;
+    background: color-mix(in srgb, var(--select-surface) 88%, var(--theme-color));
+}
+
+.styled-select .styled-select-trigger:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.styled-select-popup {
+    position: fixed;
+    z-index: 1100;
+    width: max-content;
+    max-width: calc(100vw - 20px);
+    max-height: 352px;
+    padding: 5px;
+    overflow: auto;
+    color: var(--select-text);
+    background: var(--select-surface);
+    border: 1px solid var(--select-border);
+    border-radius: 12px;
+    box-shadow: 0 12px 36px #00000024, 0 2px 6px #0000000d;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--select-border) transparent;
+    animation: select-menu-in 150ms var(--ease-emphasized);
+    transform-origin: top center;
+}
+
+.styled-select-popup[data-side="above"] {
+    transform-origin: bottom center;
+}
+
+.styled-select-option {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    min-height: 40px;
+    padding: 9px 10px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.styled-select-option > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.styled-select-option > svg {
+    flex: 0 0 18px;
+    width: 18px;
+    height: 18px;
+    color: var(--select-accent);
+    visibility: hidden;
+}
+
+.styled-select-option[aria-selected="true"] {
+    background: rgba(var(--theme-rgb), 0.14);
+    font-weight: 650;
+}
+
+.styled-select-option[aria-selected="true"] > svg {
+    visibility: visible;
+}
+
+.styled-select-option.is-active {
+    background: color-mix(in srgb, var(--select-surface) 86%, var(--theme-color));
+    border-color: var(--select-accent);
+}
+
+.styled-select-option[aria-disabled="true"] {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+@keyframes select-menu-in {
+    from {
+        opacity: 0;
+        transform: scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@media (pointer: coarse) {
+    .styled-select .styled-select-trigger, .styled-select-option {
+        min-height: 44px;
+    }
+}
+
+@media (forced-colors: active) {
+    .styled-select .styled-select-trigger, .styled-select-popup {
+        border-color: ButtonText;
+    }
+    .styled-select-option.is-active {
+        outline: 2px solid Highlight;
+        outline-offset: -2px;
+    }
+}

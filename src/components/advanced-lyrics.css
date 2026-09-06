@@ -40,15 +40,7 @@
 }
 
 .advanced-export-select {
-    display: flex;
-    align-items: center;
     min-width: 8.5rem;
-    height: 40px;
-    padding: 0 9px;
-    color: var(--text-secondary-color);
-    background: transparent;
-    border: 1px solid #88888835;
-    border-radius: 5px;
     font-size: 0.72rem;
 }
 
@@ -336,7 +328,7 @@
         padding: 7px 9px;
     }
 
-    .advanced-editor-subbar > span {
+    .advanced-editor-subbar > span:not(.styled-select) {
         flex: 1 1 auto;
     }
 

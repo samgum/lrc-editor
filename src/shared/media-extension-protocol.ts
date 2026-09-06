@@ -9,6 +9,13 @@ export interface YouTubeExtensionRequest {
     type: typeof youtubeExtensionRequestType;
     requestId: string;
     videoId: string;
+    preferSong?: boolean;
+}
+
+export interface YouTubeMusicSource {
+    videoId: string;
+    title: string;
+    artist: string;
 }
 
 export interface BilibiliExtensionRequest {
@@ -47,6 +54,7 @@ export type MediaExtensionResponse =
         audioData?: string;
         mimeType: string;
         bitrate?: number;
+        youtubeMusic?: YouTubeMusicSource;
     }
     | {
         type: typeof mediaExtensionResponseType;
@@ -71,7 +79,7 @@ export type MediaExtensionResponse =
         type: typeof mediaExtensionResponseType;
         requestId: string;
         ok: false;
-        error: "INVALID_LINK" | "INVALID_VIDEO" | "NOT_PLAYABLE" | "RESOLVE_FAILED";
+        error: "INVALID_LINK" | "INVALID_VIDEO" | "NOT_PLAYABLE" | "RESOLVE_FAILED" | "MUSIC_TRACK_UNAVAILABLE";
         message?: string;
     };
 

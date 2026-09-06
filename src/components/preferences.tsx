@@ -16,6 +16,7 @@ import { unregister } from "../utils/sw.unregister.js";
 import { consumePreferenceFocus } from "../utils/workspace-navigation.js";
 import { AboutDialog } from "./about.js";
 import { appContext, ChangBits } from "./app.context.js";
+import { StyledSelect } from "./styled-select.js";
 import { toastPubSub } from "./toast.js";
 
 const numberInputProps = { type: "number", step: 1 } as const;
@@ -159,10 +160,10 @@ export const Preferences: React.FC = () => {
         }
     }, [huhuKeyBusy, huhuOriginAvailable]);
 
-    const onHuhuLanguageChange = useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
+    const onHuhuLanguageChange = useCallback((value: string) => {
         prefDispatch({
             type: "huhuAlignmentLanguage",
-            payload: event.currentTarget.value as HuhuLanguageSelection,
+            payload: value as HuhuLanguageSelection,
         });
     }, [prefDispatch]);
 
@@ -280,10 +281,10 @@ export const Preferences: React.FC = () => {
     );
 
     const onLangChanged = useCallback(
-        (ev: React.ChangeEvent<HTMLSelectElement>) => {
+        (value: string) => {
             prefDispatch({
                 type: "lang",
-                payload: ev.target.value,
+                payload: value,
             });
         },
         [prefDispatch],
@@ -395,34 +396,26 @@ export const Preferences: React.FC = () => {
     );
 
     const onThemeModeChange = useCallback(
-        (ev: React.ChangeEvent<HTMLSelectElement>) => {
+        (value: string) => {
             prefDispatch({
                 type: "themeMode",
-                payload: Number.parseInt(ev.target.value, 10) as ThemeMode,
+                payload: Number.parseInt(value, 10) as ThemeMode,
             });
         },
         [prefDispatch],
     );
 
     const onFixedChanged = useCallback(
-        (ev: React.ChangeEvent<HTMLSelectElement>) => {
+        (value: string) => {
             prefDispatch({
                 type: "fixed",
-                payload: Number.parseInt(ev.target.value, 10) as Fixed,
+                payload: Number.parseInt(value, 10) as Fixed,
             });
         },
         [prefDispatch],
     );
 
-    const LangOptionList = useMemo(() => {
-        return langMap.map(([code, display]) => {
-            return (
-                <option key={code} value={code}>
-                    {display}
-                </option>
-            );
-        });
-    }, []);
+    const languageOptions = useMemo(() => langMap.map(([value, label]) => ({ value, label })), []);
 
     const ColorPickerWall = useMemo(() => {
         return Object.values(themeColor).map((color) => {
@@ -476,15 +469,13 @@ export const Preferences: React.FC = () => {
                 <li>
                     <section className="list-item">
                         <span>{lang.preferences.language}</span>
-                        <div className="option-select">
-                            <select
-                                value={prefState.lang}
-                                onChange={onLangChanged}
-                                aria-label={lang.preferences.language}
-                            >
-                                {LangOptionList}
-                            </select>
-                        </div>
+                        <StyledSelect
+                            className="preference-select"
+                            value={prefState.lang}
+                            onValueChange={onLangChanged}
+                            label={lang.preferences.language}
+                            options={languageOptions}
+                        />
                     </section>
                 </li>
                 <li className="preferences-section-title">
@@ -714,23 +705,24 @@ export const Preferences: React.FC = () => {
                             >
                                 {lang.preferences.huhuClearKey}
                             </button>
-                            <label>
+                            <div className="huhu-language-field">
                                 <span>{lang.preferences.huhuLanguage}</span>
-                                <select
+                                <StyledSelect
                                     value={prefState.huhuAlignmentLanguage}
-                                    onChange={onHuhuLanguageChange}
-                                    aria-label={lang.preferences.huhuLanguage}
-                                >
-                                    <option value="auto">{lang.preferences.huhuLanguageAuto}</option>
-                                    <option value="ja">{lang.preferences.huhuLanguageJa}</option>
-                                    <option value="en">{lang.preferences.huhuLanguageEn}</option>
-                                    <option value="ja-en">{lang.preferences.huhuLanguageJaEn}</option>
-                                    <option value="zh-hans-cn">{lang.preferences.huhuLanguageZh}</option>
-                                    <option value="zh-hans-cn-en">{lang.preferences.huhuLanguageZhEn}</option>
-                                    <option value="ko">{lang.preferences.huhuLanguageKo}</option>
-                                    <option value="ko-en">{lang.preferences.huhuLanguageKoEn}</option>
-                                </select>
-                            </label>
+                                    onValueChange={onHuhuLanguageChange}
+                                    label={lang.preferences.huhuLanguage}
+                                    options={[
+                                        { value: "auto", label: lang.preferences.huhuLanguageAuto },
+                                        { value: "ja", label: lang.preferences.huhuLanguageJa },
+                                        { value: "en", label: lang.preferences.huhuLanguageEn },
+                                        { value: "ja-en", label: lang.preferences.huhuLanguageJaEn },
+                                        { value: "zh-hans-cn", label: lang.preferences.huhuLanguageZh },
+                                        { value: "zh-hans-cn-en", label: lang.preferences.huhuLanguageZhEn },
+                                        { value: "ko", label: lang.preferences.huhuLanguageKo },
+                                        { value: "ko-en", label: lang.preferences.huhuLanguageKoEn },
+                                    ]}
+                                />
+                            </div>
                         </div>
                         <p className={`huhu-key-status status-${huhuStatus?.kind || "idle"}`} aria-live="polite">
                             {huhuKeyBusy ? lang.preferences.huhuWorking : huhuStatusText}
@@ -743,18 +735,18 @@ export const Preferences: React.FC = () => {
                 <li>
                     <section className="list-item">
                         <span>{lang.preferences.themeMode.label}</span>
-                        <div className="option-select">
-                            <select
-                                name="theme-mode"
-                                value={prefState.themeMode}
-                                onChange={onThemeModeChange}
-                                aria-label={lang.preferences.themeMode.label}
-                            >
-                                <option value={ThemeMode.auto}>{lang.preferences.themeMode.auto}</option>
-                                <option value={ThemeMode.light}>{lang.preferences.themeMode.light}</option>
-                                <option value={ThemeMode.dark}>{lang.preferences.themeMode.dark}</option>
-                            </select>
-                        </div>
+                        <StyledSelect
+                            className="preference-select"
+                            name="theme-mode"
+                            value={prefState.themeMode}
+                            onValueChange={onThemeModeChange}
+                            label={lang.preferences.themeMode.label}
+                            options={[
+                                { value: ThemeMode.auto, label: lang.preferences.themeMode.auto },
+                                { value: ThemeMode.light, label: lang.preferences.themeMode.light },
+                                { value: ThemeMode.dark, label: lang.preferences.themeMode.dark },
+                            ]}
+                        />
                     </section>
                 </li>
 
@@ -828,19 +820,14 @@ export const Preferences: React.FC = () => {
                 <li>
                     <section className="list-item">
                         <span>{lang.preferences.fixed}</span>
-                        <div className="option-select">
-                            <select
-                                name="fixed"
-                                value={prefState.fixed}
-                                onChange={onFixedChanged}
-                                aria-label={lang.preferences.fixed}
-                            >
-                                <option value={0}>0</option>
-                                <option value={1}>1</option>
-                                <option value={2}>2</option>
-                                <option value={3}>3</option>
-                            </select>
-                        </div>
+                        <StyledSelect
+                            className="precision-select"
+                            name="fixed"
+                            value={prefState.fixed}
+                            onValueChange={onFixedChanged}
+                            label={lang.preferences.fixed}
+                            options={[0, 1, 2, 3].map((value) => ({ value, label: String(value) }))}
+                        />
                     </section>
                 </li>
                 <li>

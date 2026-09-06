@@ -43,6 +43,7 @@ import { AdvancedLyricsEditor } from "./advanced-lyrics-editor.js";
 import { appContext } from "./app.context.js";
 import { LyricTextEditor } from "./lyric-text-editor.js";
 import { LyricsModeSwitch } from "./lyrics-mode-switch.js";
+import { StyledSelect } from "./styled-select.js";
 import { AiAlignSVG, CloudAiSVG, CopySVG, DownloadSVG, OpenFileSVG, UtilitySVG } from "./svg.js";
 import { toastPubSub } from "./toast.js";
 
@@ -635,30 +636,32 @@ export const Editor: React.FC<{
                 </section>
             </header>
 
-            <label className="advanced-editor-subbar">
+            <div className="advanced-editor-subbar">
                 <span>{lang.advancedLyrics.exportFormat}</span>
-                <select
+                <StyledSelect
                     className="advanced-export-select"
                     value={exportFormat}
-                    onChange={(event) => setExportFormat(event.target.value as ExportLyricFormat)}
-                >
-                    <option value="lrc">{lang.advancedLyrics.standardLrcDefault}</option>
-                    {timingMode === "word" && (
-                        <>
-                            <option value="enhanced-lrc">{lang.advancedLyrics.enhancedLrc}</option>
-                            <option value="krc">KRC</option>
-                            <option value="ttml">{lang.advancedLyrics.wordTtml}</option>
-                            <option value="ass-kf">{lang.advancedLyrics.assKf}</option>
-                        </>
-                    )}
-                    <option value="srt">{lang.advancedLyrics.lineSrt}</option>
-                    {timingMode === "line" && (
-                        <>
-                            <option value="ttml">{lang.advancedLyrics.lineTtml}</option>
-                            <option value="txt">{lang.advancedLyrics.plainText}</option>
-                        </>
-                    )}
-                </select>
+                    onValueChange={(value) => setExportFormat(value as ExportLyricFormat)}
+                    label={lang.advancedLyrics.exportFormat}
+                    options={[
+                        { value: "lrc", label: lang.advancedLyrics.standardLrcDefault },
+                        ...(timingMode === "word"
+                            ? [
+                                { value: "enhanced-lrc", label: lang.advancedLyrics.enhancedLrc },
+                                { value: "krc", label: "KRC" },
+                                { value: "ttml", label: lang.advancedLyrics.wordTtml },
+                                { value: "ass-kf", label: lang.advancedLyrics.assKf },
+                            ]
+                            : []),
+                        { value: "srt", label: lang.advancedLyrics.lineSrt },
+                        ...(timingMode === "line"
+                            ? [
+                                { value: "ttml", label: lang.advancedLyrics.lineTtml },
+                                { value: "txt", label: lang.advancedLyrics.plainText },
+                            ]
+                            : []),
+                    ]}
+                />
                 {timingMode === "word" && ["lrc", "srt"].includes(exportFormat) && (
                     <strong>{lang.advancedLyrics.lineOnlyExport}</strong>
                 )}
@@ -667,7 +670,7 @@ export const Editor: React.FC<{
                         {lang.advancedLyrics.openWordTiming}
                     </a>
                 )}
-            </label>
+            </div>
             {timingMode === "word" && advancedState.document
                 ? (
                     <>

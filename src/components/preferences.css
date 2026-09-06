@@ -132,13 +132,13 @@
     gap: 7px;
 }
 
-.huhu-settings-actions > button, .huhu-settings-actions > label {
-    min-height: 34px;
+.huhu-settings-actions > button {
+    min-height: 40px;
     padding: 0 10px;
     color: var(--text-secondary-color);
     background: #8888880b;
     border: 1px solid #88888838;
-    border-radius: 5px;
+    border-radius: 9px;
 }
 
 .huhu-settings-actions > button:hover:not(:disabled), .huhu-settings-actions > button:focus-visible {
@@ -146,19 +146,19 @@
     border-color: var(--theme-color);
 }
 
-.huhu-settings-actions > label {
+.huhu-language-field {
     display: inline-flex;
     align-items: center;
+    flex-wrap: wrap;
+    flex: 0 0 auto;
+    max-width: 100%;
     gap: 8px;
     margin-left: auto;
+    color: var(--text-secondary-color);
 }
 
-.huhu-settings-actions select {
-    min-height: 28px;
-    color: var(--font-color);
-    background: var(--surface-color);
-    border: 0;
-    outline: none;
+.huhu-language-field .styled-select {
+    min-width: min(10rem, 100%);
 }
 
 .huhu-key-status {
@@ -194,9 +194,11 @@
         flex-direction: column;
     }
 
-    .huhu-settings-actions > label {
+    .huhu-language-field {
         justify-content: space-between;
         margin-left: 0;
+        margin-top: 5px;
+        width: 100%;
     }
 }
 
@@ -414,42 +416,13 @@
     background-color: var(--theme-color);
 }
 
-.option-select > select {
-    min-height: 36px;
+.styled-select.preference-select {
+    min-width: min(10rem, 100%);
     max-width: 100%;
-    padding: 5px 22px 5px 8px;
-    text-align-last: right;
-    background-color: transparent;
-    border: none;
-    border-radius: 5px;
-    appearance: none;
 }
 
-.option-select > select > option {
-    color: var(--font-color);
-    background-color: var(--background-color);
-}
-
-::-ms-expand {
-    display: none;
-}
-
-.option-select {
-    position: relative;
-}
-
-.option-select::after {
-    position: absolute;
-    top: 50%;
-    right: 2px;
-    width: 7px;
-    height: 7px;
-    color: var(--theme-foreground-color);
-    border-right: 1.5px solid currentColor;
-    border-bottom: 1.5px solid currentColor;
-    transform: translateY(-65%) rotate(45deg);
-    content: "";
-    pointer-events: none;
+.precision-select {
+    width: 5rem;
 }
 
 input[type="number"] {
@@ -539,8 +512,6 @@ input[type="number"] {
     width: min(240px, calc(100vw - 48px));
 }
 
-.option-select > select:focus-visible,
-.huhu-settings-actions select:focus-visible,
 .user-color-input-text:focus-visible {
     outline: 2px solid var(--theme-foreground-color);
     outline-offset: 2px;

@@ -15,6 +15,7 @@ import {
     qqMusicExtensionRequestType,
     type YouTubeExtensionRequest,
     youtubeExtensionRequestType,
+    type YouTubeMusicSource,
 } from "../shared/media-extension-protocol.js";
 
 export class MediaExtensionError extends Error {
@@ -37,6 +38,7 @@ export interface ResolvedExtensionAudio {
     url: string;
     mimeType: string;
     bitrate?: number;
+    youtubeMusic?: YouTubeMusicSource;
 }
 
 export interface ResolvedNeteaseAudio extends ResolvedExtensionAudio {
@@ -48,7 +50,11 @@ export interface ResolvedQQMusicAudio extends ResolvedExtensionAudio {
     songMid: string;
 }
 
-export const requestYouTubeAudio = (videoId: string, timeoutMs = 90_000): Promise<ResolvedExtensionAudio> => {
+export const requestYouTubeAudio = (
+    videoId: string,
+    timeoutMs = 90_000,
+    preferSong = false,
+): Promise<ResolvedExtensionAudio> => {
     if (!isYouTubeVideoId(videoId)) {
         return Promise.reject(new MediaExtensionError("failed", "Invalid YouTube video id"));
     }
@@ -56,6 +62,7 @@ export const requestYouTubeAudio = (videoId: string, timeoutMs = 90_000): Promis
         type: youtubeExtensionRequestType,
         requestId: crypto.randomUUID(),
         videoId,
+        ...(preferSong ? { preferSong: true } : {}),
     };
     return requestExtensionAudio(request, "youtube", timeoutMs);
 };
@@ -146,6 +153,15 @@ const requestExtensionAudio = (
         if (response.provider === "netease" || response.provider === "qqmusic") {
             throw new MediaExtensionError("failed", "Unexpected extension response");
         }
+        if (request.type === youtubeExtensionRequestType && request.preferSong) {
+            const music = response.youtubeMusic;
+            if (
+                !music || !isYouTubeVideoId(music.videoId) || typeof music.title !== "string" || !music.title
+                || music.title.length > 1000 || typeof music.artist !== "string" || music.artist.length > 1000
+            ) {
+                throw new MediaExtensionError("outdated", "The extension did not confirm a YouTube Music song source");
+            }
+        }
         try {
             const url = new URL(response.audioUrl);
             if (
@@ -159,6 +175,7 @@ const requestExtensionAudio = (
                 data: response.audioData,
                 mimeType: response.mimeType,
                 bitrate: response.bitrate,
+                ...(response.youtubeMusic ? { youtubeMusic: response.youtubeMusic } : {}),
             };
         } catch {
             throw new MediaExtensionError("failed", "Invalid media response");
@@ -188,7 +205,11 @@ const requestExtension = (
             }
             if (isExtensionAck(event.data, request.requestId)) {
                 window.clearTimeout(extensionTimeout);
-                if (!isSupportedExtensionVersion(event.data.version)) {
+                if (
+                    !isSupportedExtensionVersion(event.data.version)
+                    || request.type === youtubeExtensionRequestType && request.preferSong
+                        && event.data.youtubeMusic !== true
+                ) {
                     finish();
                     reject(new MediaExtensionError("outdated", "Media companion extension is outdated"));
                     return;
@@ -214,7 +235,7 @@ const requestExtension = (
 const isExtensionAck = (
     value: unknown,
     requestId: string,
-): value is { type: typeof mediaExtensionAckType; requestId: string; version?: string } => {
+): value is { type: typeof mediaExtensionAckType; requestId: string; version?: string; youtubeMusic?: boolean } => {
     if (typeof value !== "object" || value === null) {
         return false;
     }

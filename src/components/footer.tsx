@@ -93,6 +93,7 @@ export const Footer: React.FC = () => {
     const fallbackAttemptedRef = useRef(false);
     const restoredMediaRef = useRef<string | null>(null);
     const droppedMediaSubscriber = useRef(Symbol("dropped-media-file"));
+    const youtubeMusicNotice = useRef<string | undefined>(undefined);
     const setAudioSrc = useCallback((newSrc: string): void => {
         setAudioSrcState((oldSrc) => {
             if (oldSrc) {
@@ -144,6 +145,7 @@ export const Footer: React.FC = () => {
 
     const loadMediaUrl = useCallback(
         async (value: string): Promise<void> => {
+            youtubeMusicNotice.current = undefined;
             localFileRef.current = null;
             fallbackAttemptedRef.current = false;
             clearAlignmentMediaSource();
@@ -173,6 +175,7 @@ export const Footer: React.FC = () => {
                 }
                 const source = await resolveMediaInput(value);
                 const playableSrc = await materializeExtensionMedia(source);
+                youtubeMusicNotice.current = source.youtubeMusicName;
                 const displayInput = extractMediaUrl(value);
                 sessionStorage.setItem(SSK.mediaInputDisplay, displayInput);
                 setRememberedMediaUrl(displayInput);
@@ -216,6 +219,8 @@ export const Footer: React.FC = () => {
                         ? error.reason === "NOT_PLAYABLE"
                             ? lang.notify.qqmusicNotPlayable
                             : lang.notify.qqmusicResolveFailed
+                        : error.reason === "MUSIC_TRACK_UNAVAILABLE"
+                        ? lang.notify.youtubeMusicTrackUnavailable
                         : lang.notify.youtubeResolveFailed
                     : lang.notify.invalidMediaUrl;
                 toastPubSub.pub({ channel: "media", type: "warning", text: message });
@@ -234,6 +239,7 @@ export const Footer: React.FC = () => {
             lang.notify.qqmusicResolveFailed,
             lang.notify.qqmusicResolving,
             lang.notify.youtubeResolveFailed,
+            lang.notify.youtubeMusicTrackUnavailable,
             lang.notify.youtubeResolving,
         ],
     );
@@ -315,6 +321,7 @@ export const Footer: React.FC = () => {
     }, [keyBindings, prefState.seekStepMs]);
 
     const onAudioFile = useCallback((file: File) => {
+        youtubeMusicNotice.current = undefined;
         sessionStorage.removeItem(SSK.audioSrc);
         sessionStorage.removeItem(SSK.mediaInput);
         sessionStorage.removeItem(SSK.mediaInputDisplay);
@@ -383,7 +390,14 @@ export const Footer: React.FC = () => {
             type: AudioActionType.getDuration,
             payload: audioRef.duration,
         });
-        toastPubSub.pub({ channel: "media", type: "success", text: lang.notify.audioLoaded });
+        toastPubSub.pub({
+            channel: "media",
+            type: "success",
+            text: youtubeMusicNotice.current
+                ? lang.notify.youtubeMusicTrackLoaded.replace("%s", youtubeMusicNotice.current)
+                : lang.notify.audioLoaded,
+        });
+        youtubeMusicNotice.current = undefined;
     }, [lang]);
 
     const syncCurrentTime = useCallback(() => {

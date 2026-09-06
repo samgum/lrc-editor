@@ -17,5 +17,6 @@
 @import url("./components/preferences.css");
 @import url("./components/keybindings.css");
 @import url("./components/tools.css");
+@import url("./components/styled-select.css");
 @import url("./components/toast.css");
 @import url("./animation.css");

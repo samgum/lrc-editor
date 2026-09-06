@@ -29,6 +29,7 @@ import {
     transformTimes,
 } from "../utils/lrc-tools.js";
 import { appContext } from "./app.context.js";
+import { StyledSelect } from "./styled-select.js";
 import { OpenFileSVG } from "./svg.js";
 import { toastPubSub } from "./toast.js";
 
@@ -374,15 +375,17 @@ export const Tools: React.FC<{
                         </label>
                         <label>
                             {lang.tools.converterOutputFormat}
-                            <select
+                            <StyledSelect
                                 value={conversionFormat}
-                                onChange={(event) => setConversionFormat(event.target.value as LineLyricExportFormat)}
-                            >
-                                <option value="lrc">{lang.advancedLyrics.standardLrc}</option>
-                                <option value="srt">SRT</option>
-                                <option value="ttml">{lang.tools.lineTtml}</option>
-                                <option value="txt">{lang.tools.plainText}</option>
-                            </select>
+                                onValueChange={(value) => setConversionFormat(value as LineLyricExportFormat)}
+                                label={lang.tools.converterOutputFormat}
+                                options={[
+                                    { value: "lrc", label: lang.advancedLyrics.standardLrc },
+                                    { value: "srt", label: "SRT" },
+                                    { value: "ttml", label: lang.tools.lineTtml },
+                                    { value: "txt", label: lang.tools.plainText },
+                                ]}
+                            />
                         </label>
                         {transformed.sourceFormat && (
                             <output className="tools-format-status" aria-live="polite">
@@ -419,16 +422,18 @@ export const Tools: React.FC<{
                     <>
                         <label>
                             {lang.tools.splitPattern}
-                            <select value={splitPattern} onChange={(ev) => setSplitPattern(ev.target.value)}>
-                                {splitPatterns.map((pattern) => (
-                                    <option key={pattern.value} value={pattern.value}>
-                                        {pattern.label === "模糊匹配"
-                                            ? lang.visual.flexibleMatch
-                                            : pattern.label.replace("歌词", lang.visual.lyricEditor)
-                                                .replace("翻译", lang.tools.translation)}
-                                    </option>
-                                ))}
-                            </select>
+                            <StyledSelect
+                                value={splitPattern}
+                                onValueChange={setSplitPattern}
+                                label={lang.tools.splitPattern}
+                                options={splitPatterns.map((pattern) => ({
+                                    value: pattern.value,
+                                    label: pattern.label === "模糊匹配"
+                                        ? lang.visual.flexibleMatch
+                                        : pattern.label.replace("歌词", lang.visual.lyricEditor)
+                                            .replace("翻译", lang.tools.translation),
+                                }))}
+                            />
                         </label>
                         <label className="tools-custom-regex">
                             {lang.tools.customRegex}
@@ -491,13 +496,18 @@ export const Tools: React.FC<{
                     <>
                         <label>
                             {lang.tools.caseMode}
-                            <select value={caseMode} onChange={(ev) => setCaseMode(ev.target.value as LyricsCaseMode)}>
-                                <option value="sentence">{lang.tools.sentenceCase}</option>
-                                <option value="upper">{lang.tools.upperCase}</option>
-                                <option value="lower">{lang.tools.lowerCase}</option>
-                                <option value="words">{lang.tools.wordCase}</option>
-                                <option value="title">{lang.tools.titleCase}</option>
-                            </select>
+                            <StyledSelect
+                                value={caseMode}
+                                onValueChange={(value) => setCaseMode(value as LyricsCaseMode)}
+                                label={lang.tools.caseMode}
+                                options={[
+                                    { value: "sentence", label: lang.tools.sentenceCase },
+                                    { value: "upper", label: lang.tools.upperCase },
+                                    { value: "lower", label: lang.tools.lowerCase },
+                                    { value: "words", label: lang.tools.wordCase },
+                                    { value: "title", label: lang.tools.titleCase },
+                                ]}
+                            />
                         </label>
                         <ToggleOption
                             label={lang.tools.capitalizeLineStart}

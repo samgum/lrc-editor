@@ -559,7 +559,7 @@
     min-width: 0;
 }
 
-.word-beat-grid-controls input, .word-beat-grid-controls select {
+.word-beat-grid-controls input {
     min-width: 0;
     height: 32px;
     padding: 3px 5px;
@@ -575,11 +575,13 @@
     width: 5rem;
 }
 
-.word-beat-grid-controls select {
+.word-beat-grid-controls .styled-select {
+    min-width: 6.5rem;
     max-width: 9rem;
+    font-size: 0.75rem;
 }
 
-.word-beat-grid-tools :is(button, input, select):focus-visible {
+.word-beat-grid-tools :is(button, input):focus-visible {
     outline: 2px solid var(--theme-on-dark-color);
     outline-offset: 2px;
 }
@@ -1320,7 +1322,7 @@
     gap: 5px;
 }
 
-.word-stage-rapid-controls input, .word-stage-rapid-controls select {
+.word-stage-rapid-controls input {
     height: 29px;
     padding: 0 6px;
     color: var(--text-secondary-color);
@@ -1333,6 +1335,10 @@
 .word-stage-rapid-controls input {
     width: 4.4rem;
     min-width: 0;
+}
+
+.word-stage-rapid-controls .styled-select {
+    font-size: 0.75rem;
 }
 
 .word-stage-rapid-controls i {
@@ -1971,6 +1977,10 @@
     .word-beat-grid-controls label {
         flex: 1 1 44%;
         justify-content: space-between;
+    }
+
+    .word-beat-grid-controls label:has(.styled-select) {
+        flex-basis: 100%;
     }
 
     .word-beat-bypass {

@@ -35,6 +35,7 @@ import {
     type YouTubePlaybackContext,
     youtubePlayerToken,
 } from "./youtube-client.js";
+import { resolveYouTubeMusicTrack, type YouTubeMusicTrack } from "./youtube-music.js";
 
 interface YouTubeClientSession {
     client: Innertube;
@@ -130,14 +131,47 @@ const resolveYouTube = async (
     tabId?: number,
 ): Promise<MediaExtensionResponse> => {
     try {
-        const { client, playbackContext } = await createYouTubeClient(request.videoId, siteBaseUrl, tabId);
+        let videoId = request.videoId;
+        let musicTrack: YouTubeMusicTrack | undefined;
+        if (request.preferSong) {
+            const metadataClient = await Innertube.create({
+                generate_session_locally: true,
+                retrieve_player: false,
+                fetch: createYouTubeFetch(siteBaseUrl, null),
+            });
+            musicTrack = await resolveYouTubeMusicTrack(
+                videoId,
+                async (payload) =>
+                    (await metadataClient.actions.execute("/next", { ...payload, client: "YTMUSIC" })).data,
+                async (query) => {
+                    const result = await metadataClient.music.search(query, { type: "song" });
+                    const tracks: YouTubeMusicTrack[] = [];
+                    for (const item of result.songs?.contents ?? []) {
+                        if (item.item_type !== "song" || !item.id || !item.title) continue;
+                        tracks.push({
+                            videoId: item.id,
+                            title: item.title,
+                            type: "MUSIC_VIDEO_TYPE_ATV",
+                            artists: (item.artists ?? []).filter((artist) => !!artist.channel_id)
+                                .map((artist) => ({ name: artist.name, channelId: artist.channel_id! })),
+                            albumId: item.album?.id,
+                        });
+                    }
+                    return tracks;
+                },
+            );
+            if (!musicTrack) return failure(request.requestId, "MUSIC_TRACK_UNAVAILABLE");
+            videoId = musicTrack.videoId;
+        }
+        const { client, playbackContext } = await createYouTubeClient(videoId, siteBaseUrl, tabId);
         for (const clientName of youtubeAudioClients) {
             try {
                 const options = {
                     client: clientName,
-                    po_token: youtubePlayerToken(playbackContext, request.videoId, clientName),
+                    po_token: youtubePlayerToken(playbackContext, videoId, clientName),
                 };
-                const info = await client.getBasicInfo(request.videoId, options);
+                const info = await client.getBasicInfo(videoId, options);
+                if (info.basic_info.id !== videoId) continue;
                 const triedItags = new Set<number>();
                 for (const container of ["mp4", "any"] as const) {
                     try {
@@ -153,8 +187,11 @@ const resolveYouTube = async (
                             continue;
                         }
                         const audioData = await downloadMediaAsBase64(url, async () => {
-                            const refreshed = await client.getStreamingData(request.videoId, {
-                                ...options,
+                            const refreshedInfo = await client.getBasicInfo(videoId, options);
+                            if (refreshedInfo.basic_info.id !== videoId) {
+                                throw new Error("YouTube media identity changed");
+                            }
+                            const refreshed = refreshedInfo.chooseFormat({
                                 itag: format.itag,
                                 type: "audio",
                                 quality: "best",
@@ -173,7 +210,22 @@ const resolveYouTube = async (
                             }
                             return refreshedUrl;
                         });
-                        return success(request.requestId, "youtube", url.href, mimeType, format.bitrate, audioData);
+                        const result = success(
+                            request.requestId,
+                            "youtube",
+                            url.href,
+                            mimeType,
+                            format.bitrate,
+                            audioData,
+                        );
+                        if (musicTrack && result.ok && result.provider === "youtube") {
+                            result.youtubeMusic = {
+                                videoId: musicTrack.videoId,
+                                title: musicTrack.title,
+                                artist: musicTrack.artists.map((artist) => artist.name).join(" / "),
+                            };
+                        }
+                        return result;
                     } catch {
                         continue;
                     }
@@ -627,7 +679,7 @@ const success = (
 
 const failure = (
     requestId: string,
-    error: "INVALID_LINK" | "INVALID_VIDEO" | "NOT_PLAYABLE" | "RESOLVE_FAILED",
+    error: "INVALID_LINK" | "INVALID_VIDEO" | "NOT_PLAYABLE" | "RESOLVE_FAILED" | "MUSIC_TRACK_UNAVAILABLE",
     message?: string,
 ): MediaExtensionResponse => ({
     type: mediaExtensionResponseType,
@@ -647,6 +699,7 @@ const isResolveRequest = (value: unknown): value is MediaExtensionRequest => {
     }
     return request.type === youtubeExtensionRequestType
         ? isYouTubeVideoId(request.videoId)
+            && (request.preferSong === undefined || typeof request.preferSong === "boolean")
         : request.type === bilibiliExtensionRequestType
         ? isBilibiliUrl(request.url)
         : request.type === neteaseExtensionRequestType

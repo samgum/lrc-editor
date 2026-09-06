@@ -8,6 +8,7 @@ import {
     wordTimingIssueAt,
 } from "../utils/advanced-lyrics.js";
 import { audioRef, currentTimePubSub } from "../utils/audiomodule.js";
+import { StyledSelect } from "./styled-select.js";
 import { ArrowLeftSVG, ArrowRightSVG, PlaySVG, Replay5sSVG } from "./svg.js";
 
 interface WordTimingStageProps {
@@ -215,14 +216,12 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
                 </label>
                 <label>
                     <span>{language.previewLead}</span>
-                    <select
+                    <StyledSelect
                         value={previewLeadMs}
-                        onChange={(event) => onPreviewLeadChange(Number(event.target.value))}
-                    >
-                        {[0, 250, 500, 750, 1000, 1500, 2000].map((value) => (
-                            <option key={value} value={value}>{value} ms</option>
-                        ))}
-                    </select>
+                        onValueChange={(value) => onPreviewLeadChange(Number(value))}
+                        label={language.previewLead}
+                        options={[0, 250, 500, 750, 1000, 1500, 2000].map((value) => ({ value, label: `${value} ms` }))}
+                    />
                 </label>
                 <div className="word-stage-rate" role="group" aria-label={language.quickSpeed}>
                     <span>{language.quickSpeed}</span>

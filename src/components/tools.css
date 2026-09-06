@@ -58,9 +58,16 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    min-width: 0;
+    max-width: 100%;
 }
 
-.tools-options input, .tools-options select {
+.tools-options .styled-select {
+    min-width: min(8rem, 100%);
+    max-width: min(22rem, 100%);
+}
+
+.tools-options input {
     min-width: 8rem;
     padding: 0.4rem;
     color: inherit;
@@ -170,7 +177,7 @@
         box-shadow var(--transition-duration) var(--ease-standard);
 }
 
-.tools-options input:focus, .tools-options select:focus, .tools-editors textarea:focus {
+.tools-options input:focus, .tools-editors textarea:focus {
     border-color: var(--theme-color);
     box-shadow: 0 0 0 3px rgba(var(--theme-rgb), 0.1);
 }
@@ -198,6 +205,16 @@
 }
 
 @media (width <= 720px) {
+    .tools-options > label:has(.styled-select) {
+        flex-wrap: wrap;
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .tools-options .styled-select {
+        flex: 0 1 auto;
+    }
+
     .tools-format-status {
         flex: 1 1 100%;
         justify-content: space-between;

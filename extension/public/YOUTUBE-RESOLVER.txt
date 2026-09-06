@@ -1,5 +1,20 @@
 YouTube resolver / YouTube 解析器
 
+Song-source support / 歌曲音源识别：youtube-music-song-v1
+
+Music links prefer a verified album recording; ordinary YouTube links keep
+the original video's audio. Song/video counterpart mappings take priority.
+For an unmapped official MV, title and artist channel IDs must match a
+single album result. Unconfirmed matches stop with a clear message.
+The resolved song ID is used for player context and all download refreshes.
+No new browser permissions are requested. The AI installer is unchanged.
+
+Music 链接优先读取经过确认的专辑歌曲，普通 YouTube 链接保留原视频音轨。
+优先使用歌曲／视频对应关系；尚未建立对应关系的官方 MV 必须同时满足
+歌名、艺术家频道 ID 和唯一专辑结果的校验。无法确认时停止并明确提示。
+播放上下文和下载地址刷新全部使用实际歌曲 ID。不增加浏览器权限，
+AI 安装包无需更新。项目版本仍为 v0.4.6，需要替换并重新加载扩展文件。
+
 Maintenance reference: yt-dlp 2026.08.19; YouTube.js 18.0.0.
 维护参考：yt-dlp 2026.08.19；YouTube.js 18.0.0。
 

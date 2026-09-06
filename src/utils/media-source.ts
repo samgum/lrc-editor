@@ -27,6 +27,7 @@ export interface ResolvedMediaSource {
     data?: string;
     mimeType?: string;
     name?: string;
+    youtubeMusicName?: string;
     src: string;
     persist: boolean;
     provider:
@@ -92,14 +93,18 @@ export const resolveMediaInput = async (value: string): Promise<ResolvedMediaSou
     const parsed = parseMediaInput(value);
     if (parsed.kind === "youtube") {
         const [audio, label] = await Promise.all([
-            requestYouTubeAudio(parsed.videoId),
+            requestYouTubeAudio(parsed.videoId, 90_000, new URL(parsed.originalUrl).hostname === "music.youtube.com"),
             readYouTubeMediaLabel(parsed.videoId),
         ]);
+        const musicName = audio.youtubeMusic
+            ? [audio.youtubeMusic.title, audio.youtubeMusic.artist].filter(Boolean).join(" - ")
+            : undefined;
         return {
             src: audio.url,
             data: audio.data,
             mimeType: audio.mimeType,
-            name: alignmentMediaName("youtube", audio.mimeType, label || `YouTube - ${parsed.videoId}`),
+            name: alignmentMediaName("youtube", audio.mimeType, musicName || label || `YouTube - ${parsed.videoId}`),
+            ...(musicName ? { youtubeMusicName: musicName } : {}),
             persist: false,
             provider: "youtube-extension",
         };

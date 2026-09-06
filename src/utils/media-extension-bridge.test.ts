@@ -7,6 +7,82 @@ describe("YouTube extension bridge", () => {
         vi.unstubAllGlobals();
     });
 
+    const musicBridge = () => {
+        const events = new EventTarget();
+        const postMessage = vi.fn();
+        const windowStub = {
+            addEventListener: events.addEventListener.bind(events),
+            removeEventListener: events.removeEventListener.bind(events),
+            postMessage,
+            setTimeout,
+            clearTimeout,
+        };
+        vi.stubGlobal("location", { origin: "https://lrc.sgmy.org" });
+        vi.stubGlobal("window", windowStub);
+        const pending = requestYouTubeAudio("s466YCiHfKw", 90_000, true);
+        const request = postMessage.mock.calls[0][0] as { requestId: string; preferSong: boolean; videoId: string };
+        const dispatch = (data: object) => {
+            const event = new Event("message");
+            Object.defineProperties(event, {
+                source: { value: windowStub },
+                origin: { value: "https://lrc.sgmy.org" },
+                data: { value: { requestId: request.requestId, ...data } },
+            });
+            events.dispatchEvent(event);
+        };
+        return { pending, request, dispatch };
+    };
+
+    it("detects same-version extensions without Music song support", async () => {
+        const { pending, request, dispatch } = musicBridge();
+        const assertion = expect(pending).rejects.toMatchObject({ code: "outdated" });
+        expect(request).toMatchObject({ videoId: "s466YCiHfKw", preferSong: true });
+        dispatch({ type: "LRC_EDITOR_MEDIA_ACK", version: "0.4.6" });
+        await assertion;
+    });
+
+    it("carries the verified song identity with the downloaded audio", async () => {
+        const { pending, dispatch } = musicBridge();
+        dispatch({ type: "LRC_EDITOR_MEDIA_ACK", version: "0.4.6", youtubeMusic: true });
+        const youtubeMusic = { videoId: "cOARkf5ZmtI", title: "FALLEN ANGEL", artist: "JENNIE" };
+        dispatch({
+            type: "LRC_EDITOR_MEDIA_RESULT",
+            ok: true,
+            provider: "youtube",
+            audioUrl: "https://test.googlevideo.com/videoplayback",
+            mimeType: "audio/mp4",
+            audioData: "AQID",
+            youtubeMusic,
+        });
+        await expect(pending).resolves.toMatchObject({ youtubeMusic, data: "AQID" });
+    });
+
+    it.each([undefined, { videoId: "invalid", title: "song", artist: "artist" }])(
+        "rejects unconfirmed Music response metadata: %s",
+        async (youtubeMusic) => {
+            const { pending, dispatch } = musicBridge();
+            const assertion = expect(pending).rejects.toMatchObject({ code: "outdated" });
+            dispatch({ type: "LRC_EDITOR_MEDIA_ACK", version: "0.4.6", youtubeMusic: true });
+            dispatch({
+                type: "LRC_EDITOR_MEDIA_RESULT",
+                ok: true,
+                provider: "youtube",
+                audioUrl: "https://test.googlevideo.com/videoplayback",
+                mimeType: "audio/mp4",
+                youtubeMusic,
+            });
+            await assertion;
+        },
+    );
+
+    it("reports an unconfirmed song match without accepting MV bytes", async () => {
+        const { pending, dispatch } = musicBridge();
+        const assertion = expect(pending).rejects.toMatchObject({ reason: "MUSIC_TRACK_UNAVAILABLE" });
+        dispatch({ type: "LRC_EDITOR_MEDIA_ACK", version: "0.4.6", youtubeMusic: true });
+        dispatch({ type: "LRC_EDITOR_MEDIA_RESULT", ok: false, error: "MUSIC_TRACK_UNAVAILABLE" });
+        await assertion;
+    });
+
     it("reports a missing extension quickly instead of waiting for media resolution", async () => {
         vi.useFakeTimers();
         const events = new EventTarget();

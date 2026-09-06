@@ -350,6 +350,8 @@
         "mediaExtensionMissing": "媒体扩展未连接。请安装或更新扩展，然后刷新本页面。",
         "mediaExtensionOutdated": "媒体扩展版本过旧。请替换为最新版本，在扩展管理页重新加载，然后刷新本页面。",
         "youtubeResolveFailed": "无法解析这个 YouTube 音频。",
+        "youtubeMusicTrackUnavailable": "未找到可确认的歌曲版本。请从 YouTube Music 专辑中复制歌曲链接；如需原视频音轨，请使用 www.youtube.com 链接。",
+        "youtubeMusicTrackLoaded": "已载入歌曲音轨：%s",
         "invalidMediaUrl": "请输入有效的媒体、网易云、QQ 音乐、YouTube 或哔哩哔哩链接。",
         "transcodingMedia": "正在本机准备供播放和 AI 对轴使用的 AAC 副本…",
         "mediaConverted": "AAC 音频已就绪。",
