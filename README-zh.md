@@ -63,7 +63,7 @@ Chrome 安装步骤：
 
 1. 打开 `chrome://extensions`。
 2. 开启“开发者模式”。
-3. 点击“加载已解压的扩展程序”，选择解压后的 `lrc-editor-media-bridge-v0.4.6` 目录。
+3. 点击“加载已解压的扩展程序”，选择解压后的 `lrc-editor-media-bridge-v0.4.7` 目录。
 4. 首次安装或替换扩展后刷新 LRC Editor。
 
 Microsoft Edge 打开 `edge://extensions`，其余“开发者模式”和“加载已解压的扩展程序”步骤相同。Windows 可双击 `INSTALL-EXTENSION.cmd` 自动打开管理页与解压目录，但不能代替最后的人工确认。
@@ -77,16 +77,16 @@ Microsoft Edge 打开 `edge://extensions`，其余“开发者模式”和“加
 
 YouTube 解析器通过 `youtubei.js` 使用非公开 InnerTube 接口；哔哩哔哩解析器使用网页播放器接口；QQ 音乐解析器不使用 Cookie，只读取官方公开分享页的播放状态。平台客户端或播放要求变化时，对应功能可能失效。使用者需遵守平台条款和媒体所在地区的适用法律。
 
-本轮 YouTube 维护参照 [yt-dlp 2026.08.19](https://github.com/yt-dlp/yt-dlp/releases/tag/2026.08.19) 的客户端更新，但不把 yt-dlp 或 Python 加为运行依赖。解析器现可读取 gzip 压缩的播放器请求，每次解析都从浏览器刷新嵌入客户端版本，并把播放凭证限定在本次视频；失效的 Android VR／TV-embedded 回退已移除。下载途中刷新地址时还会校验格式一致，避免拼接不同音轨。没有每日监测，也不会执行远程代码：配置在使用时自动刷新，算法变化仍需发布新扩展构建。即使项目版本仍为 v0.4.6，也需要替换已解压扩展、重新加载并刷新页面；包内 `YOUTUBE-RESOLVER.txt` 可用于识别这次更新。
+本轮 YouTube 维护参照 [yt-dlp 2026.08.19](https://github.com/yt-dlp/yt-dlp/releases/tag/2026.08.19) 的客户端更新，但不把 yt-dlp 或 Python 加为运行依赖。解析器现可读取 gzip 压缩的播放器请求，每次解析都从浏览器刷新嵌入客户端版本，并把播放凭证限定在本次视频；失效的 Android VR／TV-embedded 回退已移除。下载途中刷新地址时还会校验格式一致，避免拼接不同音轨。没有每日监测，也不会执行远程代码：配置在使用时自动刷新，算法变化仍需发布新扩展构建。包内 `YOUTUBE-RESOLVER.txt` 可用于识别解析器能力。
 
-YouTube Music 链接现在优先读取**歌曲录音**，普通 YouTube 链接则保留所给视频自己的音轨。扩展先读取 YouTube Music 的歌曲／视频对应关系；对于尚无对应关系的官方 MV，只接受歌名严格匹配、艺术家频道 ID 一致且唯一的专辑歌曲，不会静默换成翻唱、混音、现场或不确定的同名结果。无法确认时，请从专辑中复制歌曲链接；如需 MV 原音，可使用 `www.youtube.com` 链接。载入框继续显示原始粘贴链接，文件名则使用实际歌曲的名称与歌手；播放凭证和下载地址刷新均绑定到实际歌曲 ID。此次需要替换并重新加载 Media Bridge（含移动端包），版本仍为 **v0.4.6**，不增加权限，也不需要更新 AI 安装包。不会绕过平台登录或反机器人验证。
+YouTube Music 链接现在优先读取**歌曲录音**，普通 YouTube 链接则保留所给视频自己的音轨。扩展先读取 YouTube Music 的歌曲／视频对应关系；对于尚无对应关系的官方 MV，只接受歌名严格匹配、艺术家频道 ID 一致且唯一的专辑歌曲，不会静默换成翻唱、混音、现场或不确定的同名结果。无法确认时，请从专辑中复制歌曲链接；如需 MV 原音，可使用 `www.youtube.com` 链接。载入框继续显示原始粘贴链接，文件名则使用实际歌曲的名称与歌手；播放凭证和下载地址刷新均绑定到实际歌曲 ID。网页按实际返回结果判断媒体兼容性，不再仅凭扩展版本号拒绝使用。旧包仍可使用其兼容的媒体功能；未声明能力不等于不支持，但 Music 音频必须返回有效的歌曲音源信息。明确不支持歌曲识别与未确认音源会分别提示，不会统一显示“版本过旧”。桌面及移动端包版本为 **v0.4.7**，不增加权限，已有 AI 引擎无需重装。不会绕过平台登录或反机器人验证。
 
 ### 移动端扩展
 
 同一套解析核心现在会生成两套互相独立的移动安装包：
 
-- `lrc-editor-media-bridge-edge-mobile-v0.4.6.zip`：面向 Android／iOS Microsoft Edge Mobile 的 Manifest V3 提交包，不申请 Chromium 桌面专用的 offscreen 权限，改用当前编辑器标签页承载临时页面。
-- `lrc-editor-media-bridge-firefox-android-v0.4.6.zip`：使用 Manifest V2 非持久 Event Page；原因是 Firefox Android 不支持 Manifest V3 后台 Service Worker。包内声明不收集数据，并要求 Firefox Android 142 或更高版本。
+- `lrc-editor-media-bridge-edge-mobile-v0.4.7.zip`：面向 Android／iOS Microsoft Edge Mobile 的 Manifest V3 提交包，不申请 Chromium 桌面专用的 offscreen 权限，改用当前编辑器标签页承载临时页面。
+- `lrc-editor-media-bridge-firefox-android-v0.4.7.zip`：使用 Manifest V2 非持久 Event Page；原因是 Firefox Android 不支持 Manifest V3 后台 Service Worker。包内声明不收集数据，并要求 Firefox Android 142 或更高版本。
 
 两套移动包都不会上传媒体，不申请 Cookie、标签页历史、账号或 `nativeMessaging` 权限，并同时支持 Cloudflare 与 GitHub Pages 地址。Edge Mobile 需要在 Microsoft Edge 扩展商店签名上架后安装；Firefox 长期安装需要 Mozilla 签名，开发设备可使用 `web-ext` 临时载入解压目录。
 
@@ -96,7 +96,7 @@ YouTube Music 链接现在优先读取**歌曲录音**，普通 YouTube 链接�
 
 AI 对轴默认关闭，但编辑器会始终显示带文字的“AI”按钮；点击按钮会启用功能并开始本次对轴。在点击前，页面不会探测本机端口、传输媒体或创建模型任务。重复点击只会重新显示同一个进度卡，扩展和本机服务还会拒绝并行的重复任务。
 
-Media Bridge v0.4.6 是唯一需要安装的浏览器扩展：媒体解析和本机 AI 桥接已经合并在同一个包里。下方 AI 安装器是可选的本机模型引擎，不是第二个浏览器扩展。
+Media Bridge v0.4.7 是唯一需要安装的浏览器扩展：媒体解析和本机 AI 桥接已经合并在同一个包里。下方 AI 安装器是可选的本机模型引擎，不是第二个浏览器扩展。
 
 Windows、macOS 和 Linux 安装器会把隔离运行环境、内置的固定引擎快照与模型统一放在用户选择的一个目录中。安装器会在内部准备 uv 管理的 Python 运行环境，用户无需安装系统 Python，也不需要使用 Python 命令。Windows/Linux 的 NVIDIA CUDA 只在组件目录内生效；macOS 和不受支持的显卡使用功能完整的 CPU 路径。安装时可选择 Hugging Face 官方源或 HF-Mirror；镜像模式下载的四个 Demucs 文件必须全部通过完整官方 SHA-256 校验才会使用。默认会在选定 LRC 返回编辑器后删除本次音频、输出和分析工作文件；只有在设置中明确开启“保留并复用 AI 对轴任务缓存”才会保留。网站缓存与本机 AI 缓存使用两个独立入口；任务清理和 AI 缓存清理都不会删除模型权重或私有运行环境。具体步骤见[本机 AI 对轴指南](./companion/README-zh.md)。
 

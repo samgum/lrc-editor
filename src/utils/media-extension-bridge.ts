@@ -20,7 +20,7 @@ import {
 
 export class MediaExtensionError extends Error {
     constructor(
-        readonly code: "missing" | "outdated" | "failed",
+        readonly code: "missing" | "music-unsupported" | "music-unverified" | "failed",
         message: string,
         readonly reason?: MediaExtensionFailure,
     ) {
@@ -30,8 +30,6 @@ export class MediaExtensionError extends Error {
 }
 
 type MediaExtensionFailure = Extract<MediaExtensionResponse, { ok: false }>["error"];
-
-const minimumMediaExtensionVersion = [0, 3, 1] as const;
 
 export interface ResolvedExtensionAudio {
     data?: string;
@@ -150,23 +148,27 @@ const requestExtensionAudio = (
 ): Promise<ResolvedExtensionAudio> =>
     requestExtension(request, timeoutMs).then((response) => {
         if (!response.ok) throw new MediaExtensionError("failed", response.error, response.error);
-        if (response.provider === "netease" || response.provider === "qqmusic") {
+        if (response.provider !== provider) {
             throw new MediaExtensionError("failed", "Unexpected extension response");
         }
         if (request.type === youtubeExtensionRequestType && request.preferSong) {
             const music = response.youtubeMusic;
             if (
-                !music || !isYouTubeVideoId(music.videoId) || typeof music.title !== "string" || !music.title
+                !music || !isYouTubeVideoId(music.videoId) || typeof music.title !== "string" || !music.title.trim()
                 || music.title.length > 1000 || typeof music.artist !== "string" || music.artist.length > 1000
             ) {
-                throw new MediaExtensionError("outdated", "The extension did not confirm a YouTube Music song source");
+                throw new MediaExtensionError(
+                    "music-unverified",
+                    "The extension did not confirm a YouTube Music song source",
+                );
             }
         }
         try {
             const url = new URL(response.audioUrl);
             if (
-                response.provider !== provider || url.protocol !== "https:"
+                url.protocol !== "https:" || typeof response.mimeType !== "string"
                 || !response.mimeType.startsWith("audio/") || !isProviderMediaHost(provider, url.hostname)
+                || response.audioData !== undefined && typeof response.audioData !== "string"
             ) {
                 throw new Error("Unexpected extension response");
             }
@@ -188,6 +190,7 @@ const requestExtension = (
 ): Promise<MediaExtensionResponse> =>
     new Promise((resolve, reject) => {
         let responseTimeout = 0;
+        let acknowledged = false;
         const extensionTimeout = window.setTimeout(() => {
             window.removeEventListener("message", onMessage);
             reject(new MediaExtensionError("missing", "Media companion extension did not respond"));
@@ -205,15 +208,18 @@ const requestExtension = (
             }
             if (isExtensionAck(event.data, request.requestId)) {
                 window.clearTimeout(extensionTimeout);
+                // Missing version/capability fields are not proof of incompatibility.
+                // Legacy extensions can still supply a fully validated result.
                 if (
-                    !isSupportedExtensionVersion(event.data.version)
-                    || request.type === youtubeExtensionRequestType && request.preferSong
-                        && event.data.youtubeMusic !== true
+                    request.type === youtubeExtensionRequestType && request.preferSong
+                    && event.data.youtubeMusic === false
                 ) {
                     finish();
-                    reject(new MediaExtensionError("outdated", "Media companion extension is outdated"));
+                    reject(new MediaExtensionError("music-unsupported", "The extension cannot verify Music songs"));
                     return;
                 }
+                if (acknowledged) return;
+                acknowledged = true;
                 responseTimeout = window.setTimeout(() => {
                     finish();
                     reject(new MediaExtensionError("failed", "Media resolution timed out"));
@@ -241,17 +247,6 @@ const isExtensionAck = (
     }
     const ack = value as Record<string, unknown>;
     return ack.type === mediaExtensionAckType && ack.requestId === requestId;
-};
-
-const isSupportedExtensionVersion = (version: string | undefined): boolean => {
-    if (!version) return false;
-    const current = version.split(".").map((part) => Number.parseInt(part, 10));
-    for (const [index, minimum] of minimumMediaExtensionVersion.entries()) {
-        const value = current[index] || 0;
-        if (value > minimum) return true;
-        if (value < minimum) return false;
-    }
-    return true;
 };
 
 const isExtensionResponse = (value: unknown, requestId: string): value is MediaExtensionResponse => {

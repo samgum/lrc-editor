@@ -208,8 +208,10 @@ export const Footer: React.FC = () => {
             } catch (error) {
                 const message = error instanceof MediaExtensionError && error.code === "missing"
                     ? lang.notify.mediaExtensionMissing
-                    : error instanceof MediaExtensionError && error.code === "outdated"
-                    ? lang.notify.mediaExtensionOutdated
+                    : error instanceof MediaExtensionError && error.code === "music-unsupported"
+                    ? lang.notify.youtubeMusicUnsupported
+                    : error instanceof MediaExtensionError && error.code === "music-unverified"
+                    ? lang.notify.youtubeMusicUnverified
                     : error instanceof MediaExtensionError
                     ? provider === "bilibili"
                         ? lang.notify.bilibiliResolveFailed
@@ -232,7 +234,6 @@ export const Footer: React.FC = () => {
             lang.notify.bilibiliResolveFailed,
             lang.notify.bilibiliResolving,
             lang.notify.mediaExtensionMissing,
-            lang.notify.mediaExtensionOutdated,
             lang.notify.neteaseResolveFailed,
             lang.notify.neteaseResolving,
             lang.notify.qqmusicNotPlayable,
@@ -240,6 +241,8 @@ export const Footer: React.FC = () => {
             lang.notify.qqmusicResolving,
             lang.notify.youtubeResolveFailed,
             lang.notify.youtubeMusicTrackUnavailable,
+            lang.notify.youtubeMusicUnsupported,
+            lang.notify.youtubeMusicUnverified,
             lang.notify.youtubeResolving,
         ],
     );

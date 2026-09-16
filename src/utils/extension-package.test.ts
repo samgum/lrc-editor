@@ -59,7 +59,8 @@ describe("extension package", () => {
             action: { responseHeaders?: Array<{ header: string }> };
             condition: { resourceTypes: string[] };
         }>;
-        expect(manifest.version).toBe("0.4.6");
+        const packageVersion = JSON.parse(readFileSync(resolve("package.json"), "utf8")).version;
+        expect(manifest.version).toBe(packageVersion);
         expect(rules[0].condition.resourceTypes).toEqual(expect.arrayContaining(["media", "xmlhttprequest"]));
         expect(rules[1].condition.resourceTypes).toEqual(expect.arrayContaining(["media", "xmlhttprequest"]));
         expect(rules[1].action.responseHeaders?.map((header) => header.header)).toContain(

@@ -43,6 +43,21 @@ describe("resolved media upload names", () => {
         await resolveMediaInput("https://www.youtube.com/watch?v=s466YCiHfKw");
         expect(resolve).toHaveBeenCalledWith("s466YCiHfKw", 90_000, false);
     });
+
+    it.each(["music-unsupported", "music-unverified"] as const)(
+        "does not silently retry a Music link as video audio after %s",
+        async (code) => {
+            const error = new mediaBridge.MediaExtensionError(code, "Song source was not confirmed");
+            const resolve = vi.spyOn(mediaBridge, "requestYouTubeAudio").mockRejectedValue(error);
+            const fetchMock = vi.fn().mockRejectedValue(new TypeError("Metadata unavailable"));
+            vi.stubGlobal("fetch", fetchMock);
+            await expect(resolveMediaInput("https://music.youtube.com/watch?v=s466YCiHfKw")).rejects.toBe(error);
+            expect(resolve).toHaveBeenCalledExactlyOnceWith("s466YCiHfKw", 90_000, true);
+            expect(fetchMock).toHaveBeenCalledOnce();
+            expect(fetchMock.mock.calls[0][0]).toMatch(/^https:\/\/www\.youtube\.com\/oembed\?/);
+        },
+    );
+
     it("carries the YouTube name alongside the existing audio without altering its data", async () => {
         vi.spyOn(mediaBridge, "requestYouTubeAudio").mockResolvedValue({
             url: "https://example.googlevideo.com/videoplayback",
@@ -53,7 +68,7 @@ describe("resolved media upload names", () => {
             "fetch",
             vi.fn().mockResolvedValue(Response.json({ title: "CLICK", author_name: "JISOO - Topic" })),
         );
-        await expect(resolveMediaInput("https://music.youtube.com/watch?v=jLCo8597v_g&si=share")).resolves
+        await expect(resolveMediaInput("https://www.youtube.com/watch?v=jLCo8597v_g&si=share")).resolves
             .toMatchObject({
                 name: "CLICK - JISOO.m4a",
                 data: "AQID",

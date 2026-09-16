@@ -6,13 +6,22 @@ describe("local AI engine download", () => {
 
     it("selects the macOS/Linux archive", () => {
         expect(aiEngineDownloadUrl(release, "0.4.6", "MacIntel")).toBe(
-            "https://github.com/samgum/lrc-editor/releases/latest/download/lrc-editor-ai-aligner-macos-linux-v0.4.6.tar.gz",
+            "https://github.com/samgum/lrc-editor/releases/download/v0.4.6/lrc-editor-ai-aligner-macos-linux-v0.4.6.tar.gz",
         );
     });
 
     it("selects the Windows archive", () => {
         expect(aiEngineDownloadUrl(release, "0.4.6", "Win32")).toBe(
-            "https://github.com/samgum/lrc-editor/releases/latest/download/lrc-editor-ai-aligner-windows-v0.4.6.zip",
+            "https://github.com/samgum/lrc-editor/releases/download/v0.4.6/lrc-editor-ai-aligner-windows-v0.4.6.zip",
         );
     });
+
+    it.each([`${release}/`, "https://github.com/samgum/lrc-editor/releases/tag/v0.4.6"])(
+        "pins the archive to the page version for %s",
+        (url) => {
+            expect(aiEngineDownloadUrl(url, "0.4.7", "Win32")).toBe(
+                "https://github.com/samgum/lrc-editor/releases/download/v0.4.7/lrc-editor-ai-aligner-windows-v0.4.7.zip",
+            );
+        },
+    );
 });

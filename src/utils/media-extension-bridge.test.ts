@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { requestNeteaseAudio, requestQQMusicAudio, requestYouTubeAudio } from "./media-extension-bridge.js";
+import {
+    requestBilibiliAudio,
+    requestNeteaseAudio,
+    requestQQMusicAudio,
+    requestYouTubeAudio,
+} from "./media-extension-bridge.js";
 
 describe("YouTube extension bridge", () => {
     afterEach(() => {
@@ -7,7 +12,7 @@ describe("YouTube extension bridge", () => {
         vi.unstubAllGlobals();
     });
 
-    const musicBridge = () => {
+    const musicBridge = (startRequest = () => requestYouTubeAudio("s466YCiHfKw", 90_000, true)) => {
         const events = new EventTarget();
         const postMessage = vi.fn();
         const windowStub = {
@@ -19,13 +24,13 @@ describe("YouTube extension bridge", () => {
         };
         vi.stubGlobal("location", { origin: "https://lrc.sgmy.org" });
         vi.stubGlobal("window", windowStub);
-        const pending = requestYouTubeAudio("s466YCiHfKw", 90_000, true);
+        const pending = startRequest();
         const request = postMessage.mock.calls[0][0] as { requestId: string; preferSong: boolean; videoId: string };
-        const dispatch = (data: object) => {
+        const dispatch = (data: object, origin = "https://lrc.sgmy.org", source: object = windowStub) => {
             const event = new Event("message");
             Object.defineProperties(event, {
-                source: { value: windowStub },
-                origin: { value: "https://lrc.sgmy.org" },
+                source: { value: source },
+                origin: { value: origin },
                 data: { value: { requestId: request.requestId, ...data } },
             });
             events.dispatchEvent(event);
@@ -33,11 +38,39 @@ describe("YouTube extension bridge", () => {
         return { pending, request, dispatch };
     };
 
-    it("detects same-version extensions without Music song support", async () => {
+    const videoResult = {
+        type: "LRC_EDITOR_MEDIA_RESULT",
+        ok: true,
+        provider: "youtube",
+        audioUrl: "https://test.googlevideo.com/videoplayback",
+        mimeType: "audio/mp4",
+        audioData: "AQID",
+    };
+    const youtubeMusic = { videoId: "cOARkf5ZmtI", title: "FALLEN ANGEL", artist: "JENNIE" };
+
+    it("reports an explicitly unsupported capability without retiring the extension", async () => {
         const { pending, request, dispatch } = musicBridge();
-        const assertion = expect(pending).rejects.toMatchObject({ code: "outdated" });
+        const assertion = expect(pending).rejects.toMatchObject({ code: "music-unsupported" });
         expect(request).toMatchObject({ videoId: "s466YCiHfKw", preferSong: true });
+        dispatch({ type: "LRC_EDITOR_MEDIA_ACK", version: "0.4.6", youtubeMusic: false });
+        await assertion;
+    });
+
+    it.each(["0.3.0", "0.4.6", undefined, "unknown", 123])(
+        "accepts verified Music results without an ACK capability marker (version %s)",
+        async (version) => {
+            const { pending, dispatch } = musicBridge();
+            dispatch({ type: "LRC_EDITOR_MEDIA_ACK", version });
+            dispatch({ ...videoResult, youtubeMusic });
+            await expect(pending).resolves.toMatchObject({ youtubeMusic, data: "AQID" });
+        },
+    );
+
+    it("waits for the legacy result and rejects unverified MV audio instead of blaming its version", async () => {
+        const { pending, dispatch } = musicBridge();
+        const assertion = expect(pending).rejects.toMatchObject({ code: "music-unverified" });
         dispatch({ type: "LRC_EDITOR_MEDIA_ACK", version: "0.4.6" });
+        dispatch(videoResult);
         await assertion;
     });
 
@@ -57,11 +90,16 @@ describe("YouTube extension bridge", () => {
         await expect(pending).resolves.toMatchObject({ youtubeMusic, data: "AQID" });
     });
 
-    it.each([undefined, { videoId: "invalid", title: "song", artist: "artist" }])(
+    it.each([
+        undefined,
+        { videoId: "invalid", title: "song", artist: "artist" },
+        { videoId: "cOARkf5ZmtI", title: " ", artist: "artist" },
+        { videoId: "cOARkf5ZmtI", title: "song", artist: 123 },
+    ])(
         "rejects unconfirmed Music response metadata: %s",
         async (youtubeMusic) => {
             const { pending, dispatch } = musicBridge();
-            const assertion = expect(pending).rejects.toMatchObject({ code: "outdated" });
+            const assertion = expect(pending).rejects.toMatchObject({ code: "music-unverified" });
             dispatch({ type: "LRC_EDITOR_MEDIA_ACK", version: "0.4.6", youtubeMusic: true });
             dispatch({
                 type: "LRC_EDITOR_MEDIA_RESULT",
@@ -101,30 +139,64 @@ describe("YouTube extension bridge", () => {
         await assertion;
     });
 
-    it("rejects an installed extension that predates the current bridge protocol", async () => {
-        const events = new EventTarget();
-        const postMessage = vi.fn();
-        const windowStub = {
-            addEventListener: events.addEventListener.bind(events),
-            removeEventListener: events.removeEventListener.bind(events),
-            postMessage,
-            setTimeout,
-            clearTimeout,
-        };
-        vi.stubGlobal("location", { origin: "https://lrc.sgmy.org" });
-        vi.stubGlobal("window", windowStub);
+    it.each(["0.3.0", "0.4.6", undefined])(
+        "keeps regular video audio working with legacy version %s and no Music capability",
+        async (version) => {
+            const { pending, request, dispatch } = musicBridge(() => requestYouTubeAudio("M7lc1UVf-VE"));
+            expect(request).not.toHaveProperty("preferSong");
+            dispatch({ type: "LRC_EDITOR_MEDIA_ACK", version, youtubeMusic: false });
+            dispatch(videoResult);
+            await expect(pending).resolves.toMatchObject({ data: "AQID" });
+        },
+    );
 
-        const pending = requestYouTubeAudio("M7lc1UVf-VE");
-        const request = postMessage.mock.calls[0][0] as { requestId: string };
-        const event = new Event("message");
-        Object.defineProperties(event, {
-            source: { value: windowStub },
-            origin: { value: "https://lrc.sgmy.org" },
-            data: { value: { type: "LRC_EDITOR_MEDIA_ACK", requestId: request.requestId, version: "0.3.0" } },
+    it("keeps Bilibili audio working without a version field", async () => {
+        const { pending, dispatch } = musicBridge(() => requestBilibiliAudio("https://www.bilibili.com/video/BV12345"));
+        dispatch({ type: "LRC_EDITOR_MEDIA_ACK" });
+        dispatch({ ...videoResult, provider: "bilibili", audioUrl: "https://test.bilivideo.com/audio.m4a" });
+        await expect(pending).resolves.toMatchObject({ url: "https://test.bilivideo.com/audio.m4a" });
+    });
+
+    it.each([
+        { audioUrl: "http://test.googlevideo.com/videoplayback" },
+        { audioUrl: "https://googlevideo.com.example.org/videoplayback" },
+        { provider: "bilibili" },
+        { mimeType: "text/html" },
+        { mimeType: null },
+        { audioData: 123 },
+    ])("still rejects invalid provider results from legacy extensions: %j", async (invalid) => {
+        const { pending, dispatch } = musicBridge(() => requestYouTubeAudio("M7lc1UVf-VE"));
+        const assertion = expect(pending).rejects.toMatchObject({ code: "failed" });
+        dispatch({ type: "LRC_EDITOR_MEDIA_ACK", version: "0.3.0" });
+        dispatch({ ...videoResult, ...invalid });
+        await assertion;
+    });
+
+    it("ignores messages from another origin, window or request", async () => {
+        vi.useFakeTimers();
+        const { pending, dispatch } = musicBridge();
+        const assertion = expect(pending).rejects.toMatchObject({ code: "missing" });
+        dispatch({ ...videoResult, youtubeMusic }, "https://example.org");
+        dispatch({ ...videoResult, youtubeMusic }, "https://lrc.sgmy.org", {});
+        dispatch({ ...videoResult, youtubeMusic, requestId: "another-request" });
+        await vi.advanceTimersByTimeAsync(1_500);
+        await assertion;
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it("does not let repeated ACKs extend the resolution deadline", async () => {
+        vi.useFakeTimers();
+        const { pending, dispatch } = musicBridge();
+        const assertion = expect(pending).rejects.toMatchObject({
+            code: "failed",
+            message: "Media resolution timed out",
         });
-        events.dispatchEvent(event);
-
-        await expect(pending).rejects.toMatchObject({ code: "outdated" });
+        dispatch({ type: "LRC_EDITOR_MEDIA_ACK" });
+        await vi.advanceTimersByTimeAsync(45_000);
+        dispatch({ type: "LRC_EDITOR_MEDIA_ACK" });
+        await vi.advanceTimersByTimeAsync(45_000);
+        await assertion;
+        expect(vi.getTimerCount()).toBe(0);
     });
 
     it("returns a validated song id for a NetEase short link", async () => {

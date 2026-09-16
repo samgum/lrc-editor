@@ -1,5 +1,15 @@
 YouTube resolver / YouTube 解析器
 
+Media Bridge v0.4.7 / 媒体扩展 v0.4.7
+Media compatibility / 媒体兼容策略：validated-results-v1
+
+The website does not retire media features by extension version. Missing
+capability markers do not block a valid result. Music links still require
+verified song-source details; other compatible media functions remain usable.
+
+网页不会仅凭扩展版本号停用媒体功能，缺少能力标记也不会提前拒绝有效结果。
+Music 链接仍须确认歌曲音源；其他兼容的媒体功能继续可用。
+
 Song-source support / 歌曲音源识别：youtube-music-song-v1
 
 Music links prefer a verified album recording; ordinary YouTube links keep
@@ -13,7 +23,7 @@ Music 链接优先读取经过确认的专辑歌曲，普通 YouTube 链接保�
 优先使用歌曲／视频对应关系；尚未建立对应关系的官方 MV 必须同时满足
 歌名、艺术家频道 ID 和唯一专辑结果的校验。无法确认时停止并明确提示。
 播放上下文和下载地址刷新全部使用实际歌曲 ID。不增加浏览器权限，
-AI 安装包无需更新。项目版本仍为 v0.4.6，需要替换并重新加载扩展文件。
+已有 AI 引擎无需更新。安装本包时请替换扩展文件，再重新加载扩展。
 
 Maintenance reference: yt-dlp 2026.08.19; YouTube.js 18.0.0.
 维护参考：yt-dlp 2026.08.19；YouTube.js 18.0.0。
@@ -27,11 +37,11 @@ TV-embedded fallbacks are excluded. No remote code or Python is loaded.
 播放上下文，不会把固定测试视频的凭证复用于另一首歌。已移除失效的
 Android VR 和 TV-embedded 回退；不会加载远程代码或 Python。
 
-Unpacked extension users must replace the extracted package, reload the
-extension in the browser extension manager, and refresh the editor tab.
+When choosing to update an unpacked extension, replace its extracted files,
+reload it in the browser extension manager, and refresh the editor tab.
 There is no scheduled monitoring task. A new extraction algorithm still
 requires a reviewed extension release; metadata refresh is automatic.
 
-已解压扩展用户需要替换扩展文件，在浏览器扩展管理页重新加载，再刷新
+选择更新已解压扩展时，请替换扩展文件，在浏览器扩展管理页重新加载，再刷新
 编辑器标签页。没有定时监测任务。配置和凭证在使用时自动刷新，但全新的
 解析算法仍需要经过验证后发布扩展更新。

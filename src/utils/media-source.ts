@@ -127,7 +127,7 @@ export const resolveMediaInput = async (value: string): Promise<ResolvedMediaSou
         } catch (error) {
             if (
                 parsed.kind === "netease" && error instanceof MediaExtensionError
-                && (error.code === "missing" || error.code === "outdated")
+                && error.code === "missing"
             ) {
                 return {
                     src: `https://music.163.com/song/media/outer/url?id=${parsed.songId}.mp3`,

@@ -3,5 +3,8 @@ export const aiEngineAssetName = (version: string, platform: string): string =>
         ? `lrc-editor-ai-aligner-macos-linux-v${version}.tar.gz`
         : `lrc-editor-ai-aligner-windows-v${version}.zip`;
 
-export const aiEngineDownloadUrl = (releaseUrl: string, version: string, platform: string): string =>
-    `${releaseUrl.replace(/\/$/, "")}/download/${aiEngineAssetName(version, platform)}`;
+export const aiEngineDownloadUrl = (releaseUrl: string, version: string, platform: string): string => {
+    // Keep cached pages' installer links valid after a newer release is published.
+    const versionedRelease = releaseUrl.replace(/\/$/, "").replace(/\/(?:latest|tag\/[^/]+)$/, `/download/v${version}`);
+    return `${versionedRelease}/${aiEngineAssetName(version, platform)}`;
+};
