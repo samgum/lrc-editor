@@ -447,7 +447,16 @@
             "timelineStats": "展開 %expanded 件 · 並べ替え %reordered 行 · 重複処理 %deduped 件",
             "sectionsStats": "セクション削除 %removed 件 · 空行削除 %blank 行",
             "tracklistStats": "曲目抽出 %tracks 曲 · 除外 %ignored 行",
-            "replaceStats": "%s 箇所を置換"
+            "replaceStats": "%s 箇所を置換",
+            "overwriteOverlayTitle": "行間上書き（元の歌詞の下に入力）",
+            "overwriteOverlayHint": "歌詞を貼り付け · Enterで下へ · Backspaceで上へ",
+            "overwriteOverlayPlaceholder": "ここに新しい歌詞や翻訳を貼り付け・入力…",
+            "overwriteAutoAlign": "空行を自動整列",
+            "overwriteStripTags": "タイムタグを除去",
+            "overwriteEditSource": "元のLRCを編集",
+            "overwriteDoneEditSource": "行間入力に戻る",
+            "overwriteEmptySourceGuide": "元のLRCがまだありません。歌詞ファイルを読み込むか、「元のLRCを編集」からタイムタグ付きLRCを貼り付けてください。",
+            "overwriteProgressBadge": "%filled / %total 行"
         },
         "about": {
             "title": "LRC Editor について",
@@ -911,7 +920,16 @@
             "timelineStats": "다중 분리 %expanded건 · 재정렬 %reordered줄 · 중복 처리 %deduped건",
             "sectionsStats": "섹션 제거 %removed개 · 빈 줄 %blank개",
             "tracklistStats": "트랙 추출 %tracks곡 · 제외 %ignored줄",
-            "replaceStats": "총 %s곳 바꿈"
+            "replaceStats": "총 %s곳 바꿈",
+            "overwriteOverlayTitle": "행간 덮어쓰기 (원문 아래에 입력)",
+            "overwriteOverlayHint": "가사 붙여넣기 · Enter로 아래로 · Backspace로 위로",
+            "overwriteOverlayPlaceholder": "여기에 덮어쓸 가사나 번역을 붙여넣거나 입력…",
+            "overwriteAutoAlign": "빈 줄 자동 맞춤",
+            "overwriteStripTags": "타임태그 제거",
+            "overwriteEditSource": "원문 LRC 편집",
+            "overwriteDoneEditSource": "행간 입력으로 돌아가기",
+            "overwriteEmptySourceGuide": "원문 LRC가 없습니다. 가사 파일을 불러오거나 ‘원문 LRC 편집’을 눌러 타임스탬프가 있는 LRC를 붙여넣으세요.",
+            "overwriteProgressBadge": "%filled / %total 줄"
         },
         "about": {
             "title": "LRC Editor 정보",
@@ -1375,7 +1393,16 @@
             "timelineStats": "Rozwinięto %expanded · Posortowano %reordered · Rozwiązano %deduped duplikatów",
             "sectionsStats": "Usunięto %removed etykiet sekcji · %blank pustych wierszy",
             "tracklistStats": "Wyodrębniono %tracks utworów · Pominięto %ignored wierszy",
-            "replaceStats": "Zastąpiono %s wystąpień"
+            "replaceStats": "Zastąpiono %s wystąpień",
+            "overwriteOverlayTitle": "Nadpisywanie międzywierszowe",
+            "overwriteOverlayHint": "Wklej tekst · Enter przesuwa w dół · Backspace w górę",
+            "overwriteOverlayPlaceholder": "Wklej lub wpisz nowy tekst tutaj…",
+            "overwriteAutoAlign": "Dopasuj puste wiersze",
+            "overwriteStripTags": "Usuń znaczniki czasu",
+            "overwriteEditSource": "Edytuj źródło LRC",
+            "overwriteDoneEditSource": "Wróć do nadpisywania",
+            "overwriteEmptySourceGuide": "Brak źródłowego LRC. Wczytaj plik tekstu lub kliknij „Edytuj źródło LRC”, aby wkleić tekst ze znacznikami czasu.",
+            "overwriteProgressBadge": "%filled / %total wierszy"
         },
         "about": {
             "title": "O LRC Editor",
@@ -1839,7 +1866,16 @@
             "timelineStats": "Expandidos %expanded · Reordenados %reordered · Duplicatas %deduped",
             "sectionsStats": "Removidas %removed seções · %blank linhas vazias",
             "tracklistStats": "Extraídas %tracks faixas · Ignoradas %ignored linhas",
-            "replaceStats": "%s ocorrências substituídas"
+            "replaceStats": "%s ocorrências substituídas",
+            "overwriteOverlayTitle": "Sobrescrita entrelinhas",
+            "overwriteOverlayHint": "Cole a letra · Enter desce · Backspace sobe",
+            "overwriteOverlayPlaceholder": "Cole ou digite a nova letra aqui…",
+            "overwriteAutoAlign": "Alinhar linhas vazias",
+            "overwriteStripTags": "Remover tempos",
+            "overwriteEditSource": "Editar LRC original",
+            "overwriteDoneEditSource": "Voltar à sobrescrita",
+            "overwriteEmptySourceGuide": "Nenhum LRC original carregado. Carregue um arquivo de letra ou clique em “Editar LRC original” para colar o LRC.",
+            "overwriteProgressBadge": "%filled / %total linhas"
         },
         "about": {
             "title": "Sobre o LRC Editor",
@@ -2303,7 +2339,16 @@
             "timelineStats": "Rozbalené %expanded · Zoradené %reordered · Duplicity %deduped",
             "sectionsStats": "Odstránených %removed sekcií · %blank prázdnych riadkov",
             "tracklistStats": "Extrahovaných %tracks skladieb · Ignorovaných %ignored riadkov",
-            "replaceStats": "Nahradených %s výskytov"
+            "replaceStats": "Nahradených %s výskytov",
+            "overwriteOverlayTitle": "Medziriadkové prepisovanie",
+            "overwriteOverlayHint": "Vložte text · Enter posunie nadol · Backspace nahor",
+            "overwriteOverlayPlaceholder": "Sem vložte alebo napíšte nový text…",
+            "overwriteAutoAlign": "Zarovnať prázdne riadky",
+            "overwriteStripTags": "Odstrániť časy",
+            "overwriteEditSource": "Upraviť zdrojové LRC",
+            "overwriteDoneEditSource": "Späť na prepisovanie",
+            "overwriteEmptySourceGuide": "Zatiaľ nie je načítané zdrojové LRC. Načítajte súbor textu alebo kliknite na „Upraviť zdrojové LRC“.",
+            "overwriteProgressBadge": "%filled / %total riadkov"
         },
         "about": {
             "title": "O LRC Editor",
@@ -2767,7 +2812,16 @@
             "timelineStats": "展開多軸 %expanded 處 · 重排順序 %reordered 行 · 處理重複 %deduped 處",
             "sectionsStats": "已移除 %removed 個段落標籤 · %blank 個空行",
             "tracklistStats": "已提取 %tracks 首曲目 · 忽略 %ignored 行雜項",
-            "replaceStats": "共替換 %s 處"
+            "replaceStats": "共替換 %s 處",
+            "overwriteOverlayTitle": "行間覆寫（原詞下方直接輸入）",
+            "overwriteOverlayHint": "貼上或輸入新歌詞 · Enter 下移 · Backspace 上移",
+            "overwriteOverlayPlaceholder": "在此貼上或輸入覆寫歌詞…",
+            "overwriteAutoAlign": "自動對齊空行",
+            "overwriteStripTags": "去除時間標籤",
+            "overwriteEditSource": "編輯原詞",
+            "overwriteDoneEditSource": "返回疊寫",
+            "overwriteEmptySourceGuide": "目前尚無原詞時間軸。請先載入歌詞檔案，或點擊「編輯原詞」直接貼上帶時間軸的 LRC。",
+            "overwriteProgressBadge": "已對應 %filled / %total 行"
         },
         "about": {
             "title": "關於 LRC Editor",
@@ -3231,7 +3285,16 @@
             "timelineStats": "展開多軸 %expanded 處 · 重排順序 %reordered 行 · 處理重複 %deduped 處",
             "sectionsStats": "已移除 %removed 個段落標籤 · %blank 個空行",
             "tracklistStats": "已擷取 %tracks 首曲目 · 忽略 %ignored 行雜項",
-            "replaceStats": "共替換 %s 處"
+            "replaceStats": "共替換 %s 處",
+            "overwriteOverlayTitle": "行間覆寫（原詞下方直接輸入）",
+            "overwriteOverlayHint": "貼上或輸入新歌詞 · Enter 下移 · Backspace 上移",
+            "overwriteOverlayPlaceholder": "在此貼上或輸入覆寫歌詞…",
+            "overwriteAutoAlign": "自動對齊空行",
+            "overwriteStripTags": "去除時間標籤",
+            "overwriteEditSource": "編輯原詞",
+            "overwriteDoneEditSource": "返回疊寫",
+            "overwriteEmptySourceGuide": "目前尚無原詞時間軸。請先載入歌詞檔案，或點擊「編輯原詞」直接貼上帶時間軸的 LRC。",
+            "overwriteProgressBadge": "已對應 %filled / %total 行"
         },
         "about": {
             "title": "關於 LRC Editor",

@@ -324,6 +324,125 @@ export const buildOverwritePlan = (
     };
 };
 
+export interface InterleavedOverwriteOptions {
+    outputMode?: OverwriteOutputMode;
+    inlineTemplate?: string;
+    unmatchedFallback?: OverwriteFallbackMode;
+}
+
+export interface InterleavedOverwriteResult {
+    text: string;
+    filledCount: number;
+    targetCount: number;
+    extraCount: number;
+}
+
+export const interleaveOverwriteLyrics = (
+    state: State,
+    replacement: string,
+    formatOptions: IFormatOptions,
+    options: InterleavedOverwriteOptions = {},
+): InterleavedOverwriteResult => {
+    const outputMode = options.outputMode ?? "replace";
+    const inlineTemplate = options.inlineTemplate ?? "%orig / %trans";
+    const unmatchedFallback = options.unmatchedFallback ?? "empty";
+
+    const normalized = replacement.replace(/\r\n?/g, "\n");
+    const rawLines = normalized === "" ? [] : normalized.split("\n");
+    const targetCount = state.lyric.length;
+    while (rawLines.length > targetCount && rawLines[rawLines.length - 1] === "") {
+        rawLines.pop();
+    }
+    const totalRows = Math.max(targetCount, rawLines.length);
+    const outputLyric: ILyric[] = [];
+    let filledCount = 0;
+
+    for (let i = 0; i < totalRows; i += 1) {
+        const sourceLine = state.lyric[i];
+        const hasInput = i < rawLines.length;
+        const overText = rawLines[i] ?? "";
+        if (i < targetCount && hasInput) {
+            filledCount += 1;
+        }
+
+        if (!sourceLine) {
+            outputLyric.push({ text: overText });
+            continue;
+        }
+
+        if (outputMode === "replace") {
+            const nextText = unmatchedFallback === "keep"
+                ? (hasInput && overText.trim() !== "" ? overText : sourceLine.text)
+                : (hasInput ? overText : "");
+            outputLyric.push({ ...sourceLine, text: nextText });
+        } else if (outputMode === "inline") {
+            const nextText = hasInput && overText.trim() !== ""
+                ? formatInlineBilingual(sourceLine.text, overText, inlineTemplate)
+                : sourceLine.text;
+            outputLyric.push({ ...sourceLine, text: nextText });
+        } else {
+            outputLyric.push({ ...sourceLine, text: sourceLine.text });
+            if (hasInput && overText.trim() !== "" && overText.trim() !== sourceLine.text.trim()) {
+                outputLyric.push({ ...sourceLine, text: overText });
+            }
+        }
+    }
+
+    return {
+        text: stringify({ info: state.info, lyric: outputLyric }, formatOptions),
+        filledCount,
+        targetCount,
+        extraCount: Math.max(0, rawLines.length - targetCount),
+    };
+};
+
+export const alignOverwriteTextToSource = (state: State, replacement: string): string => {
+    const extracted = extractReplacementLines(replacement, {
+        alignMode: "smart",
+        ignoreBlankLines: true,
+    });
+    if (extracted.length === 0) return "";
+    const aligned: string[] = [];
+    let cursor = 0;
+    let seenContent = false;
+    for (const line of state.lyric) {
+        const trimmed = line.text.trim();
+        const firstContent = !seenContent && trimmed.length > 0;
+        if (trimmed) seenContent = true;
+        const bracket = getBracketLabel(line.text);
+        const isEmpty = trimmed === "";
+        const isSection = Boolean(
+            bracket && (isSectionLabel(bracket, true) || (firstContent && isLyricDocumentHeader(bracket))),
+        );
+        const isCredit = isCreditLine(trimmed) && (!extracted[cursor] || !isCreditLine(extracted[cursor]));
+        if (isEmpty || isSection || isCredit) {
+            aligned.push(isCredit ? line.text : "");
+        } else {
+            aligned.push(extracted[cursor] ?? "");
+            cursor += 1;
+        }
+    }
+    while (cursor < extracted.length) {
+        aligned.push(extracted[cursor]);
+        cursor += 1;
+    }
+    return aligned.join("\n");
+};
+
+export const stripTimestampsFromText = (text: string): string =>
+    text
+        .replace(/^\uFEFF/, "")
+        .replace(/\r\n?/g, "\n")
+        .split("\n")
+        .filter((line) =>
+            !/^\[(?:ti|title|ar|artist|al|album|au|author|by|offset|length|re|ve|tool):/i.test(line.trim())
+        )
+        .map((line) => line
+            .replace(/^(?:\[\s*(?:\d{1,3}:)?\d{1,2}:\d{2}(?:[.:]\d{1,3})?\s*\])+\s?/g, "")
+            .replace(/<(?:\d{1,3}:)?\d{1,2}:\d{2}(?:[.:]\d{1,3})?>/g, "")
+        )
+        .join("\n");
+
 export const overwriteLyrics = (
     state: State,
     replacement: string,

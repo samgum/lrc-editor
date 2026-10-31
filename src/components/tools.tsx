@@ -1,7 +1,7 @@
 import ROUTER from "#const/router.json" assert { type: "json" };
 import SSK from "#const/session_key.json" assert { type: "json" };
-import { convertTimeToTag, parser, stringify } from "@lrc-maker/lrc-parser";
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { parser, stringify } from "@lrc-maker/lrc-parser";
+import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Action, IState } from "../hooks/useLrc.js";
 import { ActionType } from "../hooks/useLrc.js";
 import {
@@ -15,20 +15,17 @@ import {
     toLineLrc,
     toLineTimedDocument,
 } from "../utils/advanced-lyrics.js";
-import { audioRef, currentTimePubSub } from "../utils/audiomodule.js";
 import { lrcFileName } from "../utils/lrc-file-name.js";
 import {
-    buildOverwritePlan,
+    alignOverwriteTextToSource,
     cleanGeniusTracklist,
     convertLyricsCase,
     type DuplicateTimestampStrategy,
-    extractReplacementLines,
+    type InterleavedOverwriteResult,
+    interleaveOverwriteLyrics,
     type LyricsCaseMode,
-    type OverwriteAlignMode,
     type OverwriteFallbackMode,
     type OverwriteOutputMode,
-    type OverwritePlan,
-    type OverwriteRowKind,
     removeEmptyLines,
     removeTags,
     repairTimeline,
@@ -36,11 +33,12 @@ import {
     type SplitTranslationTarget,
     splitTranslationWithStats,
     stripGeniusSections,
+    stripTimestampsFromText,
     transformTimes,
 } from "../utils/lrc-tools.js";
 import { appContext } from "./app.context.js";
 import { StyledSelect } from "./styled-select.js";
-import { CheckSVG, CopySVG, DownloadSVG, OpenFileSVG, PlaySVG } from "./svg.js";
+import { CheckSVG, CopySVG, DownloadSVG, OpenFileSVG } from "./svg.js";
 import { toastPubSub } from "./toast.js";
 
 type Tool =
@@ -96,6 +94,12 @@ const inlineBilingualTemplates = [
 
 const timeQuickOffsets = [-1000, -500, -100, 100, 500, 1000] as const;
 
+const OVERWRITE_ROW_HEIGHT = 46;
+const OVERWRITE_PAD_TOP = 16;
+const OVERWRITE_PAD_X = 16;
+const OVERWRITE_PAD_BOTTOM = 220;
+const OVERWRITE_OVERLAY_OFFSET_Y = 20;
+
 export const Tools: React.FC<{
     state: IState;
     dispatch: React.Dispatch<Action>;
@@ -119,17 +123,12 @@ export const Tools: React.FC<{
         return "overwrite";
     });
 
-    // Overwrite state
-    const [overwriteView, setOverwriteView] = useState<"workbench" | "columns">("workbench");
+    // Overwrite state (歌词滚动姬-style interleaved overlay)
     const [overwriteMode, setOverwriteMode] = useState<OverwriteOutputMode>("replace");
     const [inlineTemplate, setInlineTemplate] = useState<string>(inlineBilingualTemplates[0].value);
-    const [overwriteAlign, setOverwriteAlign] = useState<OverwriteAlignMode>("smart");
-    const [preserveCredits, setPreserveCredits] = useState(true);
-    const [ignoreBlankLines, setIgnoreBlankLines] = useState(true);
-    const [overwriteFallback, setOverwriteFallback] = useState<OverwriteFallbackMode>("keep");
-    const [overwriteFilter, setOverwriteFilter] = useState<"all" | "active">("all");
-    const [skippedIndices, setSkippedIndices] = useState<Set<number>>(() => new Set());
-    const [forcedIndices, setForcedIndices] = useState<Set<number>>(() => new Set());
+    const [overwriteFallback, setOverwriteFallback] = useState<OverwriteFallbackMode>("empty");
+    const [editSourceMode, setEditSourceMode] = useState(false);
+    const [timePaddingWidth, setTimePaddingWidth] = useState(0);
     const [replacement, setReplacement] = useState(() => sessionStorage.getItem(SSK.overwriteText) || "");
 
     // Time transform state
@@ -172,15 +171,14 @@ export const Tools: React.FC<{
     const [conversionLoadedFormat, setConversionLoadedFormat] = useState<LyricFormat | null>(null);
 
     const sourceRef = useRef<HTMLTextAreaElement>(null);
+    const underlayRef = useRef<HTMLTextAreaElement>(null);
     const translationRef = useRef<HTMLTextAreaElement>(null);
     const outputRef = useRef<HTMLTextAreaElement>(null);
-    const alignListRef = useRef<HTMLDivElement>(null);
+    const timePaddingRef = useRef<HTMLSpanElement>(null);
     const [output, setOutput] = useState("");
 
     useEffect(() => {
         setSource(serialized);
-        setSkippedIndices(new Set());
-        setForcedIndices(new Set());
     }, [serialized]);
 
     useEffect(() => sessionStorage.setItem(SSK.overwriteText, replacement), [replacement]);
@@ -203,8 +201,7 @@ export const Tools: React.FC<{
             if (tool === "convert") setConversionLoadedFormat(null);
         } else {
             setSource(serialized);
-            setSkippedIndices(new Set());
-            setForcedIndices(new Set());
+            setEditSourceMode(false);
         }
         toastPubSub.pub({ type: "info", text: lang.tools.lyricFileLoaded });
     }, [converterInitialSource, lang.tools.lyricFileLoaded, serialized, tool]);
@@ -223,8 +220,7 @@ export const Tools: React.FC<{
             } else {
                 const lineText = toLineLrc(toLineTimedDocument(document), prefState.fixed);
                 setSource(lineText);
-                setSkippedIndices(new Set());
-                setForcedIndices(new Set());
+                setEditSourceMode(false);
             }
             toastPubSub.pub({ type: "success", text: lang.tools.lyricFileLoaded });
         } catch {
@@ -248,38 +244,59 @@ export const Tools: React.FC<{
         }
     }, [lang.tools]);
 
-    const overwritePlan = useMemo<OverwritePlan | null>(() => {
-        if (tool !== "overwrite") return null;
-        try {
-            const parsed = parser(source, trimOptions);
-            return buildOverwritePlan(parsed, replacement, prefState, {
-                outputMode: overwriteMode,
-                inlineTemplate,
-                alignMode: overwriteAlign,
-                preserveCredits,
-                ignoreBlankLines,
-                unmatchedFallback: overwriteFallback,
-                skippedLineIndices: skippedIndices,
-                forcedLyricLineIndices: forcedIndices,
-            });
-        } catch {
-            return null;
+    const parsedOverwriteSource = useMemo(() => parser(source, trimOptions), [source, trimOptions]);
+
+    const hasOverwriteSourceLyrics = useMemo(
+        () =>
+            parsedOverwriteSource.info.size > 0
+            || parsedOverwriteSource.lyric.some((line) => line.time !== undefined || line.text.trim() !== ""),
+        [parsedOverwriteSource],
+    );
+
+    const normalizedOverwriteSource = useMemo(
+        () => stringify(parsedOverwriteSource, prefState),
+        [parsedOverwriteSource, prefState],
+    );
+
+    const sampleTimeTag = useMemo(() => {
+        let maxTime: number | undefined;
+        for (const line of parsedOverwriteSource.lyric) {
+            if (line.time !== undefined && (maxTime === undefined || line.time > maxTime)) {
+                maxTime = line.time;
+            }
         }
-    }, [
-        forcedIndices,
-        ignoreBlankLines,
-        inlineTemplate,
-        overwriteAlign,
-        overwriteFallback,
-        overwriteMode,
-        prefState,
-        preserveCredits,
-        replacement,
-        skippedIndices,
-        source,
-        tool,
-        trimOptions,
-    ]);
+        if (maxTime === undefined) return "";
+        return stringify(
+            { info: new Map(), lyric: [{ time: maxTime, text: "" }] },
+            { fixed: prefState.fixed, spaceStart: prefState.spaceStart, spaceEnd: 0 },
+        );
+    }, [parsedOverwriteSource.lyric, prefState.fixed, prefState.spaceStart]);
+
+    useLayoutEffect(() => {
+        if (tool !== "overwrite" || editSourceMode) return;
+        const el = timePaddingRef.current;
+        if (!el || !sampleTimeTag) {
+            setTimePaddingWidth(0);
+            return;
+        }
+        const measure = () => {
+            setTimePaddingWidth(Math.round(el.getBoundingClientRect().width * 100) / 100);
+        };
+        measure();
+        const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
+        if (observer) observer.observe(el);
+        void document.fonts?.ready?.then(measure);
+        return () => observer?.disconnect();
+    }, [editSourceMode, sampleTimeTag, tool]);
+
+    const overwriteResult = useMemo<InterleavedOverwriteResult | null>(() => {
+        if (tool !== "overwrite") return null;
+        return interleaveOverwriteLyrics(parsedOverwriteSource, replacement, prefState, {
+            outputMode: overwriteMode,
+            inlineTemplate,
+            unmatchedFallback: overwriteFallback,
+        });
+    }, [inlineTemplate, overwriteFallback, overwriteMode, parsedOverwriteSource, prefState, replacement, tool]);
 
     const transformed = useMemo<{
         text: string;
@@ -291,7 +308,7 @@ export const Tools: React.FC<{
     }>(() => {
         try {
             if (tool === "overwrite") {
-                return { text: overwritePlan?.text ?? "" };
+                return { text: overwriteResult?.text ?? "" };
             }
             if (tool === "timeline-fix") {
                 const result = repairTimeline(source, prefState, {
@@ -417,7 +434,7 @@ export const Tools: React.FC<{
         keepAlbumTitle,
         lang.tools,
         multiplier,
-        overwritePlan,
+        overwriteResult,
         prefState,
         regexMode,
         replacementText,
@@ -433,82 +450,7 @@ export const Tools: React.FC<{
         trimTimelineSpaces,
     ]);
 
-    useEffect(() => setOutput(transformed.text), [tool, transformed.text]);
-
-    // Helpers for interactive slot manipulation in Overwrite Workbench
-    const getMaterializedSlots = useCallback((): string[] => {
-        const extracted = extractReplacementLines(replacement, {
-            alignMode: overwriteAlign,
-            ignoreBlankLines,
-        });
-        return extracted;
-    }, [ignoreBlankLines, overwriteAlign, replacement]);
-
-    const updateSlotValue = useCallback((slotIndex: number, nextValue: string) => {
-        const slots = getMaterializedSlots();
-        while (slots.length <= slotIndex) {
-            slots.push("");
-        }
-        slots[slotIndex] = nextValue;
-        if (slots.some((line) => line.trim() === "") && ignoreBlankLines) {
-            setIgnoreBlankLines(false);
-        }
-        setReplacement(slots.join("\n"));
-    }, [getMaterializedSlots, ignoreBlankLines]);
-
-    const insertBlankAtSlot = useCallback((slotIndex: number) => {
-        const slots = getMaterializedSlots();
-        while (slots.length < slotIndex) {
-            slots.push("");
-        }
-        slots.splice(slotIndex, 0, "");
-        if (ignoreBlankLines) {
-            setIgnoreBlankLines(false);
-        }
-        setReplacement(slots.join("\n"));
-    }, [getMaterializedSlots, ignoreBlankLines]);
-
-    const deleteAtSlot = useCallback((slotIndex: number) => {
-        const slots = getMaterializedSlots();
-        if (slotIndex < 0 || slotIndex >= slots.length) return;
-        slots.splice(slotIndex, 1);
-        setReplacement(slots.join("\n"));
-    }, [getMaterializedSlots]);
-
-    const toggleRowParticipation = useCallback((lineIndex: number, kind: OverwriteRowKind) => {
-        if (kind === "lyric") {
-            setSkippedIndices((prev) => {
-                const next = new Set(prev);
-                next.add(lineIndex);
-                return next;
-            });
-            setForcedIndices((prev) => {
-                if (!prev.has(lineIndex)) return prev;
-                const next = new Set(prev);
-                next.delete(lineIndex);
-                return next;
-            });
-        } else if (kind === "skipped") {
-            setSkippedIndices((prev) => {
-                const next = new Set(prev);
-                next.delete(lineIndex);
-                return next;
-            });
-        } else {
-            // Auto-skipped row (credit / section / empty) -> force include as target lyric slot
-            setForcedIndices((prev) => {
-                const next = new Set(prev);
-                if (next.has(lineIndex)) next.delete(lineIndex);
-                else next.add(lineIndex);
-                return next;
-            });
-        }
-    }, []);
-
-    const normalizeReplacementInput = useCallback(() => {
-        const slots = getMaterializedSlots();
-        setReplacement(slots.join("\n"));
-    }, [getMaterializedSlots]);
+    useLayoutEffect(() => setOutput(transformed.text), [tool, transformed.text]);
 
     const pasteFromClipboard = useCallback(async () => {
         try {
@@ -521,23 +463,28 @@ export const Tools: React.FC<{
         }
     }, []);
 
-    const jumpToFirstGap = useCallback(() => {
-        if (!overwritePlan || overwritePlan.firstUnmatchedLineIndex === null) return;
-        const rowEl = alignListRef.current?.querySelector<HTMLElement>(
-            `[data-line-index="${overwritePlan.firstUnmatchedLineIndex}"]`,
-        );
-        if (!rowEl) return;
-        rowEl.scrollIntoView({ block: "center", behavior: "smooth" });
-        rowEl.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
-    }, [overwritePlan]);
+    const handleAutoAlignBlanks = useCallback(() => {
+        if (!replacement.trim() || !hasOverwriteSourceLyrics) return;
+        setReplacement(alignOverwriteTextToSource(parsedOverwriteSource, replacement));
+    }, [hasOverwriteSourceLyrics, parsedOverwriteSource, replacement]);
 
-    const previewLineTime = useCallback((time: number) => {
-        audioRef.currentTime = Math.max(0, time);
-        currentTimePubSub.pub(audioRef.currentTime);
-        if (audioRef.src && audioRef.paused) {
-            void audioRef.current?.play().catch(() => undefined);
-        }
-    }, []);
+    const handleFillOriginalLyrics = useCallback(() => {
+        if (!hasOverwriteSourceLyrics) return;
+        setReplacement(parsedOverwriteSource.lyric.map((line) => line.text).join("\n"));
+        setEditSourceMode(false);
+    }, [hasOverwriteSourceLyrics, parsedOverwriteSource.lyric]);
+
+    const hasTagsInReplacement = useMemo(
+        () =>
+            /\[\s*(?:(?:\d{1,3}:)?\d{1,2}:\d{2}|(?:ti|title|ar|artist|al|album|au|author|by|offset|length|re|ve|tool):)|<(?:\d{1,3}:)?\d{1,2}:\d{2}/i
+                .test(replacement),
+        [replacement],
+    );
+
+    const handleStripTimestamps = useCallback(() => {
+        if (!replacement.trim()) return;
+        setReplacement(stripTimestampsFromText(replacement));
+    }, [replacement]);
 
     const canApplyToEditor = !transformed.error && !(tool === "split" && splitTarget === "both");
 
@@ -641,61 +588,41 @@ export const Tools: React.FC<{
         { id: "case", label: lang.tools.caseConverter },
     ];
 
-    const overwriteDiagnostic = useMemo(() => {
-        if (!overwritePlan) return null;
-        const { inputCount, targetCount } = overwritePlan;
-        if (inputCount === 0) {
-            return {
-                tone: "waiting" as const,
-                text: lang.tools.overwriteStatusWaiting.replace("%s", String(targetCount)),
-            };
-        }
-        if (inputCount === targetCount) {
-            return {
-                tone: "matched" as const,
-                text: lang.tools.overwriteStatusMatched.replace(/%s/g, String(targetCount)),
-            };
-        }
-        if (inputCount < targetCount) {
-            return {
-                tone: "short" as const,
-                text: lang.tools.overwriteStatusShort
-                    .replace("%actual", String(inputCount))
-                    .replace("%target", String(targetCount))
-                    .replace("%diff", String(targetCount - inputCount)),
-            };
-        }
+    const infoLineCount = parsedOverwriteSource.info.size;
+    const targetLineCount = hasOverwriteSourceLyrics ? parsedOverwriteSource.lyric.length : 0;
+    const overlayLineCount = useMemo(
+        () => Math.max(1, replacement.replace(/\r\n?/g, "\n").split("\n").length),
+        [replacement],
+    );
+    const totalVisualRows = Math.max(1, targetLineCount, overlayLineCount);
+    const underlayLineCount = Math.max(1, infoLineCount + Math.max(1, parsedOverwriteSource.lyric.length));
+    const underlayPaddingBottom = OVERWRITE_PAD_BOTTOM
+        + Math.max(0, infoLineCount + totalVisualRows - underlayLineCount) * OVERWRITE_ROW_HEIGHT;
+    const overlayPaddingTop = OVERWRITE_PAD_TOP
+        + infoLineCount * OVERWRITE_ROW_HEIGHT
+        + OVERWRITE_OVERLAY_OFFSET_Y;
+    const overlayPaddingBottom = (OVERWRITE_PAD_BOTTOM - OVERWRITE_OVERLAY_OFFSET_Y)
+        + Math.max(0, totalVisualRows - overlayLineCount) * OVERWRITE_ROW_HEIGHT;
+    const outputLineCount = useMemo(
+        () => Math.max(1, output.replace(/\r\n?/g, "\n").split("\n").length),
+        [output],
+    );
+    const outputPaddingBottom = overwriteMode === "dual-line"
+        ? 120
+        : OVERWRITE_PAD_BOTTOM
+            + Math.max(0, infoLineCount + totalVisualRows - outputLineCount) * OVERWRITE_ROW_HEIGHT;
+
+    const overwriteBadgeInfo = useMemo(() => {
+        if (!overwriteResult || !hasOverwriteSourceLyrics) return null;
+        const { filledCount, targetCount, extraCount } = overwriteResult;
+        const base = lang.tools.overwriteProgressBadge
+            .replace("%filled", String(filledCount))
+            .replace("%total", String(targetCount));
         return {
-            tone: "extra" as const,
-            text: lang.tools.overwriteStatusExtra
-                .replace("%actual", String(inputCount))
-                .replace("%target", String(targetCount))
-                .replace("%diff", String(inputCount - targetCount)),
+            matched: filledCount === targetCount && extraCount === 0 && targetCount > 0,
+            text: extraCount > 0 ? `${base} (+${extraCount})` : base,
         };
-    }, [lang.tools, overwritePlan]);
-
-    const visibleOverwriteRows = useMemo(() => {
-        if (!overwritePlan) return [];
-        if (overwriteFilter === "active") {
-            return overwritePlan.rows.filter((row) => row.kind === "lyric");
-        }
-        return overwritePlan.rows;
-    }, [overwriteFilter, overwritePlan]);
-
-    const badgeLabelForKind = (kind: OverwriteRowKind): string => {
-        switch (kind) {
-            case "empty":
-                return lang.tools.overwriteBadgeEmpty;
-            case "credit":
-                return lang.tools.overwriteBadgeCredit;
-            case "section":
-                return lang.tools.overwriteBadgeSection;
-            case "skipped":
-                return lang.tools.overwriteBadgeSkipped;
-            default:
-                return "";
-        }
-    };
+    }, [hasOverwriteSourceLyrics, lang.tools.overwriteProgressBadge, overwriteResult]);
 
     return (
         <section className="tools-page">
@@ -718,25 +645,6 @@ export const Tools: React.FC<{
             <div className="tools-options">
                 {tool === "overwrite" && (
                     <>
-                        <div className="tools-segmented" role="group" aria-label={lang.tools.overwrite}>
-                            <button
-                                type="button"
-                                className={overwriteView === "workbench" ? "active" : ""}
-                                aria-pressed={overwriteView === "workbench"}
-                                onClick={() => setOverwriteView("workbench")}
-                            >
-                                {lang.tools.overwriteWorkbenchView}
-                            </button>
-                            <button
-                                type="button"
-                                className={overwriteView === "columns" ? "active" : ""}
-                                aria-pressed={overwriteView === "columns"}
-                                onClick={() => setOverwriteView("columns")}
-                            >
-                                {lang.tools.overwriteColumnsView}
-                            </button>
-                        </div>
-
                         <label>
                             <span>{lang.tools.overwriteMode}</span>
                             <StyledSelect
@@ -766,45 +674,60 @@ export const Tools: React.FC<{
                             </label>
                         )}
 
-                        <label>
-                            <span>{lang.tools.overwriteAlignMode}</span>
-                            <StyledSelect
-                                value={overwriteAlign}
-                                onValueChange={(val) => setOverwriteAlign(val as OverwriteAlignMode)}
-                                label={lang.tools.overwriteAlignMode}
-                                options={[
-                                    { value: "smart", label: lang.tools.overwriteAlignSmart },
-                                    { value: "strict", label: lang.tools.overwriteAlignStrict },
-                                ]}
+                        {overwriteMode === "replace" && (
+                            <label>
+                                <span>{lang.tools.overwriteFallback}</span>
+                                <StyledSelect
+                                    value={overwriteFallback}
+                                    onValueChange={(val) => setOverwriteFallback(val as OverwriteFallbackMode)}
+                                    label={lang.tools.overwriteFallback}
+                                    options={[
+                                        { value: "empty", label: lang.tools.overwriteFallbackEmpty },
+                                        { value: "keep", label: lang.tools.overwriteFallbackKeep },
+                                    ]}
+                                />
+                            </label>
+                        )}
+
+                        <label className="tools-file-button">
+                            <input
+                                hidden={true}
+                                type="file"
+                                accept="text/*,.lrc,.krc,.ttml,.srt,application/xml,application/octet-stream"
+                                onChange={(event) => void onConversionFile(event)}
                             />
+                            <OpenFileSVG />
+                            <span>{lang.tools.loadLyricFile}</span>
                         </label>
 
-                        <label>
-                            <span>{lang.tools.overwriteFallback}</span>
-                            <StyledSelect
-                                value={overwriteFallback}
-                                onValueChange={(val) => setOverwriteFallback(val as OverwriteFallbackMode)}
-                                label={lang.tools.overwriteFallback}
-                                options={[
-                                    { value: "keep", label: lang.tools.overwriteFallbackKeep },
-                                    { value: "empty", label: lang.tools.overwriteFallbackEmpty },
-                                ]}
-                            />
-                        </label>
+                        <button type="button" className="tools-ghost-button" onClick={syncSourceFromEditor}>
+                            {lang.tools.overwriteSyncEditor}
+                        </button>
 
-                        {overwriteAlign === "smart" && (
-                            <>
-                                <ToggleOption
-                                    label={lang.tools.overwritePreserveCredits}
-                                    checked={preserveCredits}
-                                    onChange={setPreserveCredits}
-                                />
-                                <ToggleOption
-                                    label={lang.tools.overwriteIgnoreBlank}
-                                    checked={ignoreBlankLines}
-                                    onChange={setIgnoreBlankLines}
-                                />
-                            </>
+                        <button
+                            type="button"
+                            className={`tools-ghost-button${editSourceMode ? " is-active" : ""}`}
+                            aria-pressed={editSourceMode}
+                            onClick={() => {
+                                const next = !editSourceMode;
+                                setEditSourceMode(next);
+                                requestAnimationFrame(() => {
+                                    if (next) underlayRef.current?.focus();
+                                    else translationRef.current?.focus();
+                                });
+                            }}
+                        >
+                            {editSourceMode ? lang.tools.overwriteDoneEditSource : lang.tools.overwriteEditSource}
+                        </button>
+
+                        {overwriteBadgeInfo && (
+                            <output
+                                className={`tools-format-status${overwriteBadgeInfo.matched ? " is-matched" : ""}`}
+                                aria-live="polite"
+                            >
+                                {overwriteBadgeInfo.matched && <CheckSVG />}
+                                <strong>{overwriteBadgeInfo.text}</strong>
+                            </output>
                         )}
                     </>
                 )}
@@ -1071,269 +994,194 @@ export const Tools: React.FC<{
                 )}
             </div>
 
-            {tool === "overwrite" && overwriteView === "workbench" && overwritePlan && (
-                <div className="overwrite-workspace">
-                    {overwriteDiagnostic && (
-                        <div className={`overwrite-status-bar tone-${overwriteDiagnostic.tone}`} role="status">
-                            <div className="overwrite-status-message">
-                                {overwriteDiagnostic.tone === "matched" && <CheckSVG />}
-                                <strong>{overwriteDiagnostic.text}</strong>
-                                {overwriteDiagnostic.tone === "short"
-                                    && overwritePlan.firstUnmatchedLineIndex !== null && (
-                                    <button
-                                        type="button"
-                                        className="overwrite-jump-btn"
-                                        onClick={jumpToFirstGap}
-                                    >
-                                        {lang.tools.overwriteJumpMismatch}
-                                    </button>
-                                )}
+            {tool === "overwrite" && (
+                <div className="overwrite-dual-editors">
+                    <section className="overwrite-stage-card">
+                        <header className="overwrite-pane-header">
+                            <div className="overwrite-pane-title">
+                                <strong>{editSourceMode ? lang.tools.source : lang.tools.overwriteOverlayTitle}</strong>
                             </div>
-                            <div className="overwrite-status-controls">
-                                <div className="tools-segmented compact">
-                                    <button
-                                        type="button"
-                                        className={overwriteFilter === "all" ? "active" : ""}
-                                        aria-pressed={overwriteFilter === "all"}
-                                        onClick={() =>
-                                            setOverwriteFilter("all")}
-                                    >
-                                        {lang.tools.overwriteFilterAll.replace("%s", String(overwritePlan.rows.length))}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className={overwriteFilter === "active" ? "active" : ""}
-                                        aria-pressed={overwriteFilter === "active"}
-                                        onClick={() =>
-                                            setOverwriteFilter("active")}
-                                    >
-                                        {lang.tools.overwriteFilterActive.replace(
-                                            "%s",
-                                            String(overwritePlan.targetCount),
-                                        )}
-                                    </button>
-                                </div>
-                                <button type="button" className="tools-ghost-button" onClick={syncSourceFromEditor}>
-                                    {lang.tools.overwriteSyncEditor}
-                                </button>
-                                <label className="tools-file-button compact">
-                                    <input
-                                        hidden={true}
-                                        type="file"
-                                        accept="text/*,.lrc,.krc,.ttml,.srt,application/xml,application/octet-stream"
-                                        onChange={(event) => void onConversionFile(event)}
-                                    />
-                                    <OpenFileSVG />
-                                    <span>{lang.tools.loadLyricFile}</span>
-                                </label>
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="overwrite-workbench">
-                        <section className="overwrite-input-pane">
-                            <header className="overwrite-pane-header">
-                                <span>{lang.tools.translation}</span>
-                                <div className="overwrite-pane-actions">
-                                    <button
-                                        type="button"
-                                        className="tools-mini-btn"
-                                        onClick={() => void pasteFromClipboard()}
-                                    >
-                                        {lang.tools.overwritePasteClipboard}
-                                    </button>
-                                    <label className="tools-mini-btn">
-                                        <input
-                                            hidden={true}
-                                            type="file"
-                                            accept="text/*,.txt,.lrc,.srt,.ttml"
-                                            onChange={(event) => void onReplacementFile(event)}
-                                        />
-                                        <span>{lang.tools.overwriteLoadReplacementFile}</span>
-                                    </label>
-                                    <button
-                                        type="button"
-                                        className="tools-mini-btn"
-                                        disabled={!replacement.trim()}
-                                        onClick={normalizeReplacementInput}
-                                    >
-                                        {lang.tools.overwriteNormalizeInput}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="tools-mini-btn danger"
-                                        disabled={!replacement}
-                                        onClick={() => setReplacement("")}
-                                    >
-                                        {lang.tools.overwriteClearInput}
-                                    </button>
-                                </div>
-                            </header>
-                            <textarea
-                                ref={translationRef}
-                                value={replacement}
-                                placeholder={lang.tools.overwritePlaceholder}
-                                onChange={(ev) => setReplacement(ev.target.value)}
-                                spellCheck={false}
-                            />
-                        </section>
-
-                        <section className="overwrite-align-pane">
-                            <header className="overwrite-pane-header">
-                                <span>
-                                    {lang.tools.source} → {lang.tools.output}
-                                </span>
-                            </header>
-
-                            <div className="overwrite-align-list" ref={alignListRef}>
-                                {visibleOverwriteRows.length === 0 && (
-                                    <p className="overwrite-empty-hint">{lang.workspace.noLyrics}</p>
-                                )}
-                                {visibleOverwriteRows.map((row) => {
-                                    const isLyricSlot = row.kind === "lyric" && row.slotIndex !== null;
-                                    const timeLabel = row.time !== undefined
-                                        ? convertTimeToTag(row.time, prefState.fixed, false)
-                                        : "—";
-                                    const isGap = isLyricSlot && overwritePlan.inputCount > 0 && !row.matched;
-
-                                    return (
-                                        <div
-                                            key={row.lineIndex}
-                                            data-line-index={row.lineIndex}
-                                            className={`overwrite-row kind-${row.kind}${isGap ? " is-gap" : ""}`}
+                            <div className="overwrite-pane-actions">
+                                {editSourceMode
+                                    ? (
+                                        <button
+                                            type="button"
+                                            className="tools-mini-btn is-primary"
+                                            onClick={() => {
+                                                setEditSourceMode(false);
+                                                requestAnimationFrame(() => translationRef.current?.focus());
+                                            }}
                                         >
-                                            <div className="overwrite-row-meta">
-                                                <span className="overwrite-row-num">#{row.lineIndex + 1}</span>
-                                                {row.time !== undefined
-                                                    ? (
-                                                        <button
-                                                            type="button"
-                                                            className="overwrite-time-chip"
-                                                            title={lang.tools.overwritePreviewTime}
-                                                            onClick={() => previewLineTime(row.time!)}
-                                                        >
-                                                            <PlaySVG />
-                                                            <span>{timeLabel}</span>
-                                                        </button>
-                                                    )
-                                                    : <span className="overwrite-time-chip untimed">{timeLabel}</span>}
-                                                {row.kind !== "lyric" && (
-                                                    <span className={`overwrite-kind-badge badge-${row.kind}`}>
-                                                        {badgeLabelForKind(row.kind)}
-                                                    </span>
-                                                )}
+                                            {lang.tools.overwriteDoneEditSource}
+                                        </button>
+                                    )
+                                    : (
+                                        <>
+                                            <button
+                                                type="button"
+                                                className="tools-mini-btn"
+                                                disabled={!replacement.trim() || !hasOverwriteSourceLyrics}
+                                                onClick={handleAutoAlignBlanks}
+                                            >
+                                                {lang.tools.overwriteAutoAlign}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="tools-mini-btn"
+                                                disabled={!hasOverwriteSourceLyrics}
+                                                onClick={handleFillOriginalLyrics}
+                                            >
+                                                {lang.tools.overwriteUseOriginal}
+                                            </button>
+                                            {hasTagsInReplacement && (
                                                 <button
                                                     type="button"
-                                                    className="overwrite-skip-toggle"
-                                                    onClick={() => toggleRowParticipation(row.lineIndex, row.kind)}
+                                                    className="tools-mini-btn"
+                                                    onClick={handleStripTimestamps}
                                                 >
-                                                    {row.kind === "lyric"
-                                                        ? lang.tools.overwriteSkipLine
-                                                        : lang.tools.overwriteUnskipLine}
+                                                    {lang.tools.overwriteStripTags}
                                                 </button>
-                                            </div>
-
-                                            <div className="overwrite-row-source">
-                                                {row.sourceText.trim()
-                                                    ? <span>{row.sourceText}</span>
-                                                    : <em className="overwrite-empty-text">{lang.timing.emptyLine}</em>}
-                                            </div>
-
-                                            {isLyricSlot && (
-                                                <div className="overwrite-row-target">
-                                                    <input
-                                                        type="text"
-                                                        value={row.replacementText}
-                                                        placeholder={overwriteFallback === "keep"
-                                                            ? row.sourceText
-                                                            : "…"}
-                                                        aria-label={`${lang.tools.translation} #${row.lineIndex + 1}`}
-                                                        onChange={(ev) =>
-                                                            updateSlotValue(row.slotIndex!, ev.target.value)}
-                                                        spellCheck={false}
-                                                    />
-                                                    <div className="overwrite-row-tools">
-                                                        <button
-                                                            type="button"
-                                                            title={lang.tools.overwriteInsertBlankDown}
-                                                            aria-label={lang.tools.overwriteInsertBlankDown}
-                                                            onClick={() => insertBlankAtSlot(row.slotIndex!)}
-                                                        >
-                                                            ↓
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            title={lang.tools.overwriteDeletePullUp}
-                                                            aria-label={lang.tools.overwriteDeletePullUp}
-                                                            disabled={!row.matched}
-                                                            onClick={() => deleteAtSlot(row.slotIndex!)}
-                                                        >
-                                                            ↑
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            title={lang.tools.overwriteUseOriginal}
-                                                            aria-label={lang.tools.overwriteUseOriginal}
-                                                            onClick={() =>
-                                                                updateSlotValue(row.slotIndex!, row.sourceText)}
-                                                        >
-                                                            ↺
-                                                        </button>
-                                                    </div>
-                                                </div>
                                             )}
-                                        </div>
-                                    );
-                                })}
-
-                                {overwritePlan.extraLines.length > 0 && (
-                                    <div className="overwrite-extra-box">
-                                        <strong>
-                                            {lang.tools.overwriteExtraLinesTitle.replace(
-                                                "%s",
-                                                String(overwritePlan.extraLines.length),
-                                            )}
-                                        </strong>
-                                        <ol start={overwritePlan.targetCount + 1}>
-                                            {overwritePlan.extraLines.map((line, idx) => (
-                                                <li key={`${idx}-${line}`}>{line || " "}</li>
-                                            ))}
-                                        </ol>
-                                    </div>
-                                )}
+                                            <button
+                                                type="button"
+                                                className="tools-mini-btn"
+                                                onClick={() => void pasteFromClipboard()}
+                                            >
+                                                {lang.tools.overwritePasteClipboard}
+                                            </button>
+                                            <label className="tools-mini-btn">
+                                                <input
+                                                    hidden={true}
+                                                    type="file"
+                                                    accept="text/*,.txt,.lrc,.srt,.ttml"
+                                                    onChange={(event) => void onReplacementFile(event)}
+                                                />
+                                                <span>{lang.tools.overwriteLoadReplacementFile}</span>
+                                            </label>
+                                            <button
+                                                type="button"
+                                                className="tools-mini-btn danger"
+                                                disabled={!replacement}
+                                                onClick={() => setReplacement("")}
+                                            >
+                                                {lang.tools.overwriteClearInput}
+                                            </button>
+                                        </>
+                                    )}
                             </div>
-                        </section>
-                    </div>
+                        </header>
+
+                        <div className={`overwrite-stage${editSourceMode ? " is-editing-source" : ""}`}>
+                            <textarea
+                                ref={underlayRef}
+                                className="overwrite-underlay"
+                                value={editSourceMode ? source : normalizedOverwriteSource}
+                                readOnly={!editSourceMode}
+                                tabIndex={editSourceMode ? 0 : -1}
+                                aria-hidden={!editSourceMode}
+                                aria-label={lang.tools.source}
+                                onChange={editSourceMode ? (ev) => setSource(ev.target.value) : undefined}
+                                style={editSourceMode ? undefined : { paddingBottom: `${underlayPaddingBottom}px` }}
+                                spellCheck={false}
+                            />
+                            {!editSourceMode && (
+                                <textarea
+                                    ref={translationRef}
+                                    className="overwrite-overlay"
+                                    value={replacement}
+                                    placeholder={hasOverwriteSourceLyrics
+                                        ? lang.tools.overwriteOverlayPlaceholder
+                                        : undefined}
+                                    aria-label={lang.tools.translation}
+                                    onChange={(ev) => setReplacement(ev.target.value)}
+                                    onScroll={(ev) =>
+                                        syncScroll(ev.currentTarget, [
+                                            underlayRef.current,
+                                            overwriteMode === "dual-line" ? null : outputRef.current,
+                                        ])}
+                                    style={{
+                                        paddingTop: `${overlayPaddingTop}px`,
+                                        paddingBottom: `${overlayPaddingBottom}px`,
+                                        paddingLeft: `${OVERWRITE_PAD_X + timePaddingWidth}px`,
+                                        paddingRight: `${OVERWRITE_PAD_X}px`,
+                                    }}
+                                    spellCheck={false}
+                                />
+                            )}
+                            <span ref={timePaddingRef} className="overwrite-time-padding" aria-hidden="true">
+                                {sampleTimeTag}
+                            </span>
+
+                            {!hasOverwriteSourceLyrics && !editSourceMode && (
+                                <div className="overwrite-empty-callout">
+                                    <p>{lang.tools.overwriteEmptySourceGuide}</p>
+                                    <div className="overwrite-empty-actions">
+                                        <label className="button tools-action-secondary">
+                                            <input
+                                                hidden={true}
+                                                type="file"
+                                                accept="text/*,.lrc,.krc,.ttml,.srt,application/xml,application/octet-stream"
+                                                onChange={(event) => void onConversionFile(event)}
+                                            />
+                                            <OpenFileSVG />
+                                            <span>{lang.tools.loadLyricFile}</span>
+                                        </label>
+                                        <button
+                                            type="button"
+                                            className="button tools-action-primary"
+                                            onClick={() => {
+                                                setEditSourceMode(true);
+                                                requestAnimationFrame(() => underlayRef.current?.focus());
+                                            }}
+                                        >
+                                            <span>{lang.tools.overwriteEditSource}</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </section>
+
+                    <section className="overwrite-output-card">
+                        <header className="overwrite-pane-header">
+                            <div className="overwrite-pane-title">
+                                <strong>{lang.tools.output}</strong>
+                            </div>
+                            {!editSourceMode && (
+                                <small className="overwrite-pane-hint">{lang.tools.overwriteOverlayHint}</small>
+                            )}
+                        </header>
+                        <textarea
+                            ref={outputRef}
+                            className={`overwrite-output${overwriteMode === "dual-line" ? " is-compact-lines" : ""}`}
+                            value={output}
+                            aria-label={lang.tools.output}
+                            onChange={(ev) => setOutput(ev.target.value)}
+                            onScroll={(ev) => {
+                                if (overwriteMode !== "dual-line" && !editSourceMode) {
+                                    syncScroll(ev.currentTarget, [translationRef.current, underlayRef.current]);
+                                }
+                            }}
+                            style={{ paddingBottom: `${outputPaddingBottom}px` }}
+                            spellCheck={false}
+                        />
+                    </section>
                 </div>
             )}
 
-            {(tool !== "overwrite" || overwriteView === "columns") && (
-                <div className={`tools-editors${tool === "overwrite" ? " translation-axis-editors" : ""}`}>
+            {tool !== "overwrite" && (
+                <div className="tools-editors">
                     <label>
                         <span>{lang.tools.source}</span>
                         <textarea
                             ref={sourceRef}
                             value={activeSource}
                             placeholder={tool === "convert" ? lang.tools.converterSourcePlaceholder : undefined}
-                            onChange={(ev) =>
-                                updateActiveSource(ev.target.value)}
-                            onScroll={(ev) => syncScroll(ev.currentTarget, [translationRef.current, outputRef.current])}
+                            onChange={(ev) => updateActiveSource(ev.target.value)}
+                            onScroll={(ev) => syncScroll(ev.currentTarget, [outputRef.current])}
                             spellCheck={false}
                         />
                     </label>
-                    {tool === "overwrite" && (
-                        <label>
-                            <span>{lang.tools.translation}</span>
-                            <textarea
-                                ref={translationRef}
-                                value={replacement}
-                                placeholder={lang.tools.overwritePlaceholder}
-                                onChange={(ev) => setReplacement(ev.target.value)}
-                                onScroll={(ev) => syncScroll(ev.currentTarget, [sourceRef.current, outputRef.current])}
-                                spellCheck={false}
-                            />
-                        </label>
-                    )}
                     <label>
                         <span>{lang.tools.output}</span>
                         <textarea
@@ -1341,7 +1189,7 @@ export const Tools: React.FC<{
                             value={output}
                             onChange={(ev) => setOutput(ev.target.value)}
                             spellCheck={false}
-                            onScroll={(ev) => syncScroll(ev.currentTarget, [sourceRef.current, translationRef.current])}
+                            onScroll={(ev) => syncScroll(ev.currentTarget, [sourceRef.current])}
                         />
                     </label>
                 </div>

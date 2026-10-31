@@ -1,9 +1,11 @@
 import { parser } from "@lrc-maker/lrc-parser";
 import { describe, expect, it } from "vitest";
 import {
+    alignOverwriteTextToSource,
     buildOverwritePlan,
     cleanGeniusTracklist,
     convertLyricsCase,
+    interleaveOverwriteLyrics,
     isCreditLine,
     overwriteLyrics,
     removeEmptyLines,
@@ -13,6 +15,7 @@ import {
     splitTranslation,
     splitTranslationWithStats,
     stripGeniusSections,
+    stripTimestampsFromText,
     transformTimes,
 } from "./lrc-tools.js";
 
@@ -415,5 +418,42 @@ describe("LRC tools", () => {
             duplicateStrategy: "nudge",
         });
         expect(nudged.text.split("\r\n")).toEqual(["[00:01.000]A", "[00:01.001]B"]);
+    });
+
+    it("supports lrc-maker interleaved 1-to-1 overwrite and blank-line alignment helper", () => {
+        const lrc = parser(
+            "[ti: Demo]\n[00:00.500]作词 : Falcom\n[00:01.000]Hello\n[00:02.000]\n[00:03.000]World",
+        );
+
+        const alignedText = alignOverwriteTextToSource(
+            lrc,
+            stripTimestampsFromText("[by: User]\n[00:09.00]你好\n[00:10.00]世界"),
+        );
+        expect(alignedText.split("\n")).toEqual(["作词 : Falcom", "你好", "", "世界"]);
+
+        const replaced = interleaveOverwriteLyrics(lrc, `${alignedText}\n尾注`, options);
+        expect(replaced.filledCount).toBe(4);
+        expect(replaced.targetCount).toBe(4);
+        expect(replaced.extraCount).toBe(1);
+        expect(replaced.text.split("\r\n")).toEqual([
+            "[ti: Demo]",
+            "[00:00.500]作词 : Falcom",
+            "[00:01.000]你好",
+            "[00:02.000]",
+            "[00:03.000]世界",
+            "尾注",
+        ]);
+
+        const inlineBilingual = interleaveOverwriteLyrics(lrc, "\n你好\n\n世界", options, {
+            outputMode: "inline",
+            inlineTemplate: "%orig 「%trans」",
+        });
+        expect(inlineBilingual.text.split("\r\n")).toEqual([
+            "[ti: Demo]",
+            "[00:00.500]作词 : Falcom",
+            "[00:01.000]Hello 「你好」",
+            "[00:02.000]",
+            "[00:03.000]World 「世界」",
+        ]);
     });
 });
