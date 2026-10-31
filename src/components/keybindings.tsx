@@ -93,6 +93,22 @@ export const KeyBindingsPage: React.FC = () => {
     }, [recording]);
 
     const conflicts = useMemo(() => findKeyBindingConflicts(draft), [draft]);
+    const conflictActionSet = useMemo(() => {
+        const set = new Set<InputAction>();
+        for (const conflict of conflicts) {
+            set.add(conflict.first);
+            set.add(conflict.second);
+        }
+        return set;
+    }, [conflicts]);
+    const conflictBindingSet = useMemo(
+        () => new Set(conflicts.map((conflict) => conflict.binding)),
+        [conflicts],
+    );
+    const hasUnsavedChanges = useMemo(
+        () => JSON.stringify(draft) !== JSON.stringify(prefState.keyBindings),
+        [draft, prefState.keyBindings],
+    );
 
     const removeBinding = useCallback((action: InputAction, index: number) => {
         setDraft((current) => ({
@@ -124,56 +140,97 @@ export const KeyBindingsPage: React.FC = () => {
     return (
         <section className="keybindings-page">
             <header className="keybindings-heading">
-                <h1>{lang.keybindings.title}</h1>
+                <div className="keybindings-title-group">
+                    <h1>{lang.keybindings.title}</h1>
+                    {hasUnsavedChanges && (
+                        <span className="keybindings-dirty-badge">{lang.keybindings.unsavedChanges}</span>
+                    )}
+                    {recording !== null && (
+                        <span className="keybindings-recording-hint">{lang.keybindings.pressEscToCancel}</span>
+                    )}
+                </div>
                 <div className="keybindings-actions">
-                    <button className="button" type="button" onClick={restoreDefaults}>
+                    <button className="button keybindings-reset-button" type="button" onClick={restoreDefaults}>
                         {lang.keybindings.resetToDefaults}
                     </button>
-                    <button className="button" type="button" onClick={save} disabled={conflicts.length > 0}>
+                    <button
+                        className="button"
+                        type="button"
+                        onClick={save}
+                        disabled={conflicts.length > 0 || !hasUnsavedChanges}
+                    >
                         {lang.keybindings.save}
                     </button>
                 </div>
             </header>
 
             {conflicts.length > 0 && (
-                <p className="keybindings-conflicts" role="alert">
-                    {lang.keybindings.conflictError.replace("%d", conflicts.length.toString())}
-                </p>
+                <div className="keybindings-conflicts" role="alert">
+                    <strong>{lang.keybindings.conflictError.replace("%d", conflicts.length.toString())}</strong>
+                    <ul>
+                        {conflicts.map((conflict, index) => (
+                            <li key={`${conflict.binding}-${conflict.first}-${conflict.second}-${index}`}>
+                                <kbd>{conflict.binding}</kbd>
+                                <span>
+                                    {lang.keybindings.actions[actionLabelKey[conflict.first]]}
+                                    {" ↔ "}
+                                    {lang.keybindings.actions[actionLabelKey[conflict.second]]}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
             )}
 
             <ul className="keybindings-list">
-                {inputActions.map((action) => (
-                    <li key={action} className="keybinding-row">
-                        <span className="keybinding-description">
-                            {lang.keybindings.actions[actionLabelKey[action]]}
-                        </span>
-                        <div className="keybinding-values">
-                            {draft[action].length === 0 && (
-                                <span className="keybinding-empty">{lang.keybindings.noBinding}</span>
-                            )}
-                            {draft[action].map((binding, index) => (
-                                <span className="keybinding-chip" key={`${formatKeyBinding(binding)}-${index}`}>
-                                    <kbd>{formatKeyBinding(binding)}</kbd>
-                                    <button
-                                        type="button"
-                                        aria-label={`${lang.keybindings.remove} ${formatKeyBinding(binding)}`}
-                                        onClick={() =>
-                                            removeBinding(action, index)}
-                                    >
-                                        ×
-                                    </button>
-                                </span>
-                            ))}
-                        </div>
-                        <button
-                            className="keybinding-record button"
-                            type="button"
-                            onClick={() => setRecording(recording === action ? null : action)}
+                {inputActions.map((action) => {
+                    const rowHasConflict = conflictActionSet.has(action);
+                    const isRecordingRow = recording === action;
+                    return (
+                        <li
+                            key={action}
+                            className={`keybinding-row${rowHasConflict ? " is-conflict" : ""}${
+                                isRecordingRow ? " is-recording" : ""
+                            }`}
                         >
-                            {recording === action ? lang.keybindings.recording : lang.keybindings.record}
-                        </button>
-                    </li>
-                ))}
+                            <span className="keybinding-description">
+                                {lang.keybindings.actions[actionLabelKey[action]]}
+                            </span>
+                            <div className="keybinding-values">
+                                {draft[action].length === 0 && (
+                                    <span className="keybinding-empty">{lang.keybindings.noBinding}</span>
+                                )}
+                                {draft[action].map((binding, index) => {
+                                    const formatted = formatKeyBinding(binding);
+                                    const chipConflict = rowHasConflict && conflictBindingSet.has(formatted);
+                                    return (
+                                        <span
+                                            className={`keybinding-chip${chipConflict ? " is-conflict" : ""}`}
+                                            key={`${formatted}-${index}`}
+                                        >
+                                            <kbd>{formatted}</kbd>
+                                            <button
+                                                type="button"
+                                                aria-label={`${lang.keybindings.remove} ${formatted}`}
+                                                onClick={() => removeBinding(action, index)}
+                                            >
+                                                ×
+                                            </button>
+                                        </span>
+                                    );
+                                })}
+                            </div>
+                            <button
+                                className={`keybinding-record button${isRecordingRow ? " is-active" : ""}`}
+                                type="button"
+                                aria-pressed={isRecordingRow}
+                                onClick={() => setRecording(isRecordingRow ? null : action)}
+                            >
+                                {isRecordingRow ? lang.keybindings.recording : lang.keybindings.record}
+                            </button>
+                        </li>
+                    );
+                })}
             </ul>
         </section>
     );

@@ -54,4 +54,22 @@ describe("LRC timing history", () => {
         expect(unchanged).toBe(initial);
         expect(unchanged.historyPast).toHaveLength(0);
     });
+
+    it("preserves existing song metadata when pasting lyrics without info tags, and clears on empty input", () => {
+        const withInfo = lrcReducer(
+            initLrcState(() => ({ text: "", options: {}, select: 0 })),
+            { type: ActionType.info, payload: { name: "ti", value: "Whereabouts of Stars" } },
+        );
+        const pastedPlain = lrcReducer(withInfo, {
+            type: ActionType.parse,
+            payload: { text: "[00:10.00]Hello shining star", options: {} },
+        });
+        expect(pastedPlain.info.get("ti")).toBe("Whereabouts of Stars");
+
+        const cleared = lrcReducer(pastedPlain, {
+            type: ActionType.parse,
+            payload: { text: "", options: {} },
+        });
+        expect(cleared.info.size).toBe(0);
+    });
 });

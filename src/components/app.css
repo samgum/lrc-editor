@@ -122,15 +122,33 @@ a > * {
 }
 
 .button {
-    padding: 8px;
-    color: var(--black);
-    background-color: white;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 38px;
+    padding: 0 14px;
+    color: var(--font-color);
+    font-size: 0.86rem;
+    font-weight: 600;
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-strong-color);
     border-radius: var(--border-radius);
-    opacity: 0.8;
 }
 
-.button:hover {
-    opacity: 1;
+.button svg {
+    flex: 0 0 auto;
+    width: 17px;
+    height: 17px;
+}
+
+.button:hover:not(:disabled) {
+    filter: brightness(1.03);
+}
+
+[aria-disabled="true"] {
+    opacity: 0.5;
+    pointer-events: none;
 }
 
 .app-failure {

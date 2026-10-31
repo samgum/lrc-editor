@@ -44,7 +44,7 @@ import { appContext } from "./app.context.js";
 import { LyricTextEditor } from "./lyric-text-editor.js";
 import { LyricsModeSwitch } from "./lyrics-mode-switch.js";
 import { StyledSelect } from "./styled-select.js";
-import { AiAlignSVG, CloudAiSVG, CopySVG, DownloadSVG, OpenFileSVG, UtilitySVG } from "./svg.js";
+import { AiAlignSVG, CloudAiSVG, CopySVG, DownloadSVG, OpenFileSVG, SynchronizerSVG, UtilitySVG } from "./svg.js";
 import { toastPubSub } from "./toast.js";
 
 const disableCheck = {
@@ -83,6 +83,7 @@ export const Editor: React.FC<{
     onTimingModeChange: (mode: LyricsWorkspaceMode) => void;
     onImportFile: (file: File) => Promise<void>;
     onBasicTextParsed: (text: string) => void;
+    onDraftChange?: (text: string | null) => void;
     onMetadataChanged: (name: string, value: string) => void;
     onBasicLyricsReplaced: (lyrics: LrcState["lyric"]) => void;
     wordTimingOffer: boolean;
@@ -97,6 +98,7 @@ export const Editor: React.FC<{
     onTimingModeChange,
     onImportFile,
     onBasicTextParsed,
+    onDraftChange,
     onMetadataChanged,
     onBasicLyricsReplaced,
     wordTimingOffer,
@@ -105,15 +107,22 @@ export const Editor: React.FC<{
 }) => {
     const { prefState, prefDispatch, lang, trimOptions } = useContext(appContext);
 
-    const parse = useCallback(
-        (ev: React.FocusEvent<HTMLTextAreaElement>) => {
+    const commitText = useCallback(
+        (rawText: string) => {
             lrcDispatch({
                 type: LrcActionType.parse,
-                payload: { text: ev.target.value, options: trimOptions },
+                payload: { text: rawText, options: trimOptions },
             });
-            onBasicTextParsed(ev.target.value);
+            onBasicTextParsed(rawText);
         },
         [lrcDispatch, onBasicTextParsed, trimOptions],
+    );
+
+    const parse = useCallback(
+        (ev: React.FocusEvent<HTMLTextAreaElement>) => {
+            commitText(ev.target.value);
+        },
+        [commitText],
     );
 
     const setInfo = useCallback(
@@ -130,15 +139,29 @@ export const Editor: React.FC<{
 
     const text = stringify(lrcState, prefState);
 
-    const details = useRef<HTMLDetailsElement>(null);
+    const [detailsOpened, setDetailsOpened] = useState(() => sessionStorage.getItem(SSK.editorDetailsOpen) === "true");
 
-    const onDetailsToggle = useCallback(() => {
-        sessionStorage.setItem(SSK.editorDetailsOpen, details.current!.open.toString());
+    const toggleDetails = useCallback(() => {
+        setDetailsOpened((prev) => {
+            const next = !prev;
+            sessionStorage.setItem(SSK.editorDetailsOpen, next.toString());
+            return next;
+        });
     }, []);
 
-    const detailsOpened = useMemo(() => {
-        return sessionStorage.getItem(SSK.editorDetailsOpen) === "true";
-    }, []);
+    const tiInputProps = useDefaultValue(lrcState.info.get("ti") || "");
+    const arInputProps = useDefaultValue(lrcState.info.get("ar") || "");
+    const alInputProps = useDefaultValue(lrcState.info.get("al") || "");
+
+    const metaSummary = useMemo(() => {
+        const parts = [lrcState.info.get("ti")?.trim(), lrcState.info.get("ar")?.trim()].filter(Boolean);
+        return parts.join(" — ");
+    }, [lrcState.info]);
+
+    const timedLineCount = useMemo(
+        () => lrcState.lyric.reduce((count, line) => count + (line.time !== undefined ? 1 : 0), 0),
+        [lrcState.lyric],
+    );
 
     const textarea = useRef<HTMLInputLikeElement>(null);
     const lyricFileInput = useRef<HTMLInputElement>(null);
@@ -529,147 +552,188 @@ export const Editor: React.FC<{
     return (
         <div className="app-editor">
             <header className="editor-commandbar ai-enabled">
-                <details ref={details} open={detailsOpened} onToggle={onDetailsToggle}>
-                    <summary>{lang.editor.metaInfo}</summary>
-                    <section className="app-editor-infobox" onBlur={setInfo}>
-                        <label htmlFor="info-ti">
-                            <span>{lang.editor.title}</span>
-                            <input
-                                id="info-ti"
-                                name="ti"
-                                {...disableCheck}
-                                {...useDefaultValue(lrcState.info.get("ti") || "")}
-                            />
-                        </label>
-                        <label htmlFor="info-ar">
-                            <span>{lang.editor.artist}</span>
-                            <input
-                                id="info-ar"
-                                name="ar"
-                                {...disableCheck}
-                                {...useDefaultValue(lrcState.info.get("ar") || "")}
-                            />
-                        </label>
-                        <label htmlFor="info-al">
-                            <span>{lang.editor.album}</span>
-                            <input
-                                id="info-al"
-                                name="al"
-                                {...disableCheck}
-                                {...useDefaultValue(lrcState.info.get("al") || "")}
-                            />
-                        </label>
+                <div className="editor-topbar">
+                    <button
+                        type="button"
+                        className="editor-meta-toggle"
+                        aria-expanded={detailsOpened}
+                        aria-controls="editor-meta-infobox"
+                        onClick={toggleDetails}
+                    >
+                        <span className="editor-meta-label">{lang.editor.metaInfo}</span>
+                        {!detailsOpened && metaSummary && (
+                            <span className="editor-meta-summary" title={metaSummary}>
+                                {metaSummary}
+                            </span>
+                        )}
+                    </button>
+
+                    {prefState.advancedLyricsEnabled && (
+                        <LyricsModeSwitch
+                            className="editor-mode-switch"
+                            mode={timingMode}
+                            onChange={onTimingModeChange}
+                            labels={lang.advancedLyrics}
+                        />
+                    )}
+
+                    <section className="editor-tools">
+                        <button
+                            type="button"
+                            className={`editor-tools-item ripple ai-align-button${
+                                prefState.aiAlignmentEnabled ? "" : " is-off"
+                            }`}
+                            title={prefState.aiAlignmentEnabled ? lang.editor.aiAlign : lang.editor.aiEnableAndAlign}
+                            aria-label={prefState.aiAlignmentEnabled
+                                ? lang.editor.aiAlign
+                                : lang.editor.aiEnableAndAlign}
+                            aria-pressed={prefState.aiAlignmentEnabled}
+                            onClick={onAiAlignClick}
+                        >
+                            <AiAlignSVG />
+                            <span>AI</span>
+                        </button>
+                        <button
+                            type="button"
+                            className="editor-tools-item ripple huhu-align-button"
+                            title={lang.editor.huhuAlign}
+                            aria-label={lang.editor.huhuAlign}
+                            onClick={onHuhuAlignClick}
+                        >
+                            <CloudAiSVG />
+                            <span>Huhu</span>
+                            <small>(Beta)</small>
+                        </button>
+                        <button
+                            type="button"
+                            className="editor-tools-item ripple"
+                            title={lang.editor.uploadText}
+                            aria-label={lang.editor.uploadText}
+                            onClick={() => lyricFileInput.current?.click()}
+                        >
+                            <OpenFileSVG />
+                        </button>
+                        <input
+                            ref={lyricFileInput}
+                            hidden={true}
+                            type="file"
+                            accept="text/*,.txt,.lrc,.krc,.ttml,.srt,application/xml,application/octet-stream"
+                            onChange={onTextFileUpload}
+                        />
+                        <button
+                            type="button"
+                            className="editor-tools-item ripple"
+                            title={lang.advancedLyrics.copyExport}
+                            aria-label={lang.advancedLyrics.copyExport}
+                            onClick={onCopyClick}
+                        >
+                            <CopySVG />
+                        </button>
+                        <a
+                            className="editor-tools-item ripple"
+                            title={lang.advancedLyrics.downloadExport}
+                            aria-label={lang.advancedLyrics.downloadExport}
+                            href="#"
+                            onClick={onDownloadClick}
+                            download={downloadName}
+                        >
+                            <DownloadSVG />
+                        </a>
+
+                        <a
+                            title={lang.editor.utils}
+                            aria-label={lang.editor.utils}
+                            href={prependHash(ROUTER.tools)}
+                            className="editor-tools-item ripple"
+                        >
+                            <UtilitySVG />
+                        </a>
                     </section>
-                </details>
+                </div>
 
-                {prefState.advancedLyricsEnabled && (
-                    <LyricsModeSwitch
-                        className="editor-mode-switch"
-                        mode={timingMode}
-                        onChange={onTimingModeChange}
-                        labels={lang.advancedLyrics}
-                    />
-                )}
-
-                <section className="editor-tools">
-                    <button
-                        className={`editor-tools-item ripple ai-align-button${
-                            prefState.aiAlignmentEnabled ? "" : " is-off"
-                        }`}
-                        title={prefState.aiAlignmentEnabled ? lang.editor.aiAlign : lang.editor.aiEnableAndAlign}
-                        aria-label={prefState.aiAlignmentEnabled ? lang.editor.aiAlign : lang.editor.aiEnableAndAlign}
-                        aria-pressed={prefState.aiAlignmentEnabled}
-                        onClick={onAiAlignClick}
-                    >
-                        <AiAlignSVG />
-                        <span>AI</span>
-                    </button>
-                    <button
-                        type="button"
-                        className="editor-tools-item ripple huhu-align-button"
-                        title={lang.editor.huhuAlign}
-                        aria-label={lang.editor.huhuAlign}
-                        onClick={onHuhuAlignClick}
-                    >
-                        <CloudAiSVG />
-                        <span>Huhu</span>
-                        <small>(Beta)</small>
-                    </button>
-                    <button
-                        type="button"
-                        className="editor-tools-item ripple"
-                        title={lang.editor.uploadText}
-                        aria-label={lang.editor.uploadText}
-                        onClick={() => lyricFileInput.current?.click()}
-                    >
-                        <OpenFileSVG />
-                    </button>
-                    <input
-                        ref={lyricFileInput}
-                        hidden={true}
-                        type="file"
-                        accept="text/*,.txt,.lrc,.krc,.ttml,.srt,application/xml,application/octet-stream"
-                        onChange={onTextFileUpload}
-                    />
-                    <button
-                        className="editor-tools-item ripple"
-                        title={lang.advancedLyrics.copyExport}
-                        aria-label={lang.advancedLyrics.copyExport}
-                        onClick={onCopyClick}
-                    >
-                        <CopySVG />
-                    </button>
-                    <a
-                        className="editor-tools-item ripple"
-                        title={lang.advancedLyrics.downloadExport}
-                        aria-label={lang.advancedLyrics.downloadExport}
-                        href="#"
-                        onClick={onDownloadClick}
-                        download={downloadName}
-                    >
-                        <DownloadSVG />
-                    </a>
-
-                    <a title={lang.editor.utils} href={prependHash(ROUTER.tools)} className="editor-tools-item ripple">
-                        <UtilitySVG />
-                    </a>
+                <section
+                    id="editor-meta-infobox"
+                    className={`app-editor-infobox${detailsOpened ? " is-open" : ""}`}
+                    hidden={!detailsOpened}
+                    onBlur={setInfo}
+                >
+                    <label htmlFor="info-ti">
+                        <span>{lang.editor.title}</span>
+                        <input
+                            id="info-ti"
+                            name="ti"
+                            {...disableCheck}
+                            {...tiInputProps}
+                        />
+                    </label>
+                    <label htmlFor="info-ar">
+                        <span>{lang.editor.artist}</span>
+                        <input
+                            id="info-ar"
+                            name="ar"
+                            {...disableCheck}
+                            {...arInputProps}
+                        />
+                    </label>
+                    <label htmlFor="info-al">
+                        <span>{lang.editor.album}</span>
+                        <input
+                            id="info-al"
+                            name="al"
+                            {...disableCheck}
+                            {...alInputProps}
+                        />
+                    </label>
                 </section>
             </header>
 
             <div className="advanced-editor-subbar">
-                <span>{lang.advancedLyrics.exportFormat}</span>
-                <StyledSelect
-                    className="advanced-export-select"
-                    value={exportFormat}
-                    onValueChange={(value) => setExportFormat(value as ExportLyricFormat)}
-                    label={lang.advancedLyrics.exportFormat}
-                    options={[
-                        { value: "lrc", label: lang.advancedLyrics.standardLrcDefault },
-                        ...(timingMode === "word"
-                            ? [
-                                { value: "enhanced-lrc", label: lang.advancedLyrics.enhancedLrc },
-                                { value: "krc", label: "KRC" },
-                                { value: "ttml", label: lang.advancedLyrics.wordTtml },
-                                { value: "ass-kf", label: lang.advancedLyrics.assKf },
-                            ]
-                            : []),
-                        { value: "srt", label: lang.advancedLyrics.lineSrt },
-                        ...(timingMode === "line"
-                            ? [
-                                { value: "ttml", label: lang.advancedLyrics.lineTtml },
-                                { value: "txt", label: lang.advancedLyrics.plainText },
-                            ]
-                            : []),
-                    ]}
-                />
-                {timingMode === "word" && ["lrc", "srt"].includes(exportFormat) && (
-                    <strong>{lang.advancedLyrics.lineOnlyExport}</strong>
-                )}
-                {timingMode === "word" && (
-                    <a className="word-timing-link" href={prependHash(ROUTER.wordSynchronizer)}>
-                        {lang.advancedLyrics.openWordTiming}
-                    </a>
-                )}
+                <span className="editor-line-stats">
+                    {lang.editor.lineStats
+                        .replace("%total", String(lrcState.lyric.length))
+                        .replace("%timed", String(timedLineCount))}
+                </span>
+                <div className="advanced-editor-subbar-actions">
+                    <span>{lang.advancedLyrics.exportFormat}</span>
+                    <StyledSelect
+                        className="advanced-export-select"
+                        value={exportFormat}
+                        onValueChange={(value) => setExportFormat(value as ExportLyricFormat)}
+                        label={lang.advancedLyrics.exportFormat}
+                        options={[
+                            { value: "lrc", label: lang.advancedLyrics.standardLrcDefault },
+                            ...(timingMode === "word"
+                                ? [
+                                    { value: "enhanced-lrc", label: lang.advancedLyrics.enhancedLrc },
+                                    { value: "krc", label: "KRC" },
+                                    { value: "ttml", label: lang.advancedLyrics.wordTtml },
+                                    { value: "ass-kf", label: lang.advancedLyrics.assKf },
+                                ]
+                                : []),
+                            { value: "srt", label: lang.advancedLyrics.lineSrt },
+                            ...(timingMode === "line"
+                                ? [
+                                    { value: "ttml", label: lang.advancedLyrics.lineTtml },
+                                    { value: "txt", label: lang.advancedLyrics.plainText },
+                                ]
+                                : []),
+                        ]}
+                    />
+                    {timingMode === "word" && ["lrc", "srt"].includes(exportFormat) && (
+                        <strong>{lang.advancedLyrics.lineOnlyExport}</strong>
+                    )}
+                    {timingMode === "line" && lrcState.lyric.length > 0 && (
+                        <a className="word-timing-link" href={prependHash(ROUTER.synchronizer)}>
+                            <SynchronizerSVG />
+                            <span>{lang.editor.openLineTiming}</span>
+                        </a>
+                    )}
+                    {timingMode === "word" && (
+                        <a className="word-timing-link" href={prependHash(ROUTER.wordSynchronizer)}>
+                            <span>{lang.advancedLyrics.openWordTiming}</span>
+                        </a>
+                    )}
+                </div>
             </div>
             {timingMode === "word" && advancedState.document
                 ? (
@@ -682,7 +746,16 @@ export const Editor: React.FC<{
                         />
                     </>
                 )
-                : <LyricTextEditor text={text} inputRef={textarea} onBlur={parse} language={lang} />}
+                : (
+                    <LyricTextEditor
+                        text={text}
+                        inputRef={textarea}
+                        onBlur={parse}
+                        onCommitText={commitText}
+                        onDraftChange={onDraftChange}
+                        language={lang}
+                    />
+                )}
             {wordTimingOffer && (
                 <dialog className="word-timing-offer" open={true} aria-labelledby="word-timing-offer-title">
                     <article>

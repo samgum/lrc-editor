@@ -1,13 +1,17 @@
 import { parser } from "@lrc-maker/lrc-parser";
 import { describe, expect, it } from "vitest";
 import {
+    buildOverwritePlan,
     cleanGeniusTracklist,
     convertLyricsCase,
+    isCreditLine,
     overwriteLyrics,
     removeEmptyLines,
     removeTags,
+    repairTimeline,
     replaceText,
     splitTranslation,
+    splitTranslationWithStats,
     stripGeniusSections,
     transformTimes,
 } from "./lrc-tools.js";
@@ -287,5 +291,129 @@ describe("LRC tools", () => {
     it("changes lyric case while preserving timestamps", () => {
         expect(convertLyricsCase("[00:01.000]i'M READY.\n[00:02.000]i know", "sentence", true, true))
             .toBe("[00:01.000]I'm ready.\n[00:02.000]I know");
+    });
+
+    it("supports smart overwrite across credits, timed breaks, section labels, and paragraph blank lines", () => {
+        const song = parser([
+            "[ti: 晴天]",
+            "[00:00.200]作词 : 周杰伦",
+            "[00:00.800]作曲 : 周杰伦",
+            "[00:01.500][Intro]",
+            "[00:05.000]故事的小黄花",
+            "[00:09.000]",
+            "[00:12.000]从出生那年就飘着",
+        ].join("\n"));
+
+        const plan = buildOverwritePlan(
+            song,
+            "\nLittle yellow flowers of the story\n\n\nDrifting since the year of birth\n",
+            options,
+            { alignMode: "smart", outputMode: "replace", preserveCredits: true, ignoreBlankLines: true },
+        );
+
+        expect(plan.targetCount).toBe(2);
+        expect(plan.inputCount).toBe(2);
+        expect(plan.extraLines).toEqual([]);
+        expect(plan.text).toContain("[00:00.200]作词 : 周杰伦");
+        expect(plan.text).toContain("[00:00.800]作曲 : 周杰伦");
+        expect(plan.text).toContain("[00:05.000]Little yellow flowers of the story");
+        expect(plan.text).toContain("[00:09.000]\r\n");
+        expect(plan.text).toContain("[00:12.000]Drifting since the year of birth");
+    });
+
+    it("keeps original lyrics when smart overwrite input is empty and supports inline & dual-line bilingual modes", () => {
+        const emptyResult = overwriteLyrics(source, "", options, {
+            alignMode: "smart",
+            outputMode: "replace",
+            unmatchedFallback: "keep",
+        });
+        expect(emptyResult).toContain("[00:01.000]Hello / 你好");
+        expect(emptyResult).toContain("[00:03.000]Hello / 你好");
+
+        const simpleSource = parser("[00:01.000]Hello\n[00:02.000]\n[00:03.000]World");
+        const inlineResult = overwriteLyrics(simpleSource, "[00:10.000]<00:10.200>你好\n世界", options, {
+            alignMode: "smart",
+            outputMode: "inline",
+            inlineTemplate: "%orig 「%trans」",
+        });
+        expect(inlineResult).toContain("[00:01.000]Hello 「你好」");
+        expect(inlineResult).toContain("[00:03.000]World 「世界」");
+
+        const dualResult = overwriteLyrics(simpleSource, "你好\n世界", options, {
+            alignMode: "smart",
+            outputMode: "dual-line",
+        });
+        expect(dualResult.split("\r\n")).toEqual([
+            "[00:01.000]Hello",
+            "[00:01.000]你好",
+            "[00:02.000]",
+            "[00:03.000]World",
+            "[00:03.000]世界",
+        ]);
+    });
+
+    it("supports manual skipped line indices and detects song credit lines without false positives", () => {
+        expect(isCreditLine("作词 : 方文山")).toBe(true);
+        expect(isCreditLine("Lyrics by: Taylor Swift")).toBe(true);
+        expect(isCreditLine("作曲家在弹琴")).toBe(false);
+
+        const withInterlude = parser("[00:01.000]Line 1\n[00:02.000](Guitar Solo)\n[00:03.000]Line 2");
+        const skipped = new Set<number>([1]);
+        const result = overwriteLyrics(withInterlude, "第一句\n第二句", options, {
+            alignMode: "smart",
+            skippedLineIndices: skipped,
+        });
+        expect(result).toContain("[00:01.000]第一句");
+        expect(result).toContain("[00:02.000](Guitar Solo)");
+        expect(result).toContain("[00:03.000]第二句");
+    });
+
+    it("supports partial-range time transforms and single-target translation splits", () => {
+        const shiftedFromTwoSec = transformTimes(source, 1, 1000, options, 2.5);
+        expect(shiftedFromTwoSec).toContain("[00:01.000]Hello / 你好");
+        expect(shiftedFromTwoSec).toContain("[00:04.000]Hello / 你好");
+
+        const splitStats = splitTranslationWithStats(source, /(.+?)\s*\/\s*(.+)/, options, "translation");
+        expect(splitStats.matchedCount).toBe(2);
+        expect(splitStats.text).toContain("[00:01.000]你好");
+        expect(splitStats.text).not.toContain("Hello");
+    });
+
+    it("repairs timelines by expanding multi-timestamps, sorting chronologically, and resolving duplicates", () => {
+        const messy = [
+            "[ti: Messy]",
+            "[00:20.000][00:05.000]  Chorus  ",
+            "[00:10.000]Verse",
+            "[00:05.000]Chorus",
+        ].join("\n");
+
+        const deduped = repairTimeline(messy, options, {
+            expandMultiTimestamps: true,
+            sortChronologically: true,
+            duplicateStrategy: "dedupe-exact",
+            trimSpaces: true,
+        });
+        expect(deduped.expandedCount).toBe(1);
+        expect(deduped.reorderedCount).toBeGreaterThan(0);
+        expect(deduped.duplicateResolvedCount).toBe(1);
+        expect(deduped.text.split("\r\n")).toEqual([
+            "[ti: Messy]",
+            "[00:05.000]Chorus",
+            "[00:10.000]Verse",
+            "[00:20.000]Chorus",
+        ]);
+
+        const dualBlocks = "[00:01.000]Hello\n[00:02.000]World\n\n[00:01.000]你好\n[00:02.000]世界";
+        const merged = repairTimeline(dualBlocks, options, {
+            sortChronologically: true,
+            duplicateStrategy: "merge-inline",
+        });
+        expect(merged.text).toContain("[00:01.000]Hello / 你好");
+        expect(merged.text).toContain("[00:02.000]World / 世界");
+
+        const nudged = repairTimeline("[00:01.000]A\n[00:01.000]B", options, {
+            duplicateStrategy: "nudge",
+        });
+        expect(nudged.text.split("\r\n")).toEqual(["[00:01.000]A", "[00:01.001]B"]);
     });
 });

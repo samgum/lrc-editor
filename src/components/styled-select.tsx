@@ -215,7 +215,12 @@ export const StyledSelect: React.FC<StyledSelectProps> = ({
                 }}
                 onKeyDown={onKeyDown}
                 onKeyUp={(event) => event.stopPropagation()}
-                onBlur={close}
+                onBlur={(event) => {
+                    if (event.relatedTarget instanceof Node && popup.current?.contains(event.relatedTarget)) {
+                        return;
+                    }
+                    close();
+                }}
             >
                 <span className="styled-select-value">{options[selected]?.label ?? String(value)}</span>
                 <svg className="styled-select-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -233,6 +238,7 @@ export const StyledSelect: React.FC<StyledSelectProps> = ({
                     ref={popup}
                     id={`${id}-list`}
                     role="listbox"
+                    tabIndex={-1}
                     aria-label={label}
                     className="styled-select-popup"
                     data-tone={tone}
@@ -252,6 +258,18 @@ export const StyledSelect: React.FC<StyledSelectProps> = ({
                     }}
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={(event) => event.stopPropagation()}
+                    onBlur={(event) => {
+                        if (
+                            event.relatedTarget instanceof Node
+                            && (
+                                trigger.current?.contains(event.relatedTarget)
+                                || popup.current?.contains(event.relatedTarget)
+                            )
+                        ) {
+                            return;
+                        }
+                        close();
+                    }}
                 >
                     {options.map((option, index) => (
                         <div

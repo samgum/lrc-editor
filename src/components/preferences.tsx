@@ -831,8 +831,8 @@ export const Preferences: React.FC = () => {
                     </section>
                 </li>
                 <li>
-                    <label className="list-item">
-                        <label htmlFor="space-start">{lang.preferences.leftSpace}</label>
+                    <label className="list-item" htmlFor="space-start">
+                        <span>{lang.preferences.leftSpace}</span>
                         <input
                             name="spaceStart"
                             id="space-start"
@@ -843,8 +843,8 @@ export const Preferences: React.FC = () => {
                     </label>
                 </li>
                 <li>
-                    <label className="list-item">
-                        <label htmlFor="space-end">{lang.preferences.rightSpace}</label>
+                    <label className="list-item" htmlFor="space-end">
+                        <span>{lang.preferences.rightSpace}</span>
                         <input
                             name="spaceEnd"
                             id="space-end"
@@ -858,8 +858,8 @@ export const Preferences: React.FC = () => {
                     <h2>{lang.preferences.sections.precision}</h2>
                 </li>
                 <li>
-                    <label className="list-item">
-                        <label htmlFor="seek-step-ms">{lang.preferences.seekStepMs}</label>
+                    <label className="list-item" htmlFor="seek-step-ms">
+                        <span>{lang.preferences.seekStepMs}</span>
                         <input
                             name="seekStepMs"
                             id="seek-step-ms"
@@ -871,8 +871,8 @@ export const Preferences: React.FC = () => {
                     </label>
                 </li>
                 <li>
-                    <label className="list-item">
-                        <label htmlFor="fine-tune-ms">{lang.preferences.fineTuneMs}</label>
+                    <label className="list-item" htmlFor="fine-tune-ms">
+                        <span>{lang.preferences.fineTuneMs}</span>
                         <input
                             name="fineTuneMs"
                             id="fine-tune-ms"

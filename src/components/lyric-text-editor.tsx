@@ -1,16 +1,28 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import ROUTER from "#const/router.json" assert { type: "json" };
+import SSK from "#const/session_key.json" assert { type: "json" };
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { prependHash } from "../utils/router.js";
 import { textTimingRows } from "../utils/text-timing-issues.js";
-import { ArrowLeftSVG, ArrowRightSVG, ProblemSVG } from "./svg.js";
+import { ArrowLeftSVG, ArrowRightSVG, ProblemSVG, UtilitySVG } from "./svg.js";
 
 export const LyricTextEditor: React.FC<{
     text: string;
     inputRef: React.RefObject<HTMLTextAreaElement>;
     onBlur: React.FocusEventHandler<HTMLTextAreaElement>;
+    onCommitText?: (value: string) => void;
+    onDraftChange?: (value: string | null) => void;
     language: Language;
-}> = ({ text, inputRef, onBlur, language }) => {
+}> = ({ text, inputRef, onBlur, onCommitText, onDraftChange, language }) => {
     const normalizedText = text.replace(/\r\n?/g, "\n");
     const [draft, setDraft] = useState(normalizedText);
     const mirror = useRef<HTMLDivElement>(null);
+    const committedRef = useRef(normalizedText);
+    const draftRef = useRef(normalizedText);
+    const onCommitRef = useRef(onCommitText);
+    const onDraftChangeRef = useRef(onDraftChange);
+    onCommitRef.current = onCommitText;
+    onDraftChangeRef.current = onDraftChange;
+
     const rows = useMemo(() => textTimingRows(draft), [draft]);
     const issueIndexes = useMemo(() => rows.flatMap((row, index) => row.issue ? [index] : []), [rows]);
 
@@ -23,9 +35,22 @@ export const LyricTextEditor: React.FC<{
 
     useLayoutEffect(() => {
         if (inputRef.current && inputRef.current.value !== normalizedText) inputRef.current.value = normalizedText;
+        committedRef.current = normalizedText;
+        draftRef.current = normalizedText;
+        onDraftChangeRef.current?.(null);
         setDraft(normalizedText);
         syncScroll();
     }, [inputRef, syncScroll, normalizedText]);
+
+    useEffect(() => {
+        return () => {
+            if (draftRef.current !== committedRef.current) {
+                committedRef.current = draftRef.current;
+                onDraftChangeRef.current?.(null);
+                onCommitRef.current?.(draftRef.current);
+            }
+        };
+    }, []);
 
     useLayoutEffect(() => {
         const input = inputRef.current;
@@ -81,6 +106,21 @@ export const LyricTextEditor: React.FC<{
                     >
                         <ArrowRightSVG />
                     </button>
+                    <a
+                        className="editor-issue-fix-link"
+                        href={prependHash(ROUTER.tools)}
+                        onClick={() => {
+                            if (draftRef.current !== committedRef.current) {
+                                committedRef.current = draftRef.current;
+                                onDraftChangeRef.current?.(null);
+                                onCommitRef.current?.(draftRef.current);
+                            }
+                            sessionStorage.setItem(SSK.initialTool, "timeline-fix");
+                        }}
+                    >
+                        <UtilitySVG />
+                        <span>{language.editor.fixTimelineInTools}</span>
+                    </a>
                 </div>
             )}
             <div className="lyric-text-editor">
@@ -114,9 +154,21 @@ export const LyricTextEditor: React.FC<{
                     aria-label={language.visual.lyricEditor}
                     aria-invalid={issueIndexes.length > 0 || undefined}
                     aria-describedby={issueIndexes.length > 0 ? "editor-timing-status" : undefined}
-                    onBlur={onBlur}
+                    onBlur={(event) => {
+                        const next = event.currentTarget.value.replace(/\r\n?/g, "\n");
+                        committedRef.current = next;
+                        draftRef.current = next;
+                        onDraftChangeRef.current?.(null);
+                        onBlur(event);
+                    }}
                     onScroll={syncScroll}
-                    onChange={(event) => setDraft(event.currentTarget.value)}
+                    onChange={(event) => {
+                        const next = event.currentTarget.value;
+                        const normalizedNext = next.replace(/\r\n?/g, "\n");
+                        draftRef.current = normalizedNext;
+                        onDraftChangeRef.current?.(normalizedNext === committedRef.current ? null : next);
+                        setDraft(next);
+                    }}
                     autoCapitalize="none"
                     autoComplete="off"
                     autoCorrect="off"

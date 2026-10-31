@@ -94,9 +94,10 @@ export const Footer: React.FC = () => {
     const restoredMediaRef = useRef<string | null>(null);
     const droppedMediaSubscriber = useRef(Symbol("dropped-media-file"));
     const youtubeMusicNotice = useRef<string | undefined>(undefined);
+    const mediaLoadIdRef = useRef(0);
     const setAudioSrc = useCallback((newSrc: string): void => {
         setAudioSrcState((oldSrc) => {
-            if (oldSrc) {
+            if (oldSrc && oldSrc !== newSrc && oldSrc.startsWith("blob:")) {
                 URL.revokeObjectURL(oldSrc);
             }
             return newSrc;
@@ -145,6 +146,7 @@ export const Footer: React.FC = () => {
 
     const loadMediaUrl = useCallback(
         async (value: string): Promise<void> => {
+            const loadId = ++mediaLoadIdRef.current;
             youtubeMusicNotice.current = undefined;
             localFileRef.current = null;
             fallbackAttemptedRef.current = false;
@@ -174,7 +176,12 @@ export const Footer: React.FC = () => {
                     });
                 }
                 const source = await resolveMediaInput(value);
+                if (mediaLoadIdRef.current !== loadId) return;
                 const playableSrc = await materializeExtensionMedia(source);
+                if (mediaLoadIdRef.current !== loadId) {
+                    if (playableSrc.startsWith("blob:")) URL.revokeObjectURL(playableSrc);
+                    return;
+                }
                 youtubeMusicNotice.current = source.youtubeMusicName;
                 const displayInput = extractMediaUrl(value);
                 sessionStorage.setItem(SSK.mediaInputDisplay, displayInput);
@@ -194,6 +201,10 @@ export const Footer: React.FC = () => {
                 }
                 if (playableSrc.startsWith("blob:")) {
                     const blob = await fetch(playableSrc).then((response) => response.blob());
+                    if (mediaLoadIdRef.current !== loadId) {
+                        URL.revokeObjectURL(playableSrc);
+                        return;
+                    }
                     setAlignmentMediaSource({
                         blob,
                         name: source.name || alignmentMediaName(source.provider, source.mimeType || blob.type),
@@ -206,6 +217,7 @@ export const Footer: React.FC = () => {
                 }
                 setAudioSrc(playableSrc);
             } catch (error) {
+                if (mediaLoadIdRef.current !== loadId) return;
                 const message = error instanceof MediaExtensionError && error.code === "missing"
                     ? lang.notify.mediaExtensionMissing
                     : error instanceof MediaExtensionError && error.code === "music-unsupported"
@@ -324,6 +336,7 @@ export const Footer: React.FC = () => {
     }, [keyBindings, prefState.seekStepMs]);
 
     const onAudioFile = useCallback((file: File) => {
+        const loadId = ++mediaLoadIdRef.current;
         youtubeMusicNotice.current = undefined;
         sessionStorage.removeItem(SSK.audioSrc);
         sessionStorage.removeItem(SSK.mediaInput);
@@ -341,10 +354,11 @@ export const Footer: React.FC = () => {
                         shouldCreateCompressedAlignmentMedia(file),
                         needsCodecFallback(file),
                     ]);
+                    if (mediaLoadIdRef.current !== loadId) return;
                     if (compressForAlignment || browserFallback) {
                         fallbackAttemptedRef.current = true;
                         const converted = await convertLocalFile(file, lang);
-                        if (localFileRef.current !== file) return;
+                        if (mediaLoadIdRef.current !== loadId || localFileRef.current !== file) return;
                         if (converted) {
                             setAlignmentMediaSource({ blob: converted, name: compressedMediaName(file.name) });
                             setAudioSrc(URL.createObjectURL(converted));
@@ -357,15 +371,18 @@ export const Footer: React.FC = () => {
                         setAudioSrc(URL.createObjectURL(file));
                     }
                 } catch {
+                    if (mediaLoadIdRef.current !== loadId) return;
                     toastPubSub.pub({ channel: "media", type: "warning", text: lang.notify.mediaConversionFailed });
                 }
             })();
         } else {
             receiveEncryptedFile(file, (media, name) => {
+                if (mediaLoadIdRef.current !== loadId) return;
                 void (async () => {
                     const decoded = new File([media], name, { type: media.type });
                     if (await shouldCreateCompressedAlignmentMedia(decoded)) {
                         const converted = await convertLocalFile(decoded, lang);
+                        if (mediaLoadIdRef.current !== loadId) return;
                         if (converted) {
                             setAlignmentMediaSource({ blob: converted, name: compressedMediaName(name) });
                             setAudioSrc(URL.createObjectURL(converted));
@@ -374,14 +391,16 @@ export const Footer: React.FC = () => {
                         }
                         return;
                     }
+                    if (mediaLoadIdRef.current !== loadId) return;
                     setAlignmentMediaSource({ blob: media, name });
                     setAudioSrc(URL.createObjectURL(media));
                 })().catch(() => {
+                    if (mediaLoadIdRef.current !== loadId) return;
                     toastPubSub.pub({ channel: "media", type: "warning", text: lang.notify.mediaConversionFailed });
                 });
             });
         }
-    }, [lang]);
+    }, [lang, setAudioSrc]);
 
     useEffect(() => droppedMediaFilePubSub.sub(droppedMediaSubscriber.current, onAudioFile), [onAudioFile]);
 
@@ -504,56 +523,45 @@ const receiveEncryptedFile = (
     file: File,
     setAlignmentMedia: SetAlignmentMedia,
 ): void => {
-    if (file.name.toLowerCase().endsWith(".ncm")) {
-        const worker = new Worker(new URL("/worker/ncmc-worker.js", import.meta.url));
-        worker.addEventListener(
-            "message",
-            (ev: IMessageEvent<IMessage>) => {
-                if (ev.data.type === "success") {
-                    const dataArray = ev.data.payload;
-                    const mimeType = detectMimeType(dataArray);
-                    const musicFile = new Blob([dataArray as Uint8Array<ArrayBuffer>], { type: mimeType });
-
-                    setAlignmentMedia(musicFile, decodedMediaName(file.name, mimeType));
-                }
-                if (ev.data.type === "error") {
-                    toastPubSub.pub({ channel: "media", type: "warning", text: ev.data.payload });
-                }
-            },
-            { once: true },
-        );
-
-        worker.addEventListener(
-            "error",
-            (ev) => {
-                toastPubSub.pub({ channel: "media", type: "warning", text: ev.message });
-                worker.terminate();
-            },
-            { once: true },
-        );
-
-        worker.postMessage(file);
-
+    const workerUrl = file.name.toLowerCase().endsWith(".ncm")
+        ? new URL("/worker/ncmc-worker.js", import.meta.url)
+        : /\.qmc(?:flac|ogg|0|1|2|3)$/i.test(file.name)
+        ? new URL("/worker/qmc-worker.js", import.meta.url)
+        : null;
+    if (!workerUrl) {
         return;
     }
-    if (/\.qmc(?:flac|ogg|0|1|2|3)$/i.test(file.name)) {
-        const worker = new Worker(new URL("/worker/qmc-worker.js", import.meta.url));
-        worker.addEventListener(
-            "message",
-            (ev: IMessageEvent<IMessage>) => {
+
+    const worker = new Worker(workerUrl);
+    worker.addEventListener(
+        "message",
+        (ev: IMessageEvent<IMessage>) => {
+            try {
                 if (ev.data.type === "success") {
                     const dataArray = ev.data.payload;
                     const mimeType = detectMimeType(dataArray);
                     const musicFile = new Blob([dataArray as Uint8Array<ArrayBuffer>], { type: mimeType });
-
                     setAlignmentMedia(musicFile, decodedMediaName(file.name, mimeType));
+                } else if (ev.data.type === "error") {
+                    toastPubSub.pub({ channel: "media", type: "warning", text: ev.data.payload });
                 }
-            },
-            { once: true },
-        );
+            } finally {
+                worker.terminate();
+            }
+        },
+        { once: true },
+    );
 
-        worker.postMessage(file);
-    }
+    worker.addEventListener(
+        "error",
+        (ev) => {
+            toastPubSub.pub({ channel: "media", type: "warning", text: ev.message });
+            worker.terminate();
+        },
+        { once: true },
+    );
+
+    worker.postMessage(file);
 };
 
 const convertLocalFile = async (file: File, lang: Language): Promise<Blob | null> => {

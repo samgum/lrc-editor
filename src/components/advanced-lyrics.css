@@ -32,11 +32,7 @@
 }
 
 .editor-mode-switch {
-    position: absolute;
-    top: 8px;
-    left: 50%;
-    z-index: 2;
-    transform: translateX(-50%);
+    flex: 0 0 auto;
 }
 
 .advanced-export-select {
@@ -48,37 +44,71 @@
     display: flex;
     flex: 0 0 auto;
     align-items: center;
-    justify-content: flex-end;
-    gap: 8px;
-    min-height: 48px;
-    padding: 4px 12px;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    min-height: 46px;
+    padding: 6px 14px;
     color: var(--text-muted-color);
-    background: var(--surface-color);
-    border-bottom: 1px solid #8888882e;
-    font-size: 0.7rem;
+    background: var(--surface-subtle-color);
+    border-bottom: 1px solid var(--border-subtle-color);
+    font-size: 0.74rem;
 }
 
-.advanced-editor-subbar > strong {
+.editor-line-stats {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px;
+    color: var(--text-secondary-color);
+    background: var(--surface-color);
+    border: 1px solid var(--border-subtle-color);
+    border-radius: 999px;
+    font-size: 0.73rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.advanced-editor-subbar-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.advanced-editor-subbar strong {
     padding: 3px 7px;
     color: var(--text-secondary-color);
-    background: #88888812;
+    background: #88888814;
     border-radius: 4px;
-    font-size: 0.62rem;
+    font-size: 0.64rem;
 }
 
 .word-timing-link {
     display: inline-flex;
     align-items: center;
-    min-height: 34px;
-    padding: 0 10px;
+    gap: 5px;
+    min-height: 32px;
+    padding: 0 11px;
     color: var(--theme-foreground-color);
-    border: 1px solid rgba(var(--theme-rgb), 0.38);
-    border-radius: 5px;
+    background: rgba(var(--theme-rgb), 0.06);
+    border: 1px solid rgba(var(--theme-rgb), 0.36);
+    border-radius: 6px;
+    font-size: 0.75rem;
     font-weight: 650;
+    transition:
+        background-color var(--transition-duration) var(--ease-standard),
+        border-color var(--transition-duration) var(--ease-standard);
+}
+
+.word-timing-link svg {
+    width: 15px;
+    height: 15px;
 }
 
 .word-timing-link:hover, .word-timing-link:focus-visible {
-    background: rgba(var(--theme-rgb), 0.1);
+    background: rgba(var(--theme-rgb), 0.12);
+    border-color: var(--theme-color);
 }
 
 .advanced-lyrics-editor {
@@ -308,28 +338,20 @@
 }
 
 @media (width <= 900px) {
-    .editor-mode-switch {
-        position: static;
-        width: fit-content;
-        margin: 7px 12px;
-        transform: none;
-    }
-
     .advanced-export-select {
-        min-width: 7rem;
-        width: 7rem;
+        min-width: 7.5rem;
+        width: 7.5rem;
     }
 }
 
 @media (width <= 620px) {
     .advanced-editor-subbar {
-        justify-content: flex-start;
-        flex-wrap: wrap;
-        padding: 7px 9px;
+        padding: 7px 10px;
     }
 
-    .advanced-editor-subbar > span:not(.styled-select) {
-        flex: 1 1 auto;
+    .advanced-editor-subbar-actions {
+        width: 100%;
+        justify-content: space-between;
     }
 
     .advanced-export-select {

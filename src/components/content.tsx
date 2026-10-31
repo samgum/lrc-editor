@@ -102,6 +102,10 @@ export const Content: React.FC = () => {
     const workspaceDragDepth = useRef(0);
     const hasExistingAxisRef = useRef(false);
     const overwriteDialogRef = useRef<HTMLDialogElement>(null);
+    const pendingEditorTextRef = useRef<string | null>(null);
+    const handleEditorDraftChange = useCallback((value: string | null) => {
+        pendingEditorTextRef.current = value;
+    }, []);
     hasExistingAxisRef.current = lrcState.info.size > 0
         || lrcState.lyric.some((line) => line.time !== undefined || Boolean(line.text));
 
@@ -237,11 +241,14 @@ export const Content: React.FC = () => {
 
     const reconcileBasicText = useCallback((text: string) => {
         const parsed = parser(text, trimOptions);
+        const effectiveInfo = parsed.info.size === 0 && text.trim() !== "" && lrcState.info.size > 0
+            ? new Map(lrcState.info)
+            : parsed.info;
         advancedDispatch({
             type: AdvancedActionType.reconcile,
-            payload: reconcileAdvancedDocument(advancedState.document, parsed.lyric, parsed.info),
+            payload: reconcileAdvancedDocument(advancedState.document, parsed.lyric, effectiveInfo),
         });
-    }, [advancedDispatch, advancedState.document, trimOptions]);
+    }, [advancedDispatch, advancedState.document, lrcState.info, trimOptions]);
 
     const reconcileMetadata = useCallback((name: string, value: string) => {
         if (!advancedState.document) return;
@@ -275,18 +282,36 @@ export const Content: React.FC = () => {
 
     useEffect(() => {
         function saveState(): void {
-            lrcDispatch({
-                type: LrcActionType.getState,
-                payload: (lrc) => {
-                    localStorage.setItem(LSK.lyric, stringify(lrc, prefState));
-                    sessionStorage.setItem(SSK.selectIndex, lrc.selectIndex.toString());
-                },
-            });
-
-            if (advancedState.document) {
-                localStorage.setItem(LSK.advancedLyrics, JSON.stringify(advancedState.document));
+            if (pendingEditorTextRef.current !== null) {
+                const parsedPending = parser(pendingEditorTextRef.current, trimOptions);
+                const effectiveInfo = parsedPending.info.size === 0 && pendingEditorTextRef.current.trim() !== ""
+                        && lrcState.info.size > 0
+                    ? new Map(lrcState.info)
+                    : parsedPending.info;
+                localStorage.setItem(
+                    LSK.lyric,
+                    stringify({ info: effectiveInfo, lyric: parsedPending.lyric }, prefState),
+                );
+                const reconciled = reconcileAdvancedDocument(
+                    advancedState.document,
+                    parsedPending.lyric,
+                    effectiveInfo,
+                );
+                localStorage.setItem(LSK.advancedLyrics, JSON.stringify(reconciled));
             } else {
-                localStorage.removeItem(LSK.advancedLyrics);
+                lrcDispatch({
+                    type: LrcActionType.getState,
+                    payload: (lrc) => {
+                        localStorage.setItem(LSK.lyric, stringify(lrc, prefState));
+                        sessionStorage.setItem(SSK.selectIndex, lrc.selectIndex.toString());
+                    },
+                });
+
+                if (advancedState.document) {
+                    localStorage.setItem(LSK.advancedLyrics, JSON.stringify(advancedState.document));
+                } else {
+                    localStorage.removeItem(LSK.advancedLyrics);
+                }
             }
             sessionStorage.setItem(SSK.advancedWordCursor, JSON.stringify(advancedState.cursor));
 
@@ -306,7 +331,7 @@ export const Content: React.FC = () => {
             document.removeEventListener("visibilitychange", onVisibilitychange);
             window.removeEventListener("beforeunload", saveState);
         };
-    }, [advancedState.document, lrcDispatch, prefState]);
+    }, [advancedState.cursor, advancedState.document, lrcDispatch, lrcState.info, prefState, trimOptions]);
 
     useEffect(() => {
         const containsFiles = (event: DragEvent): boolean =>
@@ -397,6 +422,7 @@ export const Content: React.FC = () => {
                         onTimingModeChange={changeEditorTimingMode}
                         onImportFile={importLyricsFile}
                         onBasicTextParsed={reconcileBasicText}
+                        onDraftChange={handleEditorDraftChange}
                         onMetadataChanged={reconcileMetadata}
                         onBasicLyricsReplaced={resetAdvancedWordTiming}
                         wordTimingOffer={wordTimingOffer}
@@ -476,6 +502,7 @@ export const Content: React.FC = () => {
                         state={lrcState}
                         dispatch={lrcDispatch}
                         advancedDocument={advancedState.document}
+                        onTextApplied={reconcileBasicText}
                         onConversionApplied={(document) =>
                             advancedDispatch({ type: AdvancedActionType.load, payload: document })}
                     />
@@ -487,7 +514,15 @@ export const Content: React.FC = () => {
             }
         }
 
-        return <Home />;
+        return (
+            <Home
+                songTitle={lrcState.info.get("ti") || ""}
+                songArtist={lrcState.info.get("ar") || ""}
+                lineCount={lrcState.lyric.length}
+                timedCount={lrcState.lyric.reduce((count, line) => count + (line.time !== undefined ? 1 : 0), 0)}
+                wordTimed={hasWordTiming(advancedState.document)}
+            />
+        );
     })();
 
     return (

@@ -67,8 +67,11 @@ export const lrcReducer = (state: IState, action: Action): IState => {
     switch (action.type) {
         case ActionType.parse: {
             const lrc = parser(action.payload.text, action.payload.options);
+            const info = lrc.info.size === 0 && action.payload.text.trim() !== "" && state.info.size > 0
+                ? new Map(state.info)
+                : lrc.info;
             const selectIndex = guard(state.selectIndex, 0, Math.max(0, lrc.lyric.length - 1));
-            return { ...state, ...lrc, selectIndex, historyPast: [], historyFuture: [] };
+            return { ...state, ...lrc, info, selectIndex, historyPast: [], historyFuture: [] };
         }
 
         case ActionType.replaceLyrics: {

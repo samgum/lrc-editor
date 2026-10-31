@@ -8,5 +8,6 @@
     "selectIndex": "select-index",
     "ratelimit": "x-ratelimit",
     "editorTimingMode": "editor-timing-mode",
-    "advancedWordCursor": "advanced-word-cursor"
+    "advancedWordCursor": "advanced-word-cursor",
+    "initialTool": "initial-tool"
 }
