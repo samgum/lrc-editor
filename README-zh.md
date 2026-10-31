@@ -141,6 +141,8 @@ pnpm check:fmt
 pnpm build:all
 ```
 
+网页构建还会检查 NCM／QMC Worker 的 JavaScript 编译结果、应用引用和离线缓存清单，并用合成音频样本验证解码结果逐字节一致。若误发原始 TypeScript 或 Worker 引用失效，构建会在部署前失败。
+
 输出目录：
 
 - `build/`：静态 Web 应用

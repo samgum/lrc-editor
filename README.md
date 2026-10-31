@@ -141,6 +141,8 @@ pnpm check:fmt
 pnpm build:all
 ```
 
+The web build also verifies the emitted NCM/QMC workers: JavaScript compilation, application references, offline-cache entries, and exact decoding of synthetic audio fixtures. A raw TypeScript worker or broken worker URL fails the build before deployment.
+
 Outputs:
 
 - `build/`: static web application

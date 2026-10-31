@@ -22,7 +22,7 @@
     "type": "module",
     "scripts": {
         "start": "vite",
-        "build": "vite build",
+        "build": "vite build && node scripts/verify-media-workers.mjs",
         "build:extension": "vite build --config vite.extension.config.ts",
         "build:extension:edge-mobile": "vite build --config vite.extension-edge-mobile.config.ts",
         "build:extension:firefox-android": "vite build --config vite.extension-firefox-android.config.ts && vite build --config vite.extension-firefox-worker.config.ts",

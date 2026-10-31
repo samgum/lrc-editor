@@ -523,16 +523,16 @@ const receiveEncryptedFile = (
     file: File,
     setAlignmentMedia: SetAlignmentMedia,
 ): void => {
-    const workerUrl = file.name.toLowerCase().endsWith(".ncm")
-        ? new URL("/worker/ncmc-worker.js", import.meta.url)
+    // Keep each URL inside its Worker constructor so Vite compiles the TypeScript entry.
+    const worker = file.name.toLowerCase().endsWith(".ncm")
+        ? new Worker(new URL("/worker/ncmc-worker.js", import.meta.url))
         : /\.qmc(?:flac|ogg|0|1|2|3)$/i.test(file.name)
-        ? new URL("/worker/qmc-worker.js", import.meta.url)
+        ? new Worker(new URL("/worker/qmc-worker.js", import.meta.url))
         : null;
-    if (!workerUrl) {
+    if (!worker) {
         return;
     }
 
-    const worker = new Worker(workerUrl);
     worker.addEventListener(
         "message",
         (ev: IMessageEvent<IMessage>) => {
