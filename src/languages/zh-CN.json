@@ -259,6 +259,7 @@
         "addSegment": "添加片段",
         "removeSegment": "删除片段",
         "captureWord": "记录当前字词时间",
+        "captureWordEnd": "记录末词结束",
         "wordProgress": "第 %d / %t 个片段",
         "invalidWordTime": "字词结束时间早于开始时间",
         "duplicateWordTime": "字词时间与上一个片段重复",

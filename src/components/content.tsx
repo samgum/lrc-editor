@@ -122,11 +122,16 @@ export const Content: React.FC = () => {
             const cursor = JSON.parse(sessionStorage.getItem(SSK.advancedWordCursor) || "null") as {
                 lineIndex?: unknown;
                 wordIndex?: unknown;
+                end?: unknown;
             } | null;
             if (cursor && Number.isInteger(cursor.lineIndex) && Number.isInteger(cursor.wordIndex)) {
                 advancedDispatch({
                     type: AdvancedActionType.select,
-                    payload: { lineIndex: Number(cursor.lineIndex), wordIndex: Number(cursor.wordIndex) },
+                    payload: {
+                        lineIndex: Number(cursor.lineIndex),
+                        wordIndex: Number(cursor.wordIndex),
+                        ...(cursor.end === true ? { end: true as const } : {}),
+                    },
                 });
             }
         } catch {

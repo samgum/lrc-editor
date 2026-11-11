@@ -14,6 +14,7 @@ The web application is static and keeps lyric text, preferences, and local media
 
 ## Features
 
+- In word tap timing, the same timing key records the last word's start, then its sustained ending before advancing to the next line. The recorded ending survives later line stamps, undo/redo, and saved progress; hold timing still finishes on release.
 - Language, theme, precision, export, tool, preview-lead, and beat-subdivision selectors share themed menus with clear selection marks, hover feedback, keyboard navigation/type-ahead, and viewport-aware placement. Escape cancels a pending choice; Enter/Space or Tab confirms it without triggering timing shortcuts.
 - Timing sidebars keep selected, playing, and warning states readable together, including narrow layouts. Each workspace restores its own page position instead of inheriting another page's scroll.
 - Waveform and spectrogram timing include a fixed, zoom-aware time ruler. Short screens group secondary controls under Display settings; changing the view or settings preserves playback and timing progress.

@@ -80,6 +80,7 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
     const currentTimeRef = useRef<HTMLTimeElement>(null);
     const playheadRef = useRef<HTMLElement>(null);
     const selectedWordRef = useRef<HTMLButtonElement>(null);
+    const endMarkerRef = useRef<HTMLSpanElement>(null);
     const line = document.lines[cursor.lineIndex];
     const word = line?.words[cursor.wordIndex];
     const previousLine = document.lines[cursor.lineIndex - 1];
@@ -107,12 +108,12 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
     }, [fixed, lineEndMs, lineStartMs]);
 
     useEffect(() => {
-        selectedWordRef.current?.scrollIntoView({
+        (cursor.end ? endMarkerRef.current : selectedWordRef.current)?.scrollIntoView({
             behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
             block: "nearest",
             inline: "center",
         });
-    }, [cursor.lineIndex, cursor.wordIndex]);
+    }, [cursor.end, cursor.lineIndex, cursor.wordIndex]);
 
     const progress = useMemo(() => {
         let total = 0;
@@ -144,7 +145,7 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
     const selectedStart = word.startMs === undefined
         ? language.untimed
         : formatLrcTimestamp(word.startMs, fixed).slice(1, -1);
-    const selectedEnd = word.endMs === undefined
+    const selectedEnd = cursor.end || word.endMs === undefined
         ? language.openWordEnd
         : formatLrcTimestamp(word.endMs, fixed).slice(1, -1);
 
@@ -255,7 +256,7 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
                     <span className="word-stage-line-label">{language.activeLine}</span>
                     <div className="word-stage-words">
                         {line.words.map((candidate, wordIndex) => {
-                            const selected = wordIndex === cursor.wordIndex;
+                            const selected = wordIndex === cursor.wordIndex && !cursor.end;
                             const playing = playbackWord?.lineIndex === cursor.lineIndex
                                 && playbackWord.wordIndex === wordIndex;
                             const timed = candidate.startMs !== undefined;
@@ -281,6 +282,16 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
                                 </button>
                             );
                         })}
+                        {cursor.end && (
+                            <span
+                                ref={endMarkerRef}
+                                className="word-stage-word selected word-stage-ending"
+                                aria-current="step"
+                            >
+                                <span>{language.wordEnd}</span>
+                                <time>{selectedEnd}</time>
+                            </span>
+                        )}
                     </div>
                 </div>
 
@@ -351,7 +362,7 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
                     <ArrowLeftSVG />
                 </button>
                 <div className="word-stage-current" key={`${cursor.lineIndex}-${cursor.wordIndex}`}>
-                    <span>{language.currentWord}</span>
+                    <span>{cursor.end ? language.wordEnd : language.currentWord}</span>
                     <strong>{displayWord}</strong>
                     <time>
                         {selectedStart}
@@ -402,6 +413,8 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
                             ? language.waveformCaptureButton
                             : captureMode === "hold"
                             ? (isHolding ? language.releaseWord : language.holdWord)
+                            : cursor.end
+                            ? language.captureWordEnd
                             : language.captureWord}
                     </span>
                     {syncShortcutLabel && captureMode !== "waveform" && <kbd>{syncShortcutLabel}</kbd>}

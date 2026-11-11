@@ -265,6 +265,7 @@
         "addSegment": "Add segment",
         "removeSegment": "Remove segment",
         "captureWord": "Set word time",
+        "captureWordEnd": "Set last word end",
         "wordProgress": "Segment %d of %t",
         "invalidWordTime": "Word end precedes its start",
         "duplicateWordTime": "Word timestamp duplicates the previous segment",

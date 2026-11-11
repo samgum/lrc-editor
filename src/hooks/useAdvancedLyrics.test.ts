@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseEnhancedLrc } from "../utils/advanced-lyrics.js";
+import { parseEnhancedLrc, toEnhancedLrc } from "../utils/advanced-lyrics.js";
 import {
     AdvancedActionType,
     advancedLyricsReducer,
@@ -22,11 +22,11 @@ describe("advanced lyrics timing state", () => {
 
         expect(state.document?.lines[0].words[0].endMs).toBe(2400);
         expect(state.document?.lines[0].words[1].startMs).toBe(2400);
-        expect(state.cursor).toEqual({ lineIndex: 0, wordIndex: 1 });
+        expect(state.cursor).toEqual({ lineIndex: 0, wordIndex: 1, end: true });
         expect(state.historyPast).toHaveLength(1);
     });
 
-    it("updates line boundaries when stamping across lines", () => {
+    it("preserves a completed line end when stamping the next line", () => {
         const document = parseEnhancedLrc([
             "[00:01.000]<00:01.000>A<00:02.000>",
             "[00:03.000]<00:03.000>B<00:04.000>",
@@ -41,9 +41,93 @@ describe("advanced lyrics timing state", () => {
         });
         state = advancedLyricsReducer(state, { type: AdvancedActionType.stamp, payload: 3500 });
 
-        expect(state.document?.lines[0].endMs).toBe(3500);
+        expect(state.document?.lines[0].endMs).toBe(2000);
         expect(state.document?.lines[1].startMs).toBe(3500);
         expect(state.document?.lines[1].words[0].startMs).toBe(3500);
+    });
+
+    it("captures a sustained last word with the same key before moving to the next line", () => {
+        let state = advancedLyricsReducer(initAdvancedLyricsState(""), {
+            type: AdvancedActionType.ensureWordMode,
+            payload: { lines: [{ text: "fast rap" }, { text: "next line" }], metadata: new Map() },
+        });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.stamp, payload: 1000 });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.stamp, payload: 1150 });
+        expect(state.cursor).toEqual({ lineIndex: 0, wordIndex: 1, end: true });
+        expect(state.document?.lines[1].words[0].startMs).toBeUndefined();
+        const pending = state.document;
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.stamp, payload: 2500 });
+        expect(state.cursor).toEqual({ lineIndex: 1, wordIndex: 0 });
+        expect(state.document?.lines[0].words[1]).toMatchObject({ startMs: 1150, endMs: 2500 });
+        expect(state.document?.lines[0].endMs).toBe(2500);
+        expect(toEnhancedLrc(state.document!, 2)).toContain("rap<00:02.50>");
+        expect(toEnhancedLrc(state.document!, 3)).toContain("rap<00:02.500>");
+        const finished = state.document;
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.undo, payload: undefined });
+        expect(state.document).toBe(pending);
+        expect(state.cursor.end).toBe(true);
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.redo, payload: undefined });
+        expect(state.document).toBe(finished);
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.stamp, payload: 4000 });
+        expect(state.document?.lines[0].words[1].endMs).toBe(2500);
+        expect(state.document?.lines[0].endMs).toBe(2500);
+    });
+
+    it("captures the final single-word line and restores an unfinished end step", () => {
+        let state = advancedLyricsReducer(initAdvancedLyricsState(""), {
+            type: AdvancedActionType.ensureWordMode,
+            payload: { lines: [{ text: "yeah" }], metadata: new Map() },
+        });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.stamp, payload: 1000 });
+        const savedCursor = JSON.parse(JSON.stringify(state.cursor));
+        state = advancedLyricsReducer(initAdvancedLyricsState(JSON.stringify(state.document)), {
+            type: AdvancedActionType.select,
+            payload: savedCursor,
+        });
+        expect(state.cursor.end).toBe(true);
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.stamp, payload: 5000 });
+        expect(state.document?.lines[0].words[0]).toMatchObject({ startMs: 1000, endMs: 5000 });
+        expect(state.cursor).toEqual({ lineIndex: 0, wordIndex: 0 });
+    });
+
+    it("bounds an end capture by an already timed following word", () => {
+        let state = advancedLyricsReducer(initAdvancedLyricsState(""), {
+            type: AdvancedActionType.load,
+            payload: parseEnhancedLrc("[00:01.000]<00:01.000>A\n[00:03.000]<00:03.000>B"),
+        });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.stamp, payload: 1500 });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.stamp, payload: 4000 });
+        expect(state.document?.lines[0].words[0]).toMatchObject({ startMs: 1500, endMs: 3000 });
+        expect(state.document?.lines[1].words[0].startMs).toBe(3000);
+    });
+
+    it("keeps short rapid captures positive and ignores invalid clock values", () => {
+        let state = advancedLyricsReducer(initAdvancedLyricsState(""), {
+            type: AdvancedActionType.ensureWordMode,
+            payload: { lines: [{ text: "rap" }], metadata: new Map() },
+        });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.stamp, payload: 1000 });
+        expect(advancedLyricsReducer(state, { type: AdvancedActionType.stamp, payload: NaN })).toBe(state);
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.stamp, payload: 1000 });
+        expect(state.document?.lines[0].words[0].endMs).toBe(1010);
+    });
+
+    it("lets selection cancel the end step and keeps hold-and-release at one gesture", () => {
+        let state = advancedLyricsReducer(initAdvancedLyricsState(""), {
+            type: AdvancedActionType.ensureWordMode,
+            payload: { lines: [{ text: "rap" }, { text: "next" }], metadata: new Map() },
+        });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.stamp, payload: 1000 });
+        expect(nextWordCursor(state.document!, state.cursor, 1)).toEqual({ lineIndex: 1, wordIndex: 0 });
+        state = advancedLyricsReducer(state, {
+            type: AdvancedActionType.select,
+            payload: { lineIndex: 0, wordIndex: 0 },
+        });
+        expect(state.cursor.end).toBeUndefined();
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.startHold, payload: 1500 });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.finishHold, payload: 2300 });
+        expect(state.document?.lines[0].words[0]).toMatchObject({ startMs: 1500, endMs: 2300 });
+        expect(state.cursor).toEqual({ lineIndex: 1, wordIndex: 0 });
     });
 
     it("records a held word start and end as one undoable gesture", () => {

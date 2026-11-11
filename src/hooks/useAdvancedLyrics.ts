@@ -9,6 +9,7 @@ import {
 export interface WordCursor {
     readonly lineIndex: number;
     readonly wordIndex: number;
+    readonly end?: boolean;
 }
 
 interface Snapshot {
@@ -124,8 +125,16 @@ export const advancedLyricsReducer = (
         }
         case AdvancedActionType.select:
             return { ...state, cursor: clampCursor(state.document, action.payload) };
-        case AdvancedActionType.stamp:
+        case AdvancedActionType.stamp: {
+            if (!Number.isFinite(action.payload)) return state;
+            if (state.cursor.end) {
+                const finished = finishHoldTiming(state, Math.max(0, Math.round(action.payload)));
+                return finished.document && finished !== state
+                    ? commit(state, finished.document, finished.cursor)
+                    : state;
+            }
             return updateTiming(state, Math.max(0, Math.round(action.payload)), true);
+        }
         case AdvancedActionType.startHold:
             return updateTiming(state, Math.max(0, Math.round(action.payload)), false);
         case AdvancedActionType.finishHold:
@@ -232,20 +241,21 @@ export const nextWordCursor = (
     cursor: WordCursor,
     offset: -1 | 1,
 ): WordCursor => {
+    const position = { lineIndex: cursor.lineIndex, wordIndex: cursor.wordIndex };
     if (offset === 1) {
         const line = document.lines[cursor.lineIndex];
-        if (cursor.wordIndex + 1 < (line?.words.length || 0)) return { ...cursor, wordIndex: cursor.wordIndex + 1 };
+        if (cursor.wordIndex + 1 < (line?.words.length || 0)) return { ...position, wordIndex: cursor.wordIndex + 1 };
         for (let lineIndex = cursor.lineIndex + 1; lineIndex < document.lines.length; lineIndex += 1) {
             if (document.lines[lineIndex].words.length > 0) return { lineIndex, wordIndex: 0 };
         }
-        return cursor;
+        return position;
     }
-    if (cursor.wordIndex > 0) return { ...cursor, wordIndex: cursor.wordIndex - 1 };
+    if (cursor.wordIndex > 0) return { ...position, wordIndex: cursor.wordIndex - 1 };
     for (let lineIndex = cursor.lineIndex - 1; lineIndex >= 0; lineIndex -= 1) {
         const words = document.lines[lineIndex].words;
         if (words.length > 0) return { lineIndex, wordIndex: words.length - 1 };
     }
-    return cursor;
+    return position;
 };
 
 const updateTiming = (state: AdvancedLyricsState, startMs: number, advance: boolean): AdvancedLyricsState => {
@@ -259,13 +269,18 @@ const updateTiming = (state: AdvancedLyricsState, startMs: number, advance: bool
     const previousCursor = nextWordCursor(document, state.cursor, -1);
     if (previousCursor.lineIndex !== state.cursor.lineIndex || previousCursor.wordIndex !== state.cursor.wordIndex) {
         const previous = nextDocument.lines[previousCursor.lineIndex].words[previousCursor.wordIndex];
+        const endMs = previousCursor.lineIndex !== state.cursor.lineIndex
+                && previous.endMs !== undefined && previous.startMs !== undefined
+                && previous.endMs > previous.startMs && previous.endMs <= constrainedStartMs
+            ? previous.endMs
+            : constrainedStartMs;
         if (previous.startMs !== undefined) {
-            nextDocument = replaceWord(nextDocument, previousCursor, { ...previous, endMs: constrainedStartMs });
+            nextDocument = replaceWord(nextDocument, previousCursor, { ...previous, endMs });
         }
         if (previous.startMs !== undefined && previousCursor.lineIndex !== state.cursor.lineIndex) {
             nextDocument = replaceLine(nextDocument, previousCursor.lineIndex, {
                 ...nextDocument.lines[previousCursor.lineIndex],
-                endMs: constrainedStartMs,
+                endMs,
             });
         }
     }
@@ -275,7 +290,11 @@ const updateTiming = (state: AdvancedLyricsState, startMs: number, advance: bool
             startMs: constrainedStartMs,
         });
     }
-    const cursor = advance ? nextWordCursor(nextDocument, state.cursor, 1) : state.cursor;
+    const cursor = advance
+        ? state.cursor.wordIndex === line.words.length - 1
+            ? { ...state.cursor, end: true as const }
+            : nextWordCursor(nextDocument, state.cursor, 1)
+        : state.cursor;
     return commit(state, nextDocument, cursor);
 };
 
@@ -394,6 +413,7 @@ const commit = (
     document: AdvancedLyricsDocument,
     cursor: WordCursor,
 ): AdvancedLyricsState => {
+    cursor = clampCursor(document, cursor);
     if (!state.document) return { document, cursor, historyPast: [], historyFuture: [] };
     return {
         document,
@@ -407,7 +427,14 @@ const clampCursor = (document: AdvancedLyricsDocument | null, cursor: WordCursor
     if (!document || document.lines.length === 0) return initialCursor;
     const lineIndex = Math.max(0, Math.min(cursor.lineIndex, document.lines.length - 1));
     const wordIndex = Math.max(0, Math.min(cursor.wordIndex, Math.max(0, document.lines[lineIndex].words.length - 1)));
-    return { lineIndex, wordIndex };
+    const line = document.lines[lineIndex];
+    return {
+        lineIndex,
+        wordIndex,
+        ...(cursor.end === true && wordIndex === line.words.length - 1 && line.words[wordIndex]?.startMs !== undefined
+            ? { end: true as const }
+            : {}),
+    };
 };
 
 const isAdvancedDocument = (value: unknown): value is AdvancedLyricsDocument => {

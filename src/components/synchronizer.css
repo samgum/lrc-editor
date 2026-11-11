@@ -1467,6 +1467,11 @@
     opacity: 0.56;
 }
 
+.word-stage-ending {
+    border-style: dashed;
+    pointer-events: none;
+}
+
 .word-stage-word.timed {
     border-bottom-color: rgba(var(--theme-rgb), 0.62);
 }

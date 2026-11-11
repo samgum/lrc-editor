@@ -270,7 +270,10 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
 
     const stampWordAt = useCallback((timeMs: number) => {
         if (timingMode === "word" && advancedState.document) {
-            const next = nextWordCursor(advancedState.document, advancedState.cursor, 1);
+            const line = advancedState.document.lines[advancedState.cursor.lineIndex];
+            const next = !advancedState.cursor.end && advancedState.cursor.wordIndex === line.words.length - 1
+                ? advancedState.cursor
+                : nextWordCursor(advancedState.document, advancedState.cursor, 1);
             advancedDispatch({ type: AdvancedActionType.stamp, payload: Math.max(0, Math.round(timeMs)) });
             if (next.lineIndex !== state.selectIndex) {
                 dispatch({ type: ActionType.select, payload: () => next.lineIndex });
