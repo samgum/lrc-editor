@@ -22,7 +22,7 @@ import {
     wordTimingIssueAt,
 } from "../utils/advanced-lyrics.js";
 import { AudioActionType, audioRef, audioStatePubSub, currentTimePubSub } from "../utils/audiomodule.js";
-import { centeredFollowOffset, followEndSpace } from "../utils/follow-scroll.js";
+import { centeredFollowOffset, followEndSpace, lookAheadFollowOffset } from "../utils/follow-scroll.js";
 import { InputAction } from "../utils/input-action.js";
 import { isKeyboardElement } from "../utils/is-keyboard-element.js";
 import { formatKeyBinding, getMatchedAction } from "../utils/keybindings.js";
@@ -140,7 +140,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
         const toolbar = document.querySelector(".timing-toolbar");
         const footer = document.querySelector(".app-footer");
         const aside = document.querySelector(".aside-panel");
-        for (const element of [ul.current, toolbar, footer, aside]) {
+        for (const element of [ul.current, ul.current?.parentElement, toolbar, footer, aside]) {
             if (element) resizeObserver?.observe(element);
         }
         window.addEventListener("resize", updateLayout);
@@ -225,15 +225,39 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
             const container = list?.parentElement;
             const line = list?.children[advancedState.cursor.lineIndex] as HTMLElement | undefined;
             if (!list || !container || !line) return;
-            const lineTop = line.offsetTop;
-            const lineBottom = lineTop + line.offsetHeight;
-            if (lineTop < container.scrollTop) container.scrollTo({ top: lineTop, behavior: "smooth" });
-            else if (lineBottom > container.scrollTop + container.clientHeight) {
-                container.scrollTo({ top: lineBottom - container.clientHeight, behavior: "smooth" });
-            }
+            const lineRect = line.getBoundingClientRect();
+            const queueRect = container.getBoundingClientRect();
+            const following = Array.from(list.children).slice(
+                advancedState.cursor.lineIndex + 1,
+                advancedState.cursor.lineIndex + 3,
+            );
+            const lookAheadHeight = following.reduce((height, row) => height + row.getBoundingClientRect().height, 0)
+                + (2 - following.length) * lineRect.height;
+            list.style.setProperty("--word-follow-tail-space", `${Math.ceil(lineRect.height * 2)}px`);
+            const safeTop = queueRect.top + container.clientTop + 8;
+            const offset = lookAheadFollowOffset({
+                lineTop: lineRect.top,
+                lineHeight: lineRect.height,
+                safeTop,
+                safeBottom: safeTop + container.clientHeight - 16,
+                lookAheadHeight,
+            });
+            if (Math.abs(offset) < 1) return;
+            container.scrollTo({
+                top: container.scrollTop + offset,
+                behavior: !audioRef.paused || matchMedia("(prefers-reduced-motion: reduce)").matches
+                    ? "auto"
+                    : "smooth",
+            });
         });
         return () => cancelAnimationFrame(frameId);
-    }, [advancedState.cursor.lineIndex, timingMode]);
+    }, [
+        advancedState.cursor.lineIndex,
+        advancedState.document?.lines,
+        followLayoutRevision,
+        highlightIndex,
+        timingMode,
+    ]);
 
     useEffect(() => {
         return currentTimePubSub.sub(self.current, (time) => {
@@ -804,6 +828,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                     className={className}
                     line={line}
                     select={select}
+                    showLiveTime={timingMode === "line" && line.time !== undefined}
                     highlight={highlight}
                     prefState={prefState}
                     issueLabel={issueLabel}
@@ -1061,6 +1086,27 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                     fixed={prefState.fixed}
                     mediaReady={mediaReady}
                     syncShortcutLabel={syncShortcutLabel}
+                    shortcuts={[
+                        {
+                            key: keyBindings[InputAction.PrevLine][0]
+                                ? formatKeyBinding(keyBindings[InputAction.PrevLine][0])
+                                : "",
+                            label: lang.advancedLyrics.previousWord,
+                        },
+                        {
+                            key: keyBindings[InputAction.NextLine][0]
+                                ? formatKeyBinding(keyBindings[InputAction.NextLine][0])
+                                : "",
+                            label: lang.advancedLyrics.nextWord,
+                        },
+                        {
+                            key: keyBindings[InputAction.DeleteTime][0]
+                                ? formatKeyBinding(keyBindings[InputAction.DeleteTime][0])
+                                : "",
+                            label: lang.advancedLyrics.deleteWordTime,
+                        },
+                        { key: /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘ Z" : "Ctrl Z", label: lang.timing.undo },
+                    ]}
                     captureMode={prefState.wordCaptureMode}
                     isHolding={isHoldingWord}
                     compensationMs={prefState.wordTimingCompensationMs}
@@ -1142,6 +1188,7 @@ interface ILyricLineProps {
     line: ILyric;
     index: number;
     select: boolean;
+    showLiveTime: boolean;
     highlight: boolean;
     className: string;
     prefState: PrefState;
@@ -1157,6 +1204,7 @@ const LyricLine: React.FC<ILyricLineProps> = ({
     line,
     index,
     select,
+    showLiveTime,
     highlight,
     className,
     prefState,
@@ -1223,6 +1271,12 @@ const LyricLine: React.FC<ILyricLineProps> = ({
                             .join(", ")}
                     >
                         {select && <span className="selected-line-badge">{language.selectedLine}</span>}
+                        {select && showLiveTime && (
+                            <span className="line-live-time">
+                                {language.currentPlayback}
+                                <Curser fixed={prefState.fixed} />
+                            </span>
+                        )}
                         {highlight && (
                             <span className="playing-line-badge">
                                 <i aria-hidden="true" />

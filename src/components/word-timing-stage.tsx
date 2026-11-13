@@ -18,6 +18,7 @@ interface WordTimingStageProps {
     fixed: Fixed;
     mediaReady: boolean;
     syncShortcutLabel: string | null;
+    shortcuts: readonly { key: string; label: string }[];
     captureMode: WordCaptureMode;
     isHolding: boolean;
     compensationMs: number;
@@ -51,6 +52,7 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
     fixed,
     mediaReady,
     syncShortcutLabel,
+    shortcuts,
     captureMode,
     isHolding,
     compensationMs,
@@ -108,10 +110,15 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
     }, [fixed, lineEndMs, lineStartMs]);
 
     useEffect(() => {
-        (cursor.end ? endMarkerRef.current : selectedWordRef.current)?.scrollIntoView({
-            behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-            block: "nearest",
-            inline: "center",
+        const selected = cursor.end ? endMarkerRef.current : selectedWordRef.current;
+        const strip = selected?.closest<HTMLElement>(".word-stage-words");
+        if (!selected || !strip) return;
+        const selectedRect = selected.getBoundingClientRect();
+        const stripRect = strip.getBoundingClientRect();
+        if (selectedRect.left >= stripRect.left + 8 && selectedRect.right <= stripRect.right - 8) return;
+        strip.scrollTo({
+            left: strip.scrollLeft + selectedRect.left - stripRect.left - (strip.clientWidth - selectedRect.width) / 2,
+            behavior: !audioRef.paused || matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
         });
     }, [cursor.end, cursor.lineIndex, cursor.wordIndex]);
 
@@ -436,6 +443,14 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
                 >
                     {language.deleteWordTime}
                 </button>
+            </div>
+            <div className="word-stage-shortcuts">
+                {shortcuts.filter((shortcut) => shortcut.key).map((shortcut) => (
+                    <span key={shortcut.label}>
+                        <kbd>{shortcut.key}</kbd>
+                        {shortcut.label}
+                    </span>
+                ))}
             </div>
             <div className="word-stage-draft-actions">
                 <button type="button" onClick={onNextUntimed}>

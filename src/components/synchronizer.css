@@ -78,6 +78,7 @@
     max-height: calc(100svh - 260px);
     overflow: auto;
     overscroll-behavior: contain;
+    overflow-anchor: none;
     border: 1px solid #88888838;
     border-radius: 9px;
 }
@@ -85,6 +86,7 @@
 .word-mode .lyric-list {
     border: 0;
     border-radius: 0;
+    padding-bottom: var(--word-follow-tail-space, 128px);
 }
 
 .word-mode .aside-panel {
@@ -1069,6 +1071,16 @@
     overflow-wrap: anywhere;
 }
 
+.line-live-time {
+    color: var(--theme-foreground-color);
+    background: rgba(var(--theme-rgb), 0.12);
+    font-variant-numeric: tabular-nums;
+}
+
+.line-live-time .curser {
+    font: 700 0.78rem "Cascadia Mono", Consolas, monospace;
+}
+
 .selected-line-badge {
     color: var(--theme-foreground-color);
     background: color-mix(in srgb, var(--surface-color) 70%, var(--theme-color) 30%);
@@ -1430,6 +1442,7 @@
     padding: 3px 1px 7px;
     overflow-x: auto;
     scrollbar-width: thin;
+    overscroll-behavior-x: contain;
 }
 
 .word-stage-word {
@@ -1752,6 +1765,29 @@
     padding-top: 2px;
 }
 
+.word-stage-shortcuts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    color: var(--text-secondary-color);
+    font-size: 0.65rem;
+}
+
+.word-stage-shortcuts > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.word-stage-shortcuts kbd {
+    padding: 3px 6px;
+    color: var(--font-color);
+    background: var(--surface-color);
+    border: 1px solid #88888855;
+    border-radius: 4px;
+    font: inherit;
+}
+
 .word-stage-draft-actions button {
     min-height: 30px;
     padding: 0 9px;
@@ -1848,9 +1884,10 @@
 
     .word-mode .synchronizer-workspace {
         position: static;
-        max-height: none;
+        max-height: clamp(192px, 38svh, 440px);
         margin-top: 7px;
-        overflow: visible;
+        overflow: auto;
+        overscroll-behavior: contain;
         border: 0;
         border-radius: 0;
     }
@@ -2063,6 +2100,10 @@
     }
 
     .word-stage-actions {
+        order: 3;
+    }
+
+    .word-stage-shortcuts {
         order: 3;
     }
 
