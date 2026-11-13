@@ -828,7 +828,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                     className={className}
                     line={line}
                     select={select}
-                    showLiveTime={timingMode === "line" && line.time !== undefined}
+                    showLiveTime={timingMode === "line"}
                     highlight={highlight}
                     prefState={prefState}
                     issueLabel={issueLabel}
@@ -889,7 +889,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
         <section
             ref={page}
             className={`timing-page ${syncMode === SyncMode.highlight ? "follow-playback" : "follow-selection"}${
-                timingMode === "word" ? " word-mode" : ""
+                timingMode === "word" ? " word-mode" : " line-mode"
             }${dedicatedWaveformMode ? " waveform-capture" : ""}${
                 timingMode === "line" && dedicatedWaveformMode ? " line-waveform-mode" : ""
             }`}
@@ -1229,23 +1229,12 @@ const LyricLine: React.FC<ILyricLineProps> = ({
             aria-current={highlight ? "true" : undefined}
         >
             <span className="line-index">{index + 1}</span>
-            {select && showLiveTime
-                ? (
-                    <span className="line-time-stack">
-                        <span className="line-live-time" aria-label={language.currentPlayback}>
-                            <Curser fixed={prefState.fixed} />
-                        </span>
-                        <button
-                            type="button"
-                            className="line-time line-time-play"
-                            title={language.playFromLine}
-                            aria-label={`${language.playFromLine}: ${lineTime}`}
-                        >
-                            {lineTime}
-                        </button>
-                    </span>
-                )
-                : select && line.time === undefined
+            {select && showLiveTime && (
+                <span className="line-live-time" aria-label={language.currentPlayback}>
+                    <Curser fixed={prefState.fixed} />
+                </span>
+            )}
+            {select && line.time === undefined && !showLiveTime
                 ? <Curser fixed={prefState.fixed} />
                 : line.time === undefined
                 ? <time className="line-time">{lineTime}</time>
