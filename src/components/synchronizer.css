@@ -990,7 +990,7 @@
     font-size: 0.82rem;
 }
 
-.line > .line-time-play {
+.line > .line-time-play, .line-time-stack > .line-time-play {
     display: inline-flex;
     align-items: center;
     width: 100%;
@@ -1072,9 +1072,26 @@
 }
 
 .line-live-time {
+    display: inline-flex;
+    width: fit-content;
+    padding: 3px 5px;
     color: var(--theme-foreground-color);
     background: rgba(var(--theme-rgb), 0.12);
+    border-radius: 4px;
     font-variant-numeric: tabular-nums;
+}
+
+.line-time-stack {
+    display: grid;
+    grid-column: 2;
+    gap: 2px;
+    min-width: 0;
+    padding: 5px 0;
+}
+
+.line-time-stack > .line-time {
+    grid-column: 1;
+    grid-row: auto;
 }
 
 .line-live-time .curser {

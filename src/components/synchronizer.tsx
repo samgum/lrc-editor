@@ -1229,7 +1229,23 @@ const LyricLine: React.FC<ILyricLineProps> = ({
             aria-current={highlight ? "true" : undefined}
         >
             <span className="line-index">{index + 1}</span>
-            {select && line.time === undefined
+            {select && showLiveTime
+                ? (
+                    <span className="line-time-stack">
+                        <span className="line-live-time" aria-label={language.currentPlayback}>
+                            <Curser fixed={prefState.fixed} />
+                        </span>
+                        <button
+                            type="button"
+                            className="line-time line-time-play"
+                            title={language.playFromLine}
+                            aria-label={`${language.playFromLine}: ${lineTime}`}
+                        >
+                            {lineTime}
+                        </button>
+                    </span>
+                )
+                : select && line.time === undefined
                 ? <Curser fixed={prefState.fixed} />
                 : line.time === undefined
                 ? <time className="line-time">{lineTime}</time>
@@ -1271,12 +1287,6 @@ const LyricLine: React.FC<ILyricLineProps> = ({
                             .join(", ")}
                     >
                         {select && <span className="selected-line-badge">{language.selectedLine}</span>}
-                        {select && showLiveTime && (
-                            <span className="line-live-time">
-                                {language.currentPlayback}
-                                <Curser fixed={prefState.fixed} />
-                            </span>
-                        )}
                         {highlight && (
                             <span className="playing-line-badge">
                                 <i aria-hidden="true" />
