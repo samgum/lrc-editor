@@ -5,6 +5,16 @@ export interface FollowViewport {
     safeBottom: number;
 }
 
+export const visibleFollowOffset = ({ lineTop, lineHeight, safeTop, safeBottom }: FollowViewport): number => {
+    if (
+        ![lineTop, lineHeight, safeTop, safeBottom].every(Number.isFinite) || lineHeight <= 0 || safeBottom <= safeTop
+    ) {
+        return 0;
+    }
+    if (lineTop < safeTop) return lineTop - safeTop;
+    return lineTop + lineHeight > safeBottom ? Math.min(lineTop - safeTop, lineTop + lineHeight - safeBottom) : 0;
+};
+
 export const centeredFollowOffset = ({ lineTop, lineHeight, safeTop, safeBottom }: FollowViewport): number => {
     const safeHeight = safeBottom - safeTop;
     if (![lineTop, lineHeight, safeTop, safeBottom].every(Number.isFinite) || lineHeight <= 0 || safeHeight <= 0) {

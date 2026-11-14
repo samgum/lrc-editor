@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { centeredFollowOffset, followEndSpace, lookAheadFollowOffset } from "./follow-scroll.js";
+import { centeredFollowOffset, followEndSpace, lookAheadFollowOffset, visibleFollowOffset } from "./follow-scroll.js";
 
 describe("timing follow geometry", () => {
+    it("keeps a manually selected visible row in place", () => {
+        expect(visibleFollowOffset({ lineTop: 420, lineHeight: 64, safeTop: 150, safeBottom: 550 })).toBe(0);
+    });
+
+    it("only reveals the hidden part when navigating to a row outside the queue", () => {
+        expect(visibleFollowOffset({ lineTop: 70, lineHeight: 64, safeTop: 150, safeBottom: 550 })).toBe(-80);
+        expect(visibleFollowOffset({ lineTop: 530, lineHeight: 64, safeTop: 150, safeBottom: 550 })).toBe(44);
+        expect(visibleFollowOffset({ lineTop: 150, lineHeight: 480, safeTop: 150, safeBottom: 550 })).toBe(0);
+    });
     it("centers a line before it reaches the viewport edge", () => {
         expect(centeredFollowOffset({ lineTop: 300, lineHeight: 50, safeTop: 140, safeBottom: 700 })).toBe(-95);
     });

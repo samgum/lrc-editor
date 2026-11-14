@@ -361,6 +361,12 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
                     </div>
                 </div>
             )}
+            {(lineStartMs === undefined || lineEndMs === undefined || lineEndMs <= lineStartMs) && (
+                <div className="word-stage-lane-wrap" aria-hidden="true">
+                    <span>{language.timingLane}</span>
+                    <div className="word-stage-lane" />
+                </div>
+            )}
 
             <div className="word-stage-focus" aria-live="polite">
                 <button

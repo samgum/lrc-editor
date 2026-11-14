@@ -23,7 +23,12 @@ import {
     wordTimingIssueAt,
 } from "../utils/advanced-lyrics.js";
 import { AudioActionType, audioRef, audioStatePubSub, currentTimePubSub } from "../utils/audiomodule.js";
-import { centeredFollowOffset, followEndSpace, lookAheadFollowOffset } from "../utils/follow-scroll.js";
+import {
+    centeredFollowOffset,
+    followEndSpace,
+    lookAheadFollowOffset,
+    visibleFollowOffset,
+} from "../utils/follow-scroll.js";
 import { InputAction } from "../utils/input-action.js";
 import { isKeyboardElement } from "../utils/is-keyboard-element.js";
 import { formatKeyBinding, getMatchedAction } from "../utils/keybindings.js";
@@ -87,6 +92,18 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
     const previewEndRef = useRef<number | null>(null);
     const holdingWordRef = useRef(false);
     const heldSyncKeyRef = useRef<string | null>(null);
+    const wordFollowIntent = useRef<"capture" | "reveal" | "preserve" | null>("reveal");
+    const wordFollowFrame = useRef(0);
+    const previousWordLine = useRef(advancedState.cursor.lineIndex);
+    const [wordFollowRevision, setWordFollowRevision] = useState(0);
+    const requestWordFollow = useCallback((intent: "capture" | "reveal" | "preserve") => {
+        wordFollowIntent.current = intent;
+        setWordFollowRevision((revision) => revision + 1);
+    }, []);
+    const preserveWordQueueScroll = useCallback(() => {
+        wordFollowIntent.current = "preserve";
+        cancelAnimationFrame(wordFollowFrame.current);
+    }, []);
     const syncShortcut = keyBindings[InputAction.Sync][0];
     const syncShortcutLabel = syncShortcut ? formatKeyBinding(syncShortcut) : null;
     const onTimingWaveformUnavailable = useCallback(() => {
@@ -222,6 +239,11 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
 
     useEffect(() => {
         if (timingMode !== "word") return;
+        const lineChanged = previousWordLine.current !== advancedState.cursor.lineIndex;
+        previousWordLine.current = advancedState.cursor.lineIndex;
+        const intent = wordFollowIntent.current ?? (lineChanged ? "reveal" : null);
+        wordFollowIntent.current = null;
+        if (!intent || intent === "preserve") return;
         const frameId = requestAnimationFrame(() => {
             const list = ul.current;
             const container = list?.parentElement;
@@ -237,27 +259,25 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                 + (2 - following.length) * lineRect.height;
             list.style.setProperty("--word-follow-tail-space", `${Math.ceil(lineRect.height * 2)}px`);
             const safeTop = queueRect.top + container.clientTop + 8;
-            const offset = lookAheadFollowOffset({
+            const viewport = {
                 lineTop: lineRect.top,
                 lineHeight: lineRect.height,
                 safeTop,
                 safeBottom: safeTop + container.clientHeight - 16,
                 lookAheadHeight,
-            });
+            };
+            const offset = intent === "capture" ? lookAheadFollowOffset(viewport) : visibleFollowOffset(viewport);
             if (Math.abs(offset) < 1) return;
             container.scrollTo({
                 top: container.scrollTop + offset,
-                behavior: !audioRef.paused || matchMedia("(prefers-reduced-motion: reduce)").matches
-                    ? "auto"
-                    : "smooth",
+                behavior: "instant",
             });
         });
+        wordFollowFrame.current = frameId;
         return () => cancelAnimationFrame(frameId);
     }, [
         advancedState.cursor.lineIndex,
-        advancedState.document?.lines,
-        followLayoutRevision,
-        highlightIndex,
+        wordFollowRevision,
         timingMode,
     ]);
 
@@ -305,12 +325,21 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
             const next = !advancedState.cursor.end && advancedState.cursor.wordIndex === line.words.length - 1
                 ? advancedState.cursor
                 : nextWordCursor(advancedState.document, advancedState.cursor, 1);
+            requestWordFollow("capture");
             advancedDispatch({ type: AdvancedActionType.stamp, payload: Math.max(0, Math.round(timeMs)) });
             if (next.lineIndex !== state.selectIndex) {
                 dispatch({ type: ActionType.select, payload: () => next.lineIndex });
             }
         }
-    }, [advancedDispatch, advancedState.cursor, advancedState.document, dispatch, state.selectIndex, timingMode]);
+    }, [
+        advancedDispatch,
+        advancedState.cursor,
+        advancedState.document,
+        dispatch,
+        requestWordFollow,
+        state.selectIndex,
+        timingMode,
+    ]);
 
     const sync = useCallback(() => {
         if (!audioRef.duration) return;
@@ -370,14 +399,16 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
         if (!audioRef.duration || timingMode !== "word" || !advancedState.document || holdingWordRef.current) return;
         holdingWordRef.current = true;
         setIsHoldingWord(true);
+        requestWordFollow("capture");
         advancedDispatch({ type: AdvancedActionType.startHold, payload: captureTimeMs() });
-    }, [advancedDispatch, advancedState.document, captureTimeMs, timingMode]);
+    }, [advancedDispatch, advancedState.document, captureTimeMs, requestWordFollow, timingMode]);
 
     const finishWordHold = useCallback(() => {
         if (!holdingWordRef.current || timingMode !== "word" || !advancedState.document) return;
         holdingWordRef.current = false;
         setIsHoldingWord(false);
         const next = nextWordCursor(advancedState.document, advancedState.cursor, 1);
+        requestWordFollow("capture");
         advancedDispatch({ type: AdvancedActionType.finishHold, payload: captureTimeMs() });
         if (next.lineIndex !== state.selectIndex) {
             dispatch({ type: ActionType.select, payload: () => next.lineIndex });
@@ -388,6 +419,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
         advancedState.document,
         captureTimeMs,
         dispatch,
+        requestWordFollow,
         state.selectIndex,
         timingMode,
     ]);
@@ -436,7 +468,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
         [advancedDispatch, advancedState.cursor, advancedState.document, dispatch, lyric, timingMode],
     );
 
-    const selectWord = useCallback((cursor: WordCursor) => {
+    const selectWord = useCallback((cursor: WordCursor, follow: "reveal" | "preserve" = "reveal") => {
         const document = advancedState.document;
         if (!document) return;
         const next = {
@@ -447,11 +479,12 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                 Math.max(0, document.lines[guard(cursor.lineIndex, 0, document.lines.length - 1)].words.length - 1),
             ),
         };
+        requestWordFollow(follow);
         advancedDispatch({ type: AdvancedActionType.select, payload: next });
         dispatch({ type: ActionType.select, payload: () => next.lineIndex });
         const time = document.lines[next.lineIndex].words[next.wordIndex]?.startMs;
         if (prefState.interactiveSeek && time !== undefined) audioRef.currentTime = time / 1000;
-    }, [advancedDispatch, advancedState.document, dispatch, prefState.interactiveSeek]);
+    }, [advancedDispatch, advancedState.document, dispatch, prefState.interactiveSeek, requestWordFollow]);
 
     const selectLine = useCallback(
         (getIndex: (index: number) => number) => {
@@ -743,11 +776,11 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                 selectWord({
                     lineIndex: Number.parseInt(wordTarget.dataset.line!, 10),
                     wordIndex: Number.parseInt(wordTarget.dataset.word!, 10),
-                });
+                }, "preserve");
                 return;
             }
 
-            if (timingMode === "word") selectWord({ lineIndex: lineKey, wordIndex: 0 });
+            if (timingMode === "word") selectWord({ lineIndex: lineKey, wordIndex: 0 }, "preserve");
             else selectLine(() => lineKey);
 
             if (target.closest(".line-time-play") && lyric[lineKey]?.time !== undefined && audioRef.duration) {
@@ -778,7 +811,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                 };
                 const time = advancedState.document.lines[cursor.lineIndex]?.words[cursor.wordIndex]?.startMs;
                 if (time !== undefined) {
-                    selectWord(cursor);
+                    selectWord(cursor, "preserve");
                     audioRef.currentTime = time / 1000;
                 }
                 return;
@@ -1176,7 +1209,12 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                     onDeleteTime={() => advancedDispatch({ type: AdvancedActionType.deleteTime, payload: undefined })}
                 />
             )}
-            <section className="synchronizer-workspace">
+            <section
+                className="synchronizer-workspace"
+                onWheel={timingMode === "word" ? preserveWordQueueScroll : undefined}
+                onTouchStart={timingMode === "word" ? preserveWordQueueScroll : undefined}
+                onPointerDown={timingMode === "word" ? preserveWordQueueScroll : undefined}
+            >
                 <ul
                     ref={ul}
                     className={ulClassName}
@@ -1268,25 +1306,34 @@ const LyricLine: React.FC<ILyricLineProps> = ({
             <span className="line-text">
                 <span className={`line-copy${advancedLine ? " word-timed-line" : ""}`}>
                     {advancedLine
-                        ? advancedLine.words.map((word, wordIndex) => {
-                            const wordIssue = wordIssues?.[wordIndex] || null;
-                            return (
-                                <span
-                                    key={wordIndex}
-                                    data-line={index}
-                                    data-word={wordIndex}
-                                    className={`timed-word${selectedWord === wordIndex ? " selected-word" : ""}${
-                                        playbackWords.includes(wordIndex) ? " playback-word" : ""
-                                    }${wordIssue ? ` word-error word-error-${wordIssue}` : ""}`}
-                                    title={wordIssue ? wordIssueLabel(wordIssue, language) : undefined}
-                                >
-                                    {word.text}
+                        ? (
+                            <>
+                                <span className="word-line-measure" aria-hidden="true">{lineText}</span>
+                                <span className="word-line-content">
+                                    {advancedLine.words.map((word, wordIndex) => {
+                                        const wordIssue = wordIssues?.[wordIndex] || null;
+                                        return (
+                                            <span
+                                                key={wordIndex}
+                                                data-line={index}
+                                                data-word={wordIndex}
+                                                className={`timed-word${
+                                                    selectedWord === wordIndex ? " selected-word" : ""
+                                                }${playbackWords.includes(wordIndex) ? " playback-word" : ""}${
+                                                    wordIssue ? ` word-error word-error-${wordIssue}` : ""
+                                                }`}
+                                                title={wordIssue ? wordIssueLabel(wordIssue, language) : undefined}
+                                            >
+                                                {word.text}
+                                            </span>
+                                        );
+                                    })}
                                 </span>
-                            );
-                        })
+                            </>
+                        )
                         : lineText}
                 </span>
-                {(select || highlight) && (
+                {(select || highlight || advancedLine) && (
                     <span
                         className="line-state-badges"
                         aria-label={[select && language.selectedLine, highlight && language.playingLine].filter(Boolean)

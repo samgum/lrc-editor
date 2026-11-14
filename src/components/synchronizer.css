@@ -124,6 +124,33 @@
 .word-mode .line-state-badges, .line-waveform-mode .line-state-badges {
     justify-content: flex-end;
 }
+
+.word-mode .line-state-badges {
+    min-height: 25px;
+}
+
+.word-mode .line {
+    grid-template-rows: minmax(1.65rem, auto) auto;
+}
+
+.word-mode .line-copy.word-timed-line {
+    display: grid;
+    -webkit-line-clamp: unset;
+}
+
+.word-mode .word-line-content, .word-mode .word-line-measure {
+    display: -webkit-box;
+    grid-area: 1 / 1;
+    overflow: hidden;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.word-mode .word-line-measure {
+    font-weight: 760;
+    visibility: hidden;
+    pointer-events: none;
+}
 .word-mode .line-state-badges > span, .line-waveform-mode .line-state-badges > span {
     max-width: 100%;
     font-size: 0.75rem;
