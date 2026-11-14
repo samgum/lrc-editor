@@ -259,6 +259,8 @@
         "untimed": "尚未打轴",
         "addSegment": "添加片段",
         "addLine": "添加行",
+        "sentenceText": "整句歌词",
+        "wordTimingDetails": "逐词时间微调",
         "removeLine": "删除行",
         "removeSegment": "删除片段",
         "captureWord": "记录当前字词时间",

@@ -14,6 +14,7 @@ The web application is static and keeps lyric text, preferences, and local media
 
 ## Features
 
+- Edit word-timed lyrics as complete sentences. Unchanged words retain their timing, inserted/replaced words remain untimed, and native text undo plus document undo/redo preserve the axis. Original imported syllable splits are retained for unchanged words. Detailed word fields are collapsed until needed.
 - Imported or pasted Enhanced LRC opens a keyboard-accessible word-mode prompt. The word editor supports changing text, adding/deleting segments and complete lines, and undo/redo without changing untouched timing.
 - Word timing keeps two following lines visible in its scrolling queue when space permits, follows word chips without moving the page, and shows the configured navigation/correction shortcuts. Line timing shows a live cursor at the far left of the selected row, followed by the saved timestamp and lyrics on the same line.
 - In word tap timing, the same timing key records the last word's start, then its sustained ending before advancing to the next line. The recorded ending survives later line stamps, undo/redo, and saved progress; hold timing still finishes on release.

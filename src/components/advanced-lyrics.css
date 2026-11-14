@@ -200,6 +200,41 @@
     padding: 9px;
 }
 
+.advanced-sentence-text {
+    display: block;
+    box-sizing: border-box;
+    width: calc(100% - 20px);
+    min-height: 54px;
+    margin: 10px;
+    padding: 10px 12px;
+    color: var(--font-color);
+    background: var(--surface-color);
+    border: 1px solid #88888855;
+    border-radius: 6px;
+    font: inherit;
+    line-height: 1.55;
+    resize: vertical;
+}
+
+.advanced-sentence-text:focus {
+    border-color: var(--theme-foreground-color);
+    outline: 2px solid var(--theme-foreground-color);
+    outline-offset: 1px;
+}
+
+.advanced-word-details > summary {
+    padding: 9px 12px;
+    color: var(--text-secondary-color);
+    font-size: 0.75rem;
+    cursor: pointer;
+}
+
+.advanced-word-details > summary > span {
+    margin-left: 8px;
+    color: var(--theme-foreground-color);
+    font-variant-numeric: tabular-nums;
+}
+
 .advanced-word-card {
     position: relative;
     display: grid;

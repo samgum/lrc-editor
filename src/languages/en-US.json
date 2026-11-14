@@ -265,6 +265,8 @@
         "untimed": "Untimed",
         "addSegment": "Add segment",
         "addLine": "Add line",
+        "sentenceText": "Sentence lyrics",
+        "wordTimingDetails": "Word timing",
         "removeLine": "Delete line",
         "removeSegment": "Remove segment",
         "captureWord": "Set word time",

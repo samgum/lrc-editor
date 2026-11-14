@@ -435,11 +435,22 @@ export const toEnhancedLrc = (document: AdvancedLyricsDocument, fixed: Fixed = 3
             continue;
         }
         let content = "";
-        for (const word of line.words) {
+        const finalEnd = line.endMs ?? line.words.at(-1)?.endMs;
+        for (const [index, word] of line.words.entries()) {
             if (word.startMs !== undefined) content += formatLrcTimestamp(word.startMs, fixed, "angle");
             content += word.text.replace(/\r?\n/gu, " ");
+            const nextBoundary = index + 1 < line.words.length ? line.words[index + 1].startMs : finalEnd;
+            const followingStart = line.words.slice(index + 1).find((candidate) =>
+                candidate.startMs !== undefined
+            )?.startMs
+                ?? finalEnd;
+            if (
+                word.endMs !== undefined && word.endMs !== nextBoundary
+                && (followingStart === undefined || word.endMs <= followingStart)
+            ) {
+                content += formatLrcTimestamp(word.endMs, fixed, "angle");
+            }
         }
-        const finalEnd = line.endMs ?? [...line.words].reverse().find((word) => word.endMs !== undefined)?.endMs;
         if (finalEnd !== undefined) content += formatLrcTimestamp(finalEnd, fixed, "angle");
         output.push(lineTag + content);
     }

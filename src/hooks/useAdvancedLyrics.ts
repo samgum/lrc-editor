@@ -70,7 +70,9 @@ export type AdvancedLyricsAction =
         readonly type: AdvancedActionType.updateLine;
         readonly payload: {
             readonly lineIndex: number;
-            readonly patch: Partial<Pick<import("../utils/advanced-lyrics.js").AdvancedLyricLine, "startMs" | "endMs">>;
+            readonly patch: Partial<
+                Pick<import("../utils/advanced-lyrics.js").AdvancedLyricLine, "startMs" | "endMs" | "words">
+            >;
         };
     }
     | { readonly type: AdvancedActionType.addWord; readonly payload: WordCursor }
