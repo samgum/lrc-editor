@@ -25,7 +25,9 @@ export const textTimingRows = (text: string, wordTiming = false): TextTimingRow[
         if (!match[2]) break;
     }
     entries.forEach((entry, index) => {
-        rows[entry.row].issue ??= timingIssueAt(entries, index);
+        const issue = timingIssueAt(entries, index);
+        const hasWordTags = /<\s*\d{1,3}:\d{1,2}(?:[.:]\d{1,3})?\s*>/.test(rows[entry.row].text);
+        if (!wordTiming || !hasWordTags || issue === "invalidTimestamp") rows[entry.row].issue ??= issue;
     });
     return rows;
 };

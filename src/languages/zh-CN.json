@@ -257,6 +257,7 @@
         "wordStart": "字词开始",
         "wordEnd": "字词结束",
         "untimed": "尚未打轴",
+        "wordTimingPending": "逐字打轴未完成",
         "addSegment": "添加片段",
         "addLine": "添加行",
         "sentenceText": "整句歌词",

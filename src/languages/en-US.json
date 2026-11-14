@@ -263,6 +263,7 @@
         "wordStart": "Word start",
         "wordEnd": "Word end",
         "untimed": "Untimed",
+        "wordTimingPending": "Word timing is incomplete",
         "addSegment": "Add segment",
         "addLine": "Add line",
         "sentenceText": "Sentence lyrics",

@@ -762,6 +762,12 @@ export const documentToBasicLyrics = (document: AdvancedLyricsDocument): readonl
 
 export type WordTimingIssue = "invalid" | "duplicate" | "backwards";
 
+export const isWordTimingPending = (line: AdvancedLyricLine): boolean => {
+    const words = line.words.filter((word) => word.text.trim());
+    return words.length > 0 && (words.some((word) => word.startMs === undefined)
+        || (line.endMs === undefined && words.at(-1)?.endMs === undefined));
+};
+
 export const wordTimingIssueAt = (
     document: AdvancedLyricsDocument,
     lineIndex: number,
@@ -783,11 +789,9 @@ const previousTimedWord = (
     lineIndex: number,
     wordIndex: number,
 ): TimedWord | undefined => {
-    for (let line = lineIndex; line >= 0; line -= 1) {
-        const words = document.lines[line]?.words || [];
-        for (let word = line === lineIndex ? wordIndex - 1 : words.length - 1; word >= 0; word -= 1) {
-            if (words[word].startMs !== undefined) return words[word];
-        }
+    const words = document.lines[lineIndex]?.words || [];
+    for (let word = wordIndex - 1; word >= 0; word -= 1) {
+        if (words[word].startMs !== undefined) return words[word];
     }
     return undefined;
 };

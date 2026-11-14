@@ -8,6 +8,7 @@ import {
     exportLineLyrics,
     formatLrcTimestamp,
     hasWordTiming,
+    isWordTimingPending,
     parseEnhancedLrc,
     parseKrc,
     parseLyricBytes,
@@ -30,6 +31,39 @@ const parseXml = (source: string): Document =>
     new XmlDomParser().parseFromString(source, "application/xml") as unknown as Document;
 
 describe("advanced lyric formats", () => {
+    it("distinguishes complete word timing from line-only, partially timed, and unfinished final words", () => {
+        const document = createWordTimedDocument([
+            { time: 1, text: "Line only" },
+        ], new Map());
+        expect(isWordTimingPending(document.lines[0])).toBe(true);
+        expect(isWordTimingPending(parseEnhancedLrc("[00:01]<00:01>Open <00:02>end").lines[0])).toBe(true);
+        expect(isWordTimingPending(parseEnhancedLrc("[00:01]<00:01>Done <00:02>end<00:03>").lines[0])).toBe(false);
+        expect(isWordTimingPending({ words: [{ text: " " }] })).toBe(false);
+        expect(isWordTimingPending({ startMs: 1000, endMs: 3000, words: [{ text: "word", startMs: 1000 }] })).toBe(
+            false,
+        );
+    });
+    it("preserves independent overlapping voices through Enhanced LRC, KRC, TTML and ASS export", () => {
+        const document = parseEnhancedLrc([
+            "[00:05]<00:05>Main <00:08>voice<00:12>",
+            "[00:06]<00:06>Harmony <00:09>voice<00:11>",
+            "[00:05]<00:05>Echo<00:13>",
+            "[00:03]<00:03>Earlier<00:06>",
+        ].join("\n"));
+        document.lines.forEach((line, index) =>
+            line.words.forEach((_, word) => {
+                expect(wordTimingIssueAt(document, index, word)).toBeNull();
+            })
+        );
+        expect(parseEnhancedLrc(toEnhancedLrc(document)).lines).toEqual(document.lines);
+        expect(parseKrc(toKrc(document)).lines).toEqual(document.lines);
+        expect(parseTtml(toTtml(document), parseXml).lines).toEqual(document.lines);
+        const ass = toAssKaraoke(document);
+        expect(ass).toContain("Dialogue: 0,0:00:05.00,0:00:12.00");
+        expect(ass).toContain("Dialogue: 0,0:00:06.00,0:00:11.00");
+        expect(ass).toContain("Dialogue: 0,0:00:05.00,0:00:13.00");
+        expect(ass).toContain("Dialogue: 0,0:00:03.00,0:00:06.00");
+    });
     it("imports enhanced LRC without losing spaces or the final word end", () => {
         const document = parseEnhancedLrc([
             "[ar: Artist]",

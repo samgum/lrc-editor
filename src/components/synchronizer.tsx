@@ -16,6 +16,7 @@ import { type Action, ActionType, guard } from "../hooks/useLrc.js";
 import { type State as PrefState } from "../hooks/usePref.js";
 import {
     type AdvancedLyricLine,
+    isWordTimingPending,
     lineText as advancedLineText,
     type LyricsWorkspaceMode,
     type WordTimingIssue,
@@ -29,6 +30,7 @@ import { formatKeyBinding, getMatchedAction } from "../utils/keybindings.js";
 import { prependHash } from "../utils/router.js";
 import { timingIssueAt } from "../utils/timing-issues.js";
 import { captureWaveformTime, setWaveformTimingHandler } from "../utils/waveform-timing.js";
+import { wordsAtTime } from "../utils/word-playback.js";
 import { appContext } from "./app.context.js";
 import { AsidePanel } from "./asidepanel.js";
 import { Curser } from "./curser.js";
@@ -74,7 +76,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
     const { lang, prefState, prefDispatch } = useContext(appContext);
     const keyBindings = useKeyBindings();
     const [mediaReady, setMediaReady] = useState(Boolean(audioRef.duration));
-    const [playbackWord, setPlaybackWord] = useState<WordCursor | null>(null);
+    const [playbackWords, setPlaybackWords] = useState<readonly WordCursor[]>([]);
     const [playbackRate, setPlaybackRate] = useState(audioRef.playbackRate);
     const [timingWaveformSource, setTimingWaveformSource] = useState(audioRef.src);
     const [timingWaveformFailed, setTimingWaveformFailed] = useState(() =>
@@ -268,8 +270,13 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
             }
             dispatch({ type: ActionType.refresh, payload: time });
             if (timingMode === "word" && advancedState.document) {
-                const next = wordAtTime(advancedState.document.lines, Math.round(time * 1000));
-                setPlaybackWord((current) => cursorsEqual(current, next) ? current : next);
+                const next = wordsAtTime(advancedState.document.lines, Math.round(time * 1000));
+                setPlaybackWords((current) =>
+                    current.length === next.length
+                        && current.every((cursor, index) => cursorsEqual(cursor, next[index]))
+                        ? current
+                        : next
+                );
             }
         });
     }, [advancedState.document, dispatch, timingMode]);
@@ -498,7 +505,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
         const previewStart = line.startMs === undefined
             ? undefined
             : Math.max(0, line.startMs - prefState.wordPreviewLeadMs);
-        previewRange(previewStart, line.endMs ?? nextLineStart ?? lastWordEnd ?? fallbackEnd);
+        previewRange(previewStart, line.endMs ?? lastWordEnd ?? nextLineStart ?? fallbackEnd);
     }, [advancedState.cursor.lineIndex, advancedState.document, prefState.wordPreviewLeadMs, previewRange]);
 
     const previewWaveformSelection = useCallback(() => {
@@ -794,16 +801,22 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
     const LyricLineIter = useCallback(
         (line: Readonly<ILyric>, index: number, lines: readonly ILyric[]) => {
             const select = index === selectIndex;
-            const highlight = index === highlightIndex;
-            const issue = timingIssueAt(lines, index);
+            const activeWords = playbackWords.filter((cursor) => cursor.lineIndex === index);
+            const highlight = timingMode === "word" ? activeWords.length > 0 : index === highlightIndex;
+            const lineIssue = timingIssueAt(lines, index);
+            const issue = timingMode === "word" && lineIssue !== "invalidTimestamp" ? null : lineIssue;
             const wordIssue = timingMode === "word" && advancedState.document
                 ? firstWordIssue(advancedState.document, index)
                 : null;
-            const error = issue !== null || wordIssue !== null;
+            const timingPending = timingMode === "word" && !!advancedState.document?.lines[index]
+                && isWordTimingPending(advancedState.document.lines[index]);
+            const error = issue !== null || wordIssue !== null || timingPending;
             const issueLabel = issue
                 ? lang.timing[issue]
                 : wordIssue
                 ? wordIssueLabel(wordIssue.issue, lang.advancedLyrics)
+                : timingPending
+                ? lang.advancedLyrics.wordTimingPending
                 : undefined;
 
             const className = Object.entries({
@@ -812,6 +825,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                 highlight,
                 error,
                 [`error-${issue}`]: issue !== null,
+                "word-timing-pending": timingPending,
             })
                 .reduce<string[]>((p, [name, value]) => {
                     if (value) {
@@ -832,6 +846,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                     highlight={highlight}
                     prefState={prefState}
                     issueLabel={issueLabel}
+                    timingPending={timingPending && issue === null && wordIssue === null}
                     advancedLine={timingMode === "word" ? advancedState.document?.lines[index] : undefined}
                     wordIssues={timingMode === "word" && advancedState.document
                         ? advancedState.document.lines[index].words.map((_, wordIndex) =>
@@ -839,7 +854,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                         )
                         : undefined}
                     selectedWord={advancedState.cursor.lineIndex === index ? advancedState.cursor.wordIndex : undefined}
-                    playbackWord={playbackWord?.lineIndex === index ? playbackWord.wordIndex : undefined}
+                    playbackWords={activeWords.map((cursor) => cursor.wordIndex)}
                     language={lang.advancedLyrics}
                 />
             );
@@ -850,7 +865,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
             highlightIndex,
             lang.advancedLyrics,
             lang.timing,
-            playbackWord,
+            playbackWords,
             prefState,
             selectIndex,
             timingMode,
@@ -1082,7 +1097,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                 <WordTimingStage
                     document={advancedState.document}
                     cursor={advancedState.cursor}
-                    playbackWord={playbackWord}
+                    playbackWords={playbackWords}
                     fixed={prefState.fixed}
                     mediaReady={mediaReady}
                     syncShortcutLabel={syncShortcutLabel}
@@ -1193,10 +1208,11 @@ interface ILyricLineProps {
     className: string;
     prefState: PrefState;
     issueLabel?: string;
+    timingPending: boolean;
     advancedLine?: AdvancedLyricLine;
     wordIssues?: readonly (WordTimingIssue | null)[];
     selectedWord?: number;
-    playbackWord?: number;
+    playbackWords: readonly number[];
     language: Language["advancedLyrics"];
 }
 
@@ -1209,10 +1225,11 @@ const LyricLine: React.FC<ILyricLineProps> = ({
     className,
     prefState,
     issueLabel,
+    timingPending,
     advancedLine,
     wordIssues,
     selectedWord,
-    playbackWord,
+    playbackWords,
     language,
 }) => {
     const lineTime = line.time === undefined ? "—" : convertTimeToTag(line.time, prefState.fixed).slice(1, -1);
@@ -1225,7 +1242,7 @@ const LyricLine: React.FC<ILyricLineProps> = ({
             data-key={index}
             className={className}
             title={issueLabel}
-            aria-invalid={issueLabel ? "true" : undefined}
+            aria-invalid={issueLabel && !timingPending ? "true" : undefined}
             aria-current={highlight ? "true" : undefined}
         >
             <span className="line-index">{index + 1}</span>
@@ -1259,7 +1276,7 @@ const LyricLine: React.FC<ILyricLineProps> = ({
                                     data-line={index}
                                     data-word={wordIndex}
                                     className={`timed-word${selectedWord === wordIndex ? " selected-word" : ""}${
-                                        playbackWord === wordIndex ? " playback-word" : ""
+                                        playbackWords.includes(wordIndex) ? " playback-word" : ""
                                     }${wordIssue ? ` word-error word-error-${wordIssue}` : ""}`}
                                     title={wordIssue ? wordIssueLabel(wordIssue, language) : undefined}
                                 >
@@ -1296,20 +1313,6 @@ const LyricLine: React.FC<ILyricLineProps> = ({
 
 const cursorsEqual = (left: WordCursor | null, right: WordCursor | null): boolean =>
     left?.lineIndex === right?.lineIndex && left?.wordIndex === right?.wordIndex;
-
-const wordAtTime = (lines: readonly AdvancedLyricLine[], timeMs: number): WordCursor | null => {
-    let result: WordCursor | null = null;
-    let resultTime = -Infinity;
-    for (const [lineIndex, line] of lines.entries()) {
-        for (const [wordIndex, word] of line.words.entries()) {
-            if (word.startMs !== undefined && word.startMs <= timeMs && word.startMs >= resultTime) {
-                result = { lineIndex, wordIndex };
-                resultTime = word.startMs;
-            }
-        }
-    }
-    return result;
-};
 
 const nextUntimedWordCursor = (
     document: NonNullable<AdvancedLyricsState["document"]>,

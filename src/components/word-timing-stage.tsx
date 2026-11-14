@@ -14,7 +14,7 @@ import { ArrowLeftSVG, ArrowRightSVG, PlaySVG, Replay5sSVG } from "./svg.js";
 interface WordTimingStageProps {
     document: AdvancedLyricsDocument;
     cursor: WordCursor;
-    playbackWord: WordCursor | null;
+    playbackWords: readonly WordCursor[];
     fixed: Fixed;
     mediaReady: boolean;
     syncShortcutLabel: string | null;
@@ -48,7 +48,7 @@ interface WordTimingStageProps {
 export const WordTimingStage: React.FC<WordTimingStageProps> = ({
     document,
     cursor,
-    playbackWord,
+    playbackWords,
     fixed,
     mediaReady,
     syncShortcutLabel,
@@ -91,7 +91,7 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
         ? [...line.words].reverse().find((candidate) => candidate.endMs !== undefined)?.endMs
         : undefined;
     const lineStartMs = line?.startMs;
-    const lineEndMs = line?.endMs ?? nextLine?.startMs ?? lastWordEnd;
+    const lineEndMs = line?.endMs ?? lastWordEnd ?? nextLine?.startMs;
 
     useEffect(() => {
         const update = (seconds: number) => {
@@ -264,8 +264,9 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
                     <div className="word-stage-words">
                         {line.words.map((candidate, wordIndex) => {
                             const selected = wordIndex === cursor.wordIndex && !cursor.end;
-                            const playing = playbackWord?.lineIndex === cursor.lineIndex
-                                && playbackWord.wordIndex === wordIndex;
+                            const playing = playbackWords.some((playing) =>
+                                playing.lineIndex === cursor.lineIndex && playing.wordIndex === wordIndex
+                            );
                             const timed = candidate.startMs !== undefined;
                             const issue = wordTimingIssueAt(document, cursor.lineIndex, wordIndex);
                             return (
@@ -343,8 +344,10 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
                                 <i
                                     key={wordIndex}
                                     className={`${wordIndex === cursor.wordIndex ? "selected" : ""}${
-                                        playbackWord?.lineIndex === cursor.lineIndex
-                                            && playbackWord.wordIndex === wordIndex
+                                        playbackWords.some((playing) =>
+                                                playing.lineIndex === cursor.lineIndex
+                                                && playing.wordIndex === wordIndex
+                                            )
                                             ? " playing"
                                             : ""
                                     }`}

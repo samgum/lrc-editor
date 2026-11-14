@@ -8,6 +8,75 @@ import {
 } from "./useAdvancedLyrics.js";
 
 describe("advanced lyrics timing state", () => {
+    it("captures harmony before the preceding line finishes without rewriting either neighboring voice", () => {
+        const document = parseEnhancedLrc([
+            "[00:05]<00:05>Main <00:08>voice<00:12>",
+            "[00:07]<00:07>Harmony <00:09>voice<00:11>",
+            "[00:05]<00:05>Echo<00:13>",
+        ].join("\n"));
+        let state = advancedLyricsReducer(initAdvancedLyricsState(""), {
+            type: AdvancedActionType.load,
+            payload: document,
+        });
+        const original = state.document!;
+        state = advancedLyricsReducer(state, {
+            type: AdvancedActionType.select,
+            payload: { lineIndex: 1, wordIndex: 0 },
+        });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.stamp, payload: 6000 });
+        expect(state.document?.lines[1].startMs).toBe(6000);
+        expect(state.document?.lines[1].words[0].startMs).toBe(6000);
+        expect(state.document?.lines[0]).toBe(original.lines[0]);
+        expect(state.document?.lines[2]).toBe(original.lines[2]);
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.stamp, payload: 9000 });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.stamp, payload: 11500 });
+        expect(state.document?.lines[1].endMs).toBe(11500);
+        expect(state.document?.lines[0]).toBe(original.lines[0]);
+        expect(state.document?.lines[2]).toBe(original.lines[2]);
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.undo, payload: undefined });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.redo, payload: undefined });
+        expect(state.document?.lines[1].endMs).toBe(11500);
+    });
+
+    it("allows tap and held final-word ends to extend past the next voice's start", () => {
+        const document = parseEnhancedLrc("[00:05]<00:05>Main <00:08>voice<00:12>\n[00:09]<00:09>Harmony<00:11>");
+        let state = advancedLyricsReducer(initAdvancedLyricsState(""), {
+            type: AdvancedActionType.load,
+            payload: document,
+        });
+        const harmony = state.document!.lines[1];
+        state = advancedLyricsReducer(state, {
+            type: AdvancedActionType.select,
+            payload: { lineIndex: 0, wordIndex: 1, end: true },
+        });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.stamp, payload: 13500 });
+        expect(state.document?.lines[0].endMs).toBe(13500);
+        expect(state.document?.lines[1]).toBe(harmony);
+        state = advancedLyricsReducer(state, {
+            type: AdvancedActionType.select,
+            payload: { lineIndex: 0, wordIndex: 1 },
+        });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.startHold, payload: 8000 });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.finishHold, payload: 14000 });
+        expect(state.document?.lines[0].words[1]).toMatchObject({ startMs: 8000, endMs: 14000 });
+        expect(state.document?.lines[0].endMs).toBe(14000);
+        expect(state.document?.lines[1]).toBe(harmony);
+    });
+
+    it("allows simultaneous starts on independent lines", () => {
+        let state = advancedLyricsReducer(initAdvancedLyricsState(""), {
+            type: AdvancedActionType.ensureWordMode,
+            payload: { lines: [{ text: "Lead" }, { text: "Harmony" }], metadata: new Map() },
+        });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.stamp, payload: 5000 });
+        state = advancedLyricsReducer(state, {
+            type: AdvancedActionType.select,
+            payload: { lineIndex: 1, wordIndex: 0 },
+        });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.stamp, payload: 5000 });
+        expect(state.document?.lines.map((line) => line.words[0].startMs)).toEqual([5000, 5000]);
+        expect(state.document?.lines[0].words[0].endMs).toBeUndefined();
+    });
     it("inserts and deletes lines without shifting existing word timestamps", () => {
         let state = advancedLyricsReducer(initAdvancedLyricsState(""), {
             type: AdvancedActionType.load,
@@ -126,15 +195,15 @@ describe("advanced lyrics timing state", () => {
         expect(state.cursor).toEqual({ lineIndex: 0, wordIndex: 0 });
     });
 
-    it("bounds an end capture by an already timed following word", () => {
+    it("bounds a held end by an already timed following word within the same line", () => {
         let state = advancedLyricsReducer(initAdvancedLyricsState(""), {
             type: AdvancedActionType.load,
-            payload: parseEnhancedLrc("[00:01.000]<00:01.000>A\n[00:03.000]<00:03.000>B"),
+            payload: parseEnhancedLrc("[00:01.000]<00:01.000>A<00:03.000>B<00:05.000>"),
         });
-        state = advancedLyricsReducer(state, { type: AdvancedActionType.stamp, payload: 1500 });
-        state = advancedLyricsReducer(state, { type: AdvancedActionType.stamp, payload: 4000 });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.startHold, payload: 1500 });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.finishHold, payload: 4000 });
         expect(state.document?.lines[0].words[0]).toMatchObject({ startMs: 1500, endMs: 3000 });
-        expect(state.document?.lines[1].words[0].startMs).toBe(3000);
+        expect(state.document?.lines[0].words[1].startMs).toBe(3000);
     });
 
     it("keeps short rapid captures positive and ignores invalid clock values", () => {
