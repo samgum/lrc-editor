@@ -19,6 +19,7 @@ import {
 } from "../utils/advanced-lyrics.js";
 import { prependHash } from "../utils/router.js";
 import { hexToRgb, themeContrastColor, themeForegroundPalette } from "../utils/theme-color.js";
+import { parseWordEditorSource } from "../utils/word-source.js";
 import { classifyWorkspaceFiles, droppedMediaFilePubSub } from "../utils/workspace-drop.js";
 import { appContext, ChangBits } from "./app.context.js";
 import { Home } from "./home.js";
@@ -172,11 +173,18 @@ export const Content: React.FC = () => {
     useEffect(() => {
         if (!advancedNeedsBasicSync.current || !advancedState.document) return;
         advancedNeedsBasicSync.current = false;
+        const metadata = advancedState.document.metadata;
+        for (const name of new Set([...lrcState.info.keys(), ...Object.keys(metadata)])) {
+            const value = metadata[name] ?? "";
+            if ((lrcState.info.get(name) ?? "") !== value) {
+                lrcDispatch({ type: LrcActionType.info, payload: { name, value } });
+            }
+        }
         lrcDispatch({
             type: LrcActionType.replaceLyrics,
             payload: documentToBasicLyrics(advancedState.document),
         });
-    }, [advancedState.document, lrcDispatch]);
+    }, [advancedState.document, lrcDispatch, lrcState.info]);
 
     const ensureWordMode = useCallback((target: "editor" | "synchronizer") => {
         const hasExistingWordProgress = hasWordTiming(advancedState.document);
@@ -301,7 +309,11 @@ export const Content: React.FC = () => {
 
     useEffect(() => {
         function saveState(): void {
-            if (pendingEditorTextRef.current !== null) {
+            if (pendingEditorTextRef.current !== null && editorTimingMode === "word") {
+                const document = parseWordEditorSource(pendingEditorTextRef.current);
+                localStorage.setItem(LSK.lyric, toLineLrc(document, prefState.fixed));
+                localStorage.setItem(LSK.advancedLyrics, JSON.stringify(document));
+            } else if (pendingEditorTextRef.current !== null) {
                 const parsedPending = parser(pendingEditorTextRef.current, trimOptions);
                 const effectiveInfo = parsedPending.info.size === 0 && pendingEditorTextRef.current.trim() !== ""
                         && lrcState.info.size > 0
@@ -350,7 +362,15 @@ export const Content: React.FC = () => {
             document.removeEventListener("visibilitychange", onVisibilitychange);
             window.removeEventListener("beforeunload", saveState);
         };
-    }, [advancedState.cursor, advancedState.document, lrcDispatch, lrcState.info, prefState, trimOptions]);
+    }, [
+        advancedState.cursor,
+        advancedState.document,
+        editorTimingMode,
+        lrcDispatch,
+        lrcState.info,
+        prefState,
+        trimOptions,
+    ]);
 
     useEffect(() => {
         const containsFiles = (event: DragEvent): boolean =>

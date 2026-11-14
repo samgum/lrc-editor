@@ -44,6 +44,7 @@ export const enum AdvancedActionType {
     redo,
     addLine,
     removeLine,
+    editDocument,
 }
 
 export type AdvancedLyricsAction =
@@ -85,7 +86,8 @@ export type AdvancedLyricsAction =
     | { readonly type: AdvancedActionType.undo; readonly payload: undefined }
     | { readonly type: AdvancedActionType.redo; readonly payload: undefined }
     | { readonly type: AdvancedActionType.addLine; readonly payload: number }
-    | { readonly type: AdvancedActionType.removeLine; readonly payload: number };
+    | { readonly type: AdvancedActionType.removeLine; readonly payload: number }
+    | { readonly type: AdvancedActionType.editDocument; readonly payload: AdvancedLyricsDocument };
 
 const initialCursor: WordCursor = { lineIndex: 0, wordIndex: 0 };
 const minimumCapturedWordDurationMs = 10;
@@ -112,6 +114,8 @@ export const advancedLyricsReducer = (
     action: AdvancedLyricsAction,
 ): AdvancedLyricsState => {
     switch (action.type) {
+        case AdvancedActionType.editDocument:
+            return commit(state, action.payload, state.cursor);
         case AdvancedActionType.load:
             return {
                 document: action.payload ? normalizeAdvancedDocument(action.payload) : null,

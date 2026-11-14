@@ -11,8 +11,9 @@ export const LyricTextEditor: React.FC<{
     onBlur: React.FocusEventHandler<HTMLTextAreaElement>;
     onCommitText?: (value: string) => void;
     onDraftChange?: (value: string | null) => void;
+    wordTiming?: boolean;
     language: Language;
-}> = ({ text, inputRef, onBlur, onCommitText, onDraftChange, language }) => {
+}> = ({ text, inputRef, onBlur, onCommitText, onDraftChange, wordTiming = false, language }) => {
     const normalizedText = text.replace(/\r\n?/g, "\n");
     const [draft, setDraft] = useState(normalizedText);
     const mirror = useRef<HTMLDivElement>(null);
@@ -23,7 +24,7 @@ export const LyricTextEditor: React.FC<{
     onCommitRef.current = onCommitText;
     onDraftChangeRef.current = onDraftChange;
 
-    const rows = useMemo(() => textTimingRows(draft), [draft]);
+    const rows = useMemo(() => textTimingRows(draft, wordTiming), [draft, wordTiming]);
     const issueIndexes = useMemo(() => rows.flatMap((row, index) => row.issue ? [index] : []), [rows]);
 
     const syncScroll = useCallback(() => {

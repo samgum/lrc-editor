@@ -3,7 +3,7 @@ import ROUTER from "#const/router.json" assert { type: "json" };
 import SSK from "#const/session_key.json" assert { type: "json" };
 import { parser, type State as LrcState, stringify } from "@lrc-maker/lrc-parser";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { type AdvancedLyricsAction, type AdvancedLyricsState } from "../hooks/useAdvancedLyrics.js";
+import { AdvancedActionType, type AdvancedLyricsAction, type AdvancedLyricsState } from "../hooks/useAdvancedLyrics.js";
 import type { Action as LrcAction } from "../hooks/useLrc.js";
 import { ActionType as LrcActionType } from "../hooks/useLrc.js";
 import {
@@ -12,6 +12,7 @@ import {
     type ExportLyricFormat,
     type LyricsWorkspaceMode,
     serializeLyrics,
+    toEnhancedLrc,
 } from "../utils/advanced-lyrics.js";
 import {
     AiAlignmentResultError,
@@ -38,8 +39,8 @@ import {
 } from "../utils/local-ai-alignment.js";
 import { lrcFileName } from "../utils/lrc-file-name.js";
 import { prependHash } from "../utils/router.js";
+import { parseWordEditorSource } from "../utils/word-source.js";
 import { requestPreferenceFocus } from "../utils/workspace-navigation.js";
-import { AdvancedLyricsEditor } from "./advanced-lyrics-editor.js";
 import { appContext } from "./app.context.js";
 import { LyricTextEditor } from "./lyric-text-editor.js";
 import { LyricsModeSwitch } from "./lyrics-mode-switch.js";
@@ -106,16 +107,41 @@ export const Editor: React.FC<{
     onDismissWordTiming,
 }) => {
     const { prefState, prefDispatch, lang, trimOptions } = useContext(appContext);
+    const editedWordSource = useRef<
+        {
+            document: AdvancedLyricsState["document"];
+            source: string;
+            fixed: Fixed;
+        } | null
+    >(null);
 
     const commitText = useCallback(
         (rawText: string) => {
+            if (timingMode === "word") {
+                if (
+                    editedWordSource.current?.document === advancedState.document
+                    && editedWordSource.current?.source === rawText
+                ) return;
+                const document = parseWordEditorSource(rawText);
+                editedWordSource.current = { document, source: rawText, fixed: prefState.fixed };
+                advancedDispatch({ type: AdvancedActionType.editDocument, payload: document });
+                return;
+            }
             lrcDispatch({
                 type: LrcActionType.parse,
                 payload: { text: rawText, options: trimOptions },
             });
             onBasicTextParsed(rawText);
         },
-        [lrcDispatch, onBasicTextParsed, trimOptions],
+        [
+            advancedDispatch,
+            advancedState.document,
+            lrcDispatch,
+            onBasicTextParsed,
+            prefState.fixed,
+            timingMode,
+            trimOptions,
+        ],
     );
 
     const parse = useCallback(
@@ -137,7 +163,12 @@ export const Editor: React.FC<{
         [lrcDispatch, onMetadataChanged],
     );
 
-    const text = stringify(lrcState, prefState);
+    const text = timingMode === "word" && advancedState.document
+        ? editedWordSource.current?.document === advancedState.document
+                && editedWordSource.current.fixed === prefState.fixed
+            ? editedWordSource.current.source
+            : toEnhancedLrc(advancedState.document, prefState.fixed)
+        : stringify(lrcState, prefState);
 
     const [detailsOpened, setDetailsOpened] = useState(() => sessionStorage.getItem(SSK.editorDetailsOpen) === "true");
 
@@ -180,16 +211,17 @@ export const Editor: React.FC<{
 
     const exportPayload = useCallback((): string | Uint8Array => {
         const source = textarea.current?.value ?? text;
+        if (timingMode === "word" && exportFormat === "enhanced-lrc") return source;
         const parsed = parser(source, trimOptions);
-        const document = timingMode === "word" && advancedState.document
-            ? advancedState.document
+        const document = timingMode === "word"
+            ? parseWordEditorSource(source)
             : createLineTimedDocument(parsed.lyric, parsed.info);
         if (exportFormat === "srt" || (exportFormat === "ttml" && timingMode === "line")) {
             return exportLineLyrics(document, exportFormat, prefState.fixed);
         }
         if (exportFormat === "txt") return exportLineLyrics(document, "txt", prefState.fixed);
         return serializeLyrics(document, exportFormat, prefState.fixed);
-    }, [advancedState.document, exportFormat, prefState.fixed, text, timingMode, trimOptions]);
+    }, [exportFormat, prefState.fixed, text, timingMode, trimOptions]);
 
     const exportExtension = {
         lrc: ".lrc",
@@ -741,28 +773,15 @@ export const Editor: React.FC<{
                     )}
                 </div>
             </div>
-            {timingMode === "word" && advancedState.document
-                ? (
-                    <>
-                        <AdvancedLyricsEditor
-                            state={advancedState}
-                            dispatch={advancedDispatch}
-                            fixed={prefState.fixed}
-                            language={lang.advancedLyrics}
-                            historyLabels={lang.timing}
-                        />
-                    </>
-                )
-                : (
-                    <LyricTextEditor
-                        text={text}
-                        inputRef={textarea}
-                        onBlur={parse}
-                        onCommitText={commitText}
-                        onDraftChange={onDraftChange}
-                        language={lang}
-                    />
-                )}
+            <LyricTextEditor
+                text={text}
+                inputRef={textarea}
+                onBlur={parse}
+                onCommitText={commitText}
+                onDraftChange={onDraftChange}
+                wordTiming={timingMode === "word"}
+                language={lang}
+            />
             {wordTimingOffer && (
                 <dialog
                     ref={wordTimingDialog}

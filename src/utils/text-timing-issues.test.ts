@@ -39,4 +39,24 @@ describe("raw editor timing diagnostics", () => {
         expect(textTimingRows("[00:01]word")).toHaveLength(1);
         expect(textTimingRows("")).toEqual([{ text: "", start: 0, end: 0, issue: null }]);
     });
+
+    it("checks word tags without mistaking the line tag or a shared boundary for duplicate starts", () => {
+        const rows = textTimingRows(
+            [
+                "[00:01]<00:01>hello <00:02><00:02>world<00:03>",
+                "[00:04]<00:04>zero <00:04>duration<00:05>",
+                "[00:06]<00:06>back <00:05>wards<00:07>",
+                "[00:08]<00:08>invalid<00:99>",
+                "[00:10]<00:10>incomplete<00:",
+            ].join("\n"),
+            true,
+        );
+        expect(rows.map((row) => row.issue)).toEqual([
+            null,
+            "duplicateTimestamp",
+            "timestampBackwards",
+            "invalidTimestamp",
+            "invalidTimestamp",
+        ]);
+    });
 });
