@@ -1,13 +1,8 @@
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import ffmpegWorkerURL from "@ffmpeg/ffmpeg/worker?worker&url";
+import { loadAudioEngineWasmUrl } from "./audio-engine-assets.js";
 
 const maximumInputBytes = 512 * 1024 * 1024;
-const maximumWasmBytes = 64 * 1024 * 1024;
-
-interface WasmManifest {
-    size: number;
-    parts: string[];
-}
 
 export const transcodeAudioForBrowser = async (
     file: File,
@@ -81,7 +76,7 @@ export const disposeAudioTranscoder = async (
 const createFFmpeg = async (): Promise<FFmpeg> => {
     const ffmpeg = new FFmpeg();
     const base = new URL("ffmpeg/", document.baseURI);
-    const wasmURL = await loadWasmURL(base);
+    const wasmURL = await loadAudioEngineWasmUrl(base);
     try {
         await withTimeout(
             ffmpeg.load({
@@ -98,46 +93,6 @@ const createFFmpeg = async (): Promise<FFmpeg> => {
         URL.revokeObjectURL(wasmURL);
     }
     return ffmpeg;
-};
-
-const loadWasmURL = async (base: URL): Promise<string> => {
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 30_000);
-    try {
-        const manifestResponse = await fetch(new URL("ffmpeg-core.wasm.manifest.json", base), {
-            cache: "force-cache",
-            signal: controller.signal,
-        });
-        if (!manifestResponse.ok) {
-            throw new Error(`Unable to load FFmpeg manifest (${manifestResponse.status})`);
-        }
-
-        const manifest = await manifestResponse.json() as WasmManifest;
-        if (
-            !Number.isSafeInteger(manifest.size)
-            || manifest.size <= 0
-            || manifest.size > maximumWasmBytes
-            || !Array.isArray(manifest.parts)
-            || manifest.parts.length < 2
-            || manifest.parts.some((part) => !/^ffmpeg-core\.wasm\.part\d+$/.test(part))
-        ) {
-            throw new TypeError("Invalid FFmpeg manifest");
-        }
-
-        const chunks = await Promise.all(manifest.parts.map(async (part) => {
-            const response = await fetch(new URL(part, base), { cache: "force-cache", signal: controller.signal });
-            if (!response.ok) {
-                throw new Error(`Unable to load FFmpeg chunk (${response.status})`);
-            }
-            return response.blob();
-        }));
-        if (chunks.reduce((size, chunk) => size + chunk.size, 0) !== manifest.size) {
-            throw new Error("Incomplete FFmpeg core download");
-        }
-        return URL.createObjectURL(new Blob(chunks, { type: "application/wasm" }));
-    } finally {
-        window.clearTimeout(timeout);
-    }
 };
 
 const withTimeout = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> =>

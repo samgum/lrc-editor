@@ -383,6 +383,7 @@
         "transcodingMedia": "Preparing a compact AAC copy locally for playback and AI alignment…",
         "mediaConverted": "AAC media is ready.",
         "mediaConversionFailed": "This audio codec could not be converted in the browser.",
+        "mediaEngineDownloadFailed": "The audio conversion engine could not be downloaded. Check your connection and load the audio again.",
         "resultApplied": "The tool result was applied to the editor.",
         "copied": "Copied.",
         "aiCacheCleared": "The local AI alignment cache was cleared.",

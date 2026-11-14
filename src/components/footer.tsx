@@ -2,6 +2,7 @@ import SSK from "#const/session_key.json" assert { type: "json" };
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useKeyBindings } from "../hooks/useKeyBindings.js";
 import { alignmentMediaName, clearAlignmentMediaSource, setAlignmentMediaSource } from "../utils/alignment-media.js";
+import { AudioEngineDownloadError } from "../utils/audio-engine-assets.js";
 import { AudioActionType, audioRef, audioStatePubSub, currentTimePubSub } from "../utils/audiomodule.js";
 import { InputAction } from "../utils/input-action.js";
 import { isKeyboardElement } from "../utils/is-keyboard-element.js";
@@ -573,7 +574,13 @@ const convertLocalFile = async (file: File, lang: Language): Promise<Blob | null
         return converted;
     } catch (error) {
         console.error("Local audio conversion failed", error);
-        toastPubSub.pub({ channel: "media", type: "warning", text: lang.notify.mediaConversionFailed });
+        toastPubSub.pub({
+            channel: "media",
+            type: "warning",
+            text: error instanceof AudioEngineDownloadError
+                ? lang.notify.mediaEngineDownloadFailed
+                : lang.notify.mediaConversionFailed,
+        });
         return null;
     }
 };
