@@ -4,13 +4,18 @@ import { textTimingRows } from "./text-timing-issues.js";
 describe("raw editor timing diagnostics", () => {
     it("allows overlapping voices in word mode while retaining line-mode diagnostics", () => {
         const source = "[00:05]<00:05>Lead<00:12>\n[00:05]<00:05>Harmony<00:13>\n[00:03]<00:03>Earlier<00:08>";
-        expect(textTimingRows(source, true).map((row) => row.issue)).toEqual([null, null, null]);
+        expect(textTimingRows(source, true).map((row) => row.issue)).toEqual([null, null, "timestampBackwards"]);
         expect(textTimingRows(source).map((row) => row.issue)).toEqual([
             "duplicateTimestamp",
             "duplicateTimestamp",
             "timestampBackwards",
         ]);
         expect(textTimingRows("[00:xx]<00:01>invalid<00:02>", true)[0].issue).toBe("invalidTimestamp");
+    });
+
+    it("does not hide a backwards word-mode row just because the next row shares its start", () => {
+        const source = "[ti:test]\n[00:06]<00:06>Lead<00:12>\n[00:04]<00:04>Harmony<00:11>\n[00:04]<00:04>Echo<00:10>";
+        expect(textTimingRows(source, true).map((row) => row.issue)).toEqual([null, null, "timestampBackwards", null]);
     });
     it("maps duplicate and backwards timestamps to physical lines past metadata", () => {
         const text = "[ti:test]\n[00:01.000]one\n[00:05.000]two\n[00:05.000]\n[00:03.000][Chorus]";

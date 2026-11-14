@@ -836,8 +836,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
             const select = index === selectIndex;
             const activeWords = playbackWords.filter((cursor) => cursor.lineIndex === index);
             const highlight = timingMode === "word" ? activeWords.length > 0 : index === highlightIndex;
-            const lineIssue = timingIssueAt(lines, index);
-            const issue = timingMode === "word" && lineIssue !== "invalidTimestamp" ? null : lineIssue;
+            const issue = timingIssueAt(lines, index, timingMode === "word");
             const wordIssue = timingMode === "word" && advancedState.document
                 ? firstWordIssue(advancedState.document, index)
                 : null;
