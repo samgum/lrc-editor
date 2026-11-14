@@ -18,12 +18,35 @@ export const AdvancedLyricsEditor: React.FC<{
     dispatch: (action: AdvancedLyricsAction) => void;
     fixed: Fixed;
     language: Language["advancedLyrics"];
-}> = ({ state, dispatch, fixed, language }) => {
+    historyLabels: Pick<Language["timing"], "undo" | "redo">;
+}> = ({ state, dispatch, fixed, language, historyLabels }) => {
     const document = state.document;
     if (!document) return null;
 
     return (
         <section className="advanced-lyrics-editor">
+            <div className="advanced-editor-actions">
+                <button
+                    type="button"
+                    disabled={!state.historyPast.length}
+                    onClick={() => dispatch({ type: AdvancedActionType.undo, payload: undefined })}
+                >
+                    {historyLabels.undo}
+                </button>
+                <button
+                    type="button"
+                    disabled={!state.historyFuture.length}
+                    onClick={() => dispatch({ type: AdvancedActionType.redo, payload: undefined })}
+                >
+                    {historyLabels.redo}
+                </button>
+                <button
+                    type="button"
+                    onClick={() => dispatch({ type: AdvancedActionType.addLine, payload: document.lines.length - 1 })}
+                >
+                    {language.addLine}
+                </button>
+            </div>
             {document.lines.map((line, lineIndex) => (
                 <article className="advanced-edit-line" key={lineIndex}>
                     <header>
@@ -48,6 +71,20 @@ export const AdvancedLyricsEditor: React.FC<{
                                     payload: { lineIndex, patch: { endMs } },
                                 })}
                         />
+                        <div className="advanced-line-actions">
+                            <button
+                                type="button"
+                                onClick={() => dispatch({ type: AdvancedActionType.addLine, payload: lineIndex })}
+                            >
+                                {language.addLine}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => dispatch({ type: AdvancedActionType.removeLine, payload: lineIndex })}
+                            >
+                                {language.removeLine}
+                            </button>
+                        </div>
                     </header>
                     <div className="advanced-word-grid">
                         {line.words.map((word, wordIndex) => {

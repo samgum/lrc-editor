@@ -8,6 +8,42 @@ import {
 } from "./useAdvancedLyrics.js";
 
 describe("advanced lyrics timing state", () => {
+    it("inserts and deletes lines without shifting existing word timestamps", () => {
+        let state = advancedLyricsReducer(initAdvancedLyricsState(""), {
+            type: AdvancedActionType.load,
+            payload: parseEnhancedLrc(
+                "[00:02.40]<00:02.40>It's <00:02.79>been<00:03.00>\n[00:05.61]<00:05.61>That's <00:06.03>just<00:06.33>",
+            ),
+        });
+        const original = state.document;
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.addLine, payload: 0 });
+        expect(state.document?.lines).toHaveLength(3);
+        expect(state.document?.lines[0]).toBe(original?.lines[0]);
+        expect(state.document?.lines[2]).toBe(original?.lines[1]);
+        expect(state.document?.lines[1]).toEqual({ words: [{ text: "" }] });
+        expect(state.cursor).toEqual({ lineIndex: 1, wordIndex: 0 });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.removeLine, payload: 1 });
+        expect(state.document).toEqual(original);
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.undo, payload: undefined });
+        expect(state.document?.lines).toHaveLength(3);
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.redo, payload: undefined });
+        expect(state.document).toEqual(original);
+    });
+
+    it("can remove the last line, add a new one, and undo both operations", () => {
+        let state = advancedLyricsReducer(initAdvancedLyricsState(""), {
+            type: AdvancedActionType.load,
+            payload: parseEnhancedLrc("[00:02.40]<00:02.40>hello<00:03.00>"),
+        });
+        const original = state.document;
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.removeLine, payload: 0 });
+        expect(state.document?.lines).toEqual([]);
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.addLine, payload: -1 });
+        expect(state.document?.lines).toEqual([{ words: [{ text: "" }] }]);
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.undo, payload: undefined });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.undo, payload: undefined });
+        expect(state.document).toEqual(original);
+    });
     it("stamps word starts, closes the previous word, and advances", () => {
         const document = parseEnhancedLrc("[00:01.000]<00:01.000>Hello <00:02.000>world<00:03.000>");
         let state = advancedLyricsReducer(initAdvancedLyricsState(""), {

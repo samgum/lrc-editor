@@ -12,6 +12,7 @@ import {
     documentToBasicLyrics,
     hasWordTiming,
     type LyricsWorkspaceMode,
+    parseEnhancedLrc,
     parseLyricBytes,
     reconcileAdvancedDocument,
     toLineLrc,
@@ -245,6 +246,19 @@ export const Content: React.FC = () => {
     }, [advancedDispatch, lang.advancedLyrics, lrcDispatch, prefState.fixed, trimOptions]);
 
     const reconcileBasicText = useCallback((text: string) => {
+        const imported = parseEnhancedLrc(text);
+        if (hasWordTiming(imported)) {
+            const document = Object.keys(imported.metadata).length === 0
+                ? { ...imported, metadata: Object.fromEntries(lrcState.info) }
+                : imported;
+            lrcDispatch({
+                type: LrcActionType.parse,
+                payload: { text: toLineLrc(document, prefState.fixed), options: trimOptions },
+            });
+            advancedDispatch({ type: AdvancedActionType.load, payload: document });
+            setWordTimingOffer(true);
+            return;
+        }
         const parsed = parser(text, trimOptions);
         const effectiveInfo = parsed.info.size === 0 && text.trim() !== "" && lrcState.info.size > 0
             ? new Map(lrcState.info)
@@ -253,7 +267,7 @@ export const Content: React.FC = () => {
             type: AdvancedActionType.reconcile,
             payload: reconcileAdvancedDocument(advancedState.document, parsed.lyric, effectiveInfo),
         });
-    }, [advancedDispatch, advancedState.document, lrcState.info, trimOptions]);
+    }, [advancedDispatch, advancedState.document, lrcDispatch, lrcState.info, prefState.fixed, trimOptions]);
 
     const reconcileMetadata = useCallback((name: string, value: string) => {
         if (!advancedState.document) return;

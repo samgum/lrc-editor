@@ -165,7 +165,12 @@ export const Editor: React.FC<{
 
     const textarea = useRef<HTMLInputLikeElement>(null);
     const lyricFileInput = useRef<HTMLInputElement>(null);
-    const [exportFormat, setExportFormat] = useState<ExportLyricFormat>("lrc");
+    const wordTimingDialog = useRef<HTMLDialogElement>(null);
+    const [exportFormat, setExportFormat] = useState<ExportLyricFormat>(timingMode === "word" ? "enhanced-lrc" : "lrc");
+    useEffect(() => {
+        const dialog = wordTimingDialog.current;
+        if (wordTimingOffer && dialog && !dialog.open) dialog.showModal();
+    }, [wordTimingOffer]);
     const aiSession = useSyncExternalStore(
         subscribeAiAlignmentSession,
         getAiAlignmentSessionSnapshot,
@@ -196,11 +201,7 @@ export const Editor: React.FC<{
         txt: ".txt",
     }[exportFormat];
 
-    useEffect(() => {
-        if (timingMode === "line" && !["lrc", "srt", "ttml", "txt"].includes(exportFormat)) {
-            setExportFormat("lrc");
-        }
-    }, [exportFormat, timingMode]);
+    useEffect(() => setExportFormat(timingMode === "word" ? "enhanced-lrc" : "lrc"), [timingMode]);
 
     const onDownloadClick = useCallback((event: React.MouseEvent<HTMLAnchorElement>) => {
         event.preventDefault();
@@ -701,10 +702,15 @@ export const Editor: React.FC<{
                         onValueChange={(value) => setExportFormat(value as ExportLyricFormat)}
                         label={lang.advancedLyrics.exportFormat}
                         options={[
-                            { value: "lrc", label: lang.advancedLyrics.standardLrcDefault },
+                            {
+                                value: "lrc",
+                                label: timingMode === "word"
+                                    ? lang.advancedLyrics.standardLrc
+                                    : lang.advancedLyrics.standardLrcDefault,
+                            },
                             ...(timingMode === "word"
                                 ? [
-                                    { value: "enhanced-lrc", label: lang.advancedLyrics.enhancedLrc },
+                                    { value: "enhanced-lrc", label: lang.advancedLyrics.enhancedLrcDefault },
                                     { value: "krc", label: "KRC" },
                                     { value: "ttml", label: lang.advancedLyrics.wordTtml },
                                     { value: "ass-kf", label: lang.advancedLyrics.assKf },
@@ -743,6 +749,7 @@ export const Editor: React.FC<{
                             dispatch={advancedDispatch}
                             fixed={prefState.fixed}
                             language={lang.advancedLyrics}
+                            historyLabels={lang.timing}
                         />
                     </>
                 )
@@ -757,7 +764,15 @@ export const Editor: React.FC<{
                     />
                 )}
             {wordTimingOffer && (
-                <dialog className="word-timing-offer" open={true} aria-labelledby="word-timing-offer-title">
+                <dialog
+                    ref={wordTimingDialog}
+                    className="word-timing-offer"
+                    aria-labelledby="word-timing-offer-title"
+                    onCancel={(event) => {
+                        event.preventDefault();
+                        onDismissWordTiming();
+                    }}
+                >
                     <article>
                         <h2 id="word-timing-offer-title">{lang.advancedLyrics.wordDetectedTitle}</h2>
                         <p>{lang.advancedLyrics.wordDetectedMessage}</p>

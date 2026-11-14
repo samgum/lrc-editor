@@ -42,6 +42,8 @@ export const enum AdvancedActionType {
     clearLineFromCursor,
     undo,
     redo,
+    addLine,
+    removeLine,
 }
 
 export type AdvancedLyricsAction =
@@ -79,7 +81,9 @@ export type AdvancedLyricsAction =
     }
     | { readonly type: AdvancedActionType.clearLineFromCursor; readonly payload: WordCursor }
     | { readonly type: AdvancedActionType.undo; readonly payload: undefined }
-    | { readonly type: AdvancedActionType.redo; readonly payload: undefined };
+    | { readonly type: AdvancedActionType.redo; readonly payload: undefined }
+    | { readonly type: AdvancedActionType.addLine; readonly payload: number }
+    | { readonly type: AdvancedActionType.removeLine; readonly payload: number };
 
 const initialCursor: WordCursor = { lineIndex: 0, wordIndex: 0 };
 const minimumCapturedWordDurationMs = 10;
@@ -123,8 +127,13 @@ export const advancedLyricsReducer = (
                 ? state
                 : { ...state, document, cursor: clampCursor(document, state.cursor) };
         }
-        case AdvancedActionType.select:
-            return { ...state, cursor: clampCursor(state.document, action.payload) };
+        case AdvancedActionType.select: {
+            const cursor = clampCursor(state.document, action.payload);
+            return cursor.lineIndex === state.cursor.lineIndex && cursor.wordIndex === state.cursor.wordIndex
+                    && !!cursor.end === !!state.cursor.end
+                ? state
+                : { ...state, cursor };
+        }
         case AdvancedActionType.stamp: {
             if (!Number.isFinite(action.payload)) return state;
             if (state.cursor.end) {
@@ -166,6 +175,24 @@ export const advancedLyricsReducer = (
             const lines = document.lines.slice();
             lines[action.payload.lineIndex] = { ...line, words };
             return commit(state, { ...document, lines }, { lineIndex: action.payload.lineIndex, wordIndex });
+        }
+        case AdvancedActionType.addLine: {
+            const document = state.document;
+            if (!document) return state;
+            const lineIndex = Math.max(0, Math.min(document.lines.length, action.payload + 1));
+            const lines = document.lines.slice();
+            lines.splice(lineIndex, 0, { words: [{ text: "" }] });
+            return commit(state, { ...document, lines }, { lineIndex, wordIndex: 0 });
+        }
+        case AdvancedActionType.removeLine: {
+            const document = state.document;
+            if (!document?.lines[action.payload]) return state;
+            const lines = document.lines.slice();
+            lines.splice(action.payload, 1);
+            return commit(state, { ...document, lines }, {
+                lineIndex: Math.max(0, Math.min(action.payload, lines.length - 1)),
+                wordIndex: 0,
+            });
         }
         case AdvancedActionType.removeWord: {
             const document = state.document;
