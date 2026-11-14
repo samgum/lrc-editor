@@ -159,7 +159,7 @@ export const advancedLyricsReducer = (
         case AdvancedActionType.adjustTime: {
             const word = currentWord(state);
             if (!word || word.startMs === undefined) return state;
-            return updateTiming(state, Math.max(0, word.startMs + Math.round(action.payload)), false);
+            return updateTiming(state, Math.max(0, word.startMs + Math.round(action.payload)), false, "adjust");
         }
         case AdvancedActionType.updateWord:
             return updateWordAt(state, action.payload.cursor, (word) => ({ ...word, ...action.payload.patch }));
@@ -291,14 +291,49 @@ export const nextWordCursor = (
     return position;
 };
 
-const updateTiming = (state: AdvancedLyricsState, startMs: number, advance: boolean): AdvancedLyricsState => {
+const updateTiming = (
+    state: AdvancedLyricsState,
+    startMs: number,
+    advance: boolean,
+    mode: "capture" | "adjust" = "capture",
+): AdvancedLyricsState => {
     const document = state.document;
     const line = document?.lines[state.cursor.lineIndex];
     const word = line?.words[state.cursor.wordIndex];
     if (!document || !line || !word) return state;
 
-    const constrainedStartMs = constrainCapturedWordStart(document, state.cursor, startMs);
-    let nextDocument = replaceWord(document, state.cursor, { ...word, startMs: constrainedStartMs });
+    const previousStart = previousTimedWordStart(document, state.cursor);
+    const constrainedStartMs = mode === "capture"
+        ? Math.max(
+            0,
+            Math.round(startMs),
+            previousStart === undefined ? 0 : previousStart + minimumCapturedWordDurationMs,
+        )
+        : constrainAdjustedWordStart(document, state.cursor, startMs);
+    let nextDocument = document;
+    if (mode === "capture") {
+        const minimumFollowingStart = constrainedStartMs + minimumCapturedWordDurationMs;
+        const words = line.words.map((candidate, index) => {
+            if (index < state.cursor.wordIndex) return candidate;
+            if (index === state.cursor.wordIndex) return { text: candidate.text, startMs: constrainedStartMs };
+            if (
+                (candidate.startMs !== undefined && candidate.startMs < minimumFollowingStart)
+                || (candidate.startMs === undefined && candidate.endMs !== undefined
+                    && candidate.endMs < minimumFollowingStart)
+            ) return { text: candidate.text };
+            return candidate;
+        });
+        const finalWordChanged = words.at(-1) !== line.words.at(-1);
+        nextDocument = replaceLine(document, state.cursor.lineIndex, {
+            ...line,
+            words,
+            endMs: finalWordChanged || (line.endMs !== undefined && line.endMs <= constrainedStartMs)
+                ? undefined
+                : line.endMs,
+        });
+    } else {
+        nextDocument = replaceWord(document, state.cursor, { ...word, startMs: constrainedStartMs });
+    }
     const previousCursor = nextWordCursor(document, state.cursor, -1);
     if (previousCursor.lineIndex === state.cursor.lineIndex && previousCursor.wordIndex !== state.cursor.wordIndex) {
         const previous = nextDocument.lines[previousCursor.lineIndex].words[previousCursor.wordIndex];
@@ -306,10 +341,11 @@ const updateTiming = (state: AdvancedLyricsState, startMs: number, advance: bool
             nextDocument = replaceWord(nextDocument, previousCursor, { ...previous, endMs: constrainedStartMs });
         }
     }
-    if (state.cursor.wordIndex === 0) {
+    const firstStart = nextDocument.lines[state.cursor.lineIndex].words[0]?.startMs;
+    if (firstStart !== undefined) {
         nextDocument = replaceLine(nextDocument, state.cursor.lineIndex, {
             ...nextDocument.lines[state.cursor.lineIndex],
-            startMs: constrainedStartMs,
+            startMs: firstStart,
         });
     }
     const cursor = advance
@@ -345,7 +381,7 @@ const finishHoldTiming = (state: AdvancedLyricsState, requestedEndMs: number): A
     };
 };
 
-const constrainCapturedWordStart = (
+const constrainAdjustedWordStart = (
     document: AdvancedLyricsDocument,
     cursor: WordCursor,
     requestedStartMs: number,

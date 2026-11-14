@@ -114,14 +114,17 @@ export const Editor: React.FC<{
             fixed: Fixed;
         } | null
     >(null);
+    const text = timingMode === "word" && advancedState.document
+        ? editedWordSource.current?.document === advancedState.document
+                && editedWordSource.current.fixed === prefState.fixed
+            ? editedWordSource.current.source
+            : toEnhancedLrc(advancedState.document, prefState.fixed)
+        : stringify(lrcState, prefState);
 
     const commitText = useCallback(
         (rawText: string) => {
             if (timingMode === "word") {
-                if (
-                    editedWordSource.current?.document === advancedState.document
-                    && editedWordSource.current?.source === rawText
-                ) return;
+                if (rawText.replace(/\r\n?/g, "\n") === text.replace(/\r\n?/g, "\n")) return;
                 const document = parseWordEditorSource(rawText);
                 editedWordSource.current = { document, source: rawText, fixed: prefState.fixed };
                 advancedDispatch({ type: AdvancedActionType.editDocument, payload: document });
@@ -140,6 +143,7 @@ export const Editor: React.FC<{
             onBasicTextParsed,
             prefState.fixed,
             timingMode,
+            text,
             trimOptions,
         ],
     );
@@ -162,13 +166,6 @@ export const Editor: React.FC<{
         },
         [lrcDispatch, onMetadataChanged],
     );
-
-    const text = timingMode === "word" && advancedState.document
-        ? editedWordSource.current?.document === advancedState.document
-                && editedWordSource.current.fixed === prefState.fixed
-            ? editedWordSource.current.source
-            : toEnhancedLrc(advancedState.document, prefState.fixed)
-        : stringify(lrcState, prefState);
 
     const [detailsOpened, setDetailsOpened] = useState(() => sessionStorage.getItem(SSK.editorDetailsOpen) === "true");
 

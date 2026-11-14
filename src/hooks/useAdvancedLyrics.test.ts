@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseEnhancedLrc, toEnhancedLrc } from "../utils/advanced-lyrics.js";
+import { parseEnhancedLrc, toEnhancedLrc, toLineLrc } from "../utils/advanced-lyrics.js";
 import {
     AdvancedActionType,
     advancedLyricsReducer,
@@ -8,6 +8,81 @@ import {
 } from "./useAdvancedLyrics.js";
 
 describe("advanced lyrics timing state", () => {
+    it.each([AdvancedActionType.stamp, AdvancedActionType.startHold] as const)(
+        "records a new first word at the requested time instead of clamping it against stale following words (%s)",
+        (type) => {
+            const document = parseEnhancedLrc(
+                "[02:53.523]<02:53.523>To <02:53.543>the <02:53.900>river<02:54.444>\n[03:10]<03:10>Harmony<03:12>",
+            );
+            let state = advancedLyricsReducer(initAdvancedLyricsState(""), {
+                type: AdvancedActionType.load,
+                payload: document,
+            });
+            const original = state.document!;
+            state = advancedLyricsReducer(state, { type, payload: 187900 });
+            expect(state.document?.lines[0].startMs).toBe(187900);
+            expect(state.document?.lines[0].words.map((word) => word.startMs)).toEqual([187900, undefined, undefined]);
+            expect(state.document?.lines[0].words.map((word) => word.text).join("")).toBe("To the river");
+            expect(state.document?.lines[0].endMs).toBeUndefined();
+            expect(state.document?.lines[1]).toBe(original.lines[1]);
+            expect(toEnhancedLrc(state.document!, 3)).toContain("[03:07.900]<03:07.900>To ");
+            expect(toLineLrc(state.document!, 3)).toContain("[03:07.900]To the river");
+            state = advancedLyricsReducer(state, { type: AdvancedActionType.undo, payload: undefined });
+            expect(state.document).toBe(original);
+            state = advancedLyricsReducer(state, { type: AdvancedActionType.redo, payload: undefined });
+            expect(state.document?.lines[0].startMs).toBe(187900);
+        },
+    );
+
+    it("preserves valid following word times when correcting the first word", () => {
+        const document = parseEnhancedLrc("[02:53.533]<02:53.533>To <03:08.249>the <03:08.738>river<03:09.677>");
+        let state = advancedLyricsReducer(initAdvancedLyricsState(""), {
+            type: AdvancedActionType.load,
+            payload: document,
+        });
+        const original = state.document!;
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.stamp, payload: 187900 });
+        expect(state.document?.lines[0].words.slice(1)).toEqual(original.lines[0].words.slice(1));
+        expect(state.document?.lines[0].endMs).toBe(189677);
+        expect(toEnhancedLrc(state.document!, 3)).toBe(
+            "[03:07.900]<03:07.900>To <03:08.249>the <03:08.738>river<03:09.677>",
+        );
+    });
+
+    it("keeps fine-tuning bounded without clearing following timing", () => {
+        const document = parseEnhancedLrc("[02:53.523]<02:53.523>To <02:53.543>the <02:53.900>river<02:54.444>");
+        let state = advancedLyricsReducer(initAdvancedLyricsState(""), {
+            type: AdvancedActionType.load,
+            payload: document,
+        });
+        const following = state.document!.lines[0].words.slice(1);
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.adjustTime, payload: 15000 });
+        expect(state.document?.lines[0].startMs).toBe(173533);
+        expect(state.document?.lines[0].words.slice(1)).toEqual(following);
+        expect(state.document?.lines[0].endMs).toBe(174444);
+    });
+
+    it("keeps the sentence anchored to its first word while re-recording later words", () => {
+        const document = parseEnhancedLrc("[00:01]<00:01>Prefix <00:02>old <00:03>tail<00:04>");
+        let state = advancedLyricsReducer(initAdvancedLyricsState(""), {
+            type: AdvancedActionType.load,
+            payload: document,
+        });
+        state = advancedLyricsReducer(state, {
+            type: AdvancedActionType.select,
+            payload: { lineIndex: 0, wordIndex: 1 },
+        });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.stamp, payload: 10000 });
+        expect(state.document?.lines[0].startMs).toBe(1000);
+        expect(state.document?.lines[0].words[0]).toMatchObject({ startMs: 1000, endMs: 10000 });
+        expect(state.document?.lines[0].words[1]).toMatchObject({ startMs: 10000 });
+        expect(state.document?.lines[0].words[2].startMs).toBeUndefined();
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.stamp, payload: 11000 });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.stamp, payload: 12000 });
+        expect(toEnhancedLrc(state.document!, 3)).toBe(
+            "[00:01.000]<00:01.000>Prefix <00:10.000>old <00:11.000>tail<00:12.000>",
+        );
+    });
     it("captures harmony before the preceding line finishes without rewriting either neighboring voice", () => {
         const document = parseEnhancedLrc([
             "[00:05]<00:05>Main <00:08>voice<00:12>",
