@@ -443,7 +443,6 @@ describe("advanced lyrics timing state", () => {
         let state = advancedLyricsReducer(initAdvancedLyricsState(""), {
             type: AdvancedActionType.load,
             payload: {
-                version: 1,
                 timingMode: "word",
                 sourceFormat: "enhanced-lrc",
                 metadata: {},
