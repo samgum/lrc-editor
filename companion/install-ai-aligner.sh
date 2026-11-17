@@ -13,7 +13,11 @@ model_source=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --install-root)
-            install_root="${2:-}"
+            if [[ $# -lt 2 || -z "${2:-}" ]]; then
+                echo "--install-root requires a directory path." >&2
+                exit 2
+            fi
+            install_root="$2"
             shift 2
             ;;
         --cpu-only)
@@ -33,6 +37,10 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --model-source)
+            if [[ $# -lt 2 ]]; then
+                echo "--model-source must be official or hf-mirror." >&2
+                exit 2
+            fi
             model_source="${2:-}"
             if [[ "$model_source" != "official" && "$model_source" != "hf-mirror" ]]; then
                 echo "--model-source must be official or hf-mirror." >&2
@@ -182,14 +190,14 @@ space_probe="$install_root"
 while [[ ! -d "$space_probe" && "$space_probe" != "/" ]]; do
     space_probe="$(dirname "$space_probe")"
 done
-available_kb="$(df -Pk "$space_probe" | awk 'NR == 2 { print $4 }')"
-available_gb="$(awk -v space="$available_kb" 'BEGIN { printf "%.1f", space / 1024 / 1024 }')"
+available_kb="$(df -Pk "$space_probe" | LC_ALL=C awk 'NR == 2 { print $4 }')"
+available_gb="$(LC_ALL=C awk -v space="$available_kb" 'BEGIN { printf "%.1f", space / 1024 / 1024 }')"
 required_gb=15
 if [[ "$use_cuda" -eq 1 ]]; then
     required_gb=22
 fi
 echo "Available on selected disk: $available_gb GB"
-if awk -v available="$available_gb" -v required="$required_gb" 'BEGIN { exit !(available < required) }'; then
+if LC_ALL=C awk -v available="$available_gb" -v required="$required_gb" 'BEGIN { exit !(available < required) }'; then
     echo "The selected disk has less than the recommended free space. Choose another directory." >&2
     if [[ "$estimate_only" -eq 0 ]]; then
         exit 1

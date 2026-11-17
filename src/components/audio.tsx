@@ -1,5 +1,14 @@
-import { convertTimeToTag } from "@lrc-maker/lrc-parser";
-import { useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+    lazy,
+    Suspense,
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    useSyncExternalStore,
+} from "react";
 import {
     AudioActionType,
     audioRef,
@@ -7,11 +16,13 @@ import {
     audioStatePubSub,
     currentTimePubSub,
 } from "../utils/audiomodule.js";
+import { formatTimeTag } from "../utils/lrc-format.js";
 import { subscribeWaveformTiming, waveformTimingActive } from "../utils/waveform-timing.js";
-import { appContext, ChangBits } from "./app.context";
+import { appContext } from "./app.context.js";
 import { loadAudioDialogRef } from "./loadaudio.js";
 import { Forward5sSVG, LoadAudioSVG, PauseSVG, PlaySVG, Replay5sSVG } from "./svg.js";
-import { Waveform } from "./waveform";
+
+const LazyWaveform = lazy(async () => import("./waveform.js").then(({ Waveform }) => ({ default: Waveform })));
 
 interface ISliderProps {
     min: number;
@@ -48,7 +59,7 @@ const TimeLine: React.FC<{ duration: number; paused: boolean }> = ({ duration, p
     const self = useRef(Symbol(TimeLine.name));
     const [currentTime, setCurrentTime] = useState(audioRef.currentTime);
     const [rate, setRate] = useState(audioRef.playbackRate);
-    const [waveformSource, setWaveformSource] = useState("");
+    const [waveformSource, setWaveformSource] = useState(() => audioRef.duration > 0 ? audioRef.src : "");
     const [waveformFailed, setWaveformFailed] = useState(false);
     const dedicatedWordWaveform = useSyncExternalStore(
         subscribeWaveformTiming,
@@ -64,8 +75,9 @@ const TimeLine: React.FC<{ duration: number; paused: boolean }> = ({ duration, p
                     break;
                 }
                 case AudioActionType.getDuration: {
-                    setWaveformSource(audioRef.src);
+                    setWaveformSource(data.payload > 0 ? audioRef.src : "");
                     setWaveformFailed(false);
+                    if (data.payload === 0) setCurrentTime(0);
                     break;
                 }
             }
@@ -92,6 +104,9 @@ const TimeLine: React.FC<{ duration: number; paused: boolean }> = ({ duration, p
     }, [paused, rate]);
 
     const rafId = useRef(0);
+    useEffect(() => () => {
+        if (rafId.current) cancelAnimationFrame(rafId.current);
+    }, []);
 
     const onInput = useCallback((ev: React.ChangeEvent<HTMLInputElement>) => {
         if (rafId.current) {
@@ -101,7 +116,8 @@ const TimeLine: React.FC<{ duration: number; paused: boolean }> = ({ duration, p
         const value = ev.target.value;
 
         rafId.current = requestAnimationFrame(() => {
-            const time = Number.parseInt(value, 10);
+            const time = Number.parseFloat(value);
+            if (!Number.isFinite(time)) return;
             setCurrentTime(time);
             audioRef.currentTime = time;
         });
@@ -118,7 +134,7 @@ const TimeLine: React.FC<{ duration: number; paused: boolean }> = ({ duration, p
         });
     }, []);
 
-    const { prefState, lang } = useContext(appContext, ChangBits.prefState | ChangBits.lang);
+    const { prefState, lang } = useContext(appContext);
 
     const showWaveform = prefState.showWaveform && Boolean(waveformSource) && !waveformFailed
         && !dedicatedWordWaveform;
@@ -126,24 +142,27 @@ const TimeLine: React.FC<{ duration: number; paused: boolean }> = ({ duration, p
     const fixed = showWaveform ? prefState.fixed : 0;
 
     const durationTimeTag = useMemo(() => {
-        return duration ? " / " + convertTimeToTag(duration, fixed, false) : false;
+        return duration > 0 ? " / " + formatTimeTag(duration, fixed, false) : false;
     }, [duration, fixed]);
 
     return (
         <>
             <time>
-                {convertTimeToTag(currentTime, fixed, false)}
+                {formatTimeTag(currentTime, fixed, false)}
                 {durationTimeTag}
             </time>
             {showWaveform
                 ? (
                     <div className="slider waveform-container">
-                        <Waveform
-                            source={waveformSource}
-                            themeColor={prefState.themeColor}
-                            onSeek={onSeek}
-                            onUnavailable={() => setWaveformFailed(true)}
-                        />
+                        <Suspense fallback={null}>
+                            <LazyWaveform
+                                source={waveformSource}
+                                themeColor={prefState.themeColor}
+                                ariaLabel={lang.visual.playbackPosition}
+                                onSeek={onSeek}
+                                onUnavailable={() => setWaveformFailed(true)}
+                            />
+                        </Suspense>
                     </div>
                 )
                 : (
@@ -152,7 +171,7 @@ const TimeLine: React.FC<{ duration: number; paused: boolean }> = ({ duration, p
                         min={0}
                         max={duration}
                         step={1}
-                        value={currentTime}
+                        value={Math.min(currentTime, duration || 0)}
                         className="timeline"
                         onInput={onInput}
                     />
@@ -195,7 +214,13 @@ const RateSlider: React.FC<{ lang: Language }> = ({ lang }) => {
 
     return (
         <>
-            <button className="ripple glow" title={lang.audio.resetRate} onClick={onPlaybackRateReset}>
+            <button
+                type="button"
+                className="ripple glow"
+                title={lang.audio.resetRate}
+                aria-label={`${lang.audio.resetRate}: ${playbackRate.toFixed(2)}x`}
+                onClick={onPlaybackRateReset}
+            >
                 {"X "}
                 {playbackRate.toFixed(2)}
             </button>
@@ -215,7 +240,7 @@ const RateSlider: React.FC<{ lang: Language }> = ({ lang }) => {
 
 export const LrcAudio: React.FC<{ lang: Language }> = ({ lang }) => {
     const self = useRef(Symbol(LrcAudio.name));
-    const { prefState } = useContext(appContext, ChangBits.prefState);
+    const { prefState } = useContext(appContext);
 
     const [paused, setPaused] = useState(audioRef.paused);
 
@@ -253,34 +278,46 @@ export const LrcAudio: React.FC<{ lang: Language }> = ({ lang }) => {
         loadAudioDialogRef.open();
     }, []);
 
+    const replayLabel = lang.audio.replay5s.replace("5", (prefState.seekStepMs / 1000).toString());
+    const forwardLabel = lang.audio.forward5s.replace("5", (prefState.seekStepMs / 1000).toString());
+    const playPauseLabel = paused ? lang.audio.play : lang.audio.pause;
+
     return (
         <section className={"lrc-audio" + (paused ? "" : " playing")}>
             <button
+                type="button"
                 className="ripple glow loadaudio-button"
                 title={lang.audio.loadAudio}
+                aria-label={lang.audio.loadAudio}
                 onClick={onLoadAudioButtonClick}
             >
                 <LoadAudioSVG />
             </button>
             <button
+                type="button"
                 className="ripple glow"
-                title={lang.audio.replay5s.replace("5", (prefState.seekStepMs / 1000).toString())}
+                title={replayLabel}
+                aria-label={replayLabel}
                 onClick={onReplay5s}
                 disabled={!duration}
             >
                 <Replay5sSVG />
             </button>
             <button
+                type="button"
                 className="ripple glow"
-                title={paused ? lang.audio.play : lang.audio.pause}
+                title={playPauseLabel}
+                aria-label={playPauseLabel}
                 disabled={!duration}
                 onClick={onPlayPauseToggle}
             >
                 {paused ? <PlaySVG /> : <PauseSVG />}
             </button>
             <button
+                type="button"
                 className="ripple glow"
-                title={lang.audio.forward5s.replace("5", (prefState.seekStepMs / 1000).toString())}
+                title={forwardLabel}
+                aria-label={forwardLabel}
                 onClick={onForward5s}
                 disabled={!duration}
             >

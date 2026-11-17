@@ -1,4 +1,3 @@
-import { parser } from "@lrc-maker/lrc-parser";
 import { type TimingIssue, timingIssueAt } from "./timing-issues.js";
 
 export interface TextTimingRow {
@@ -7,6 +6,9 @@ export interface TextTimingRow {
     end: number;
     issue: TimingIssue | null;
 }
+
+const lineTagPattern = /^\[\s*(\d{1,3}):(\d{1,2})(?:[:.](\d{1,3}))?\s*\]/;
+const malformedLineTagPattern = /^\[\s*-?\d{1,3}:/;
 
 export const textTimingRows = (text: string, wordTiming = false): TextTimingRow[] => {
     const rows: TextTimingRow[] = [];
@@ -17,10 +19,20 @@ export const textTimingRows = (text: string, wordTiming = false): TextTimingRow[
         const value = match[1];
         const row = rows.length;
         rows.push({ text: value, start: match.index, end: match.index + value.length, issue: null });
-        const parsed = parser(value).lyric[0];
-        const malformed = /^\[\s*-?\d{1,3}:/.test(value) && parsed?.time === undefined;
-        if (malformed) entries.push({ row, time: Number.NaN });
-        else if (parsed) entries.push({ row, time: parsed.time });
+        if (value.startsWith("[")) {
+            const tag = lineTagPattern.exec(value);
+            if (tag) {
+                const seconds = Number(tag[2]);
+                if (seconds >= 60) {
+                    entries.push({ row, time: Number.NaN });
+                } else {
+                    const fraction = tag[3] ? Number(tag[3]) / 10 ** tag[3].length : 0;
+                    entries.push({ row, time: Number(tag[1]) * 60 + seconds + fraction });
+                }
+            } else if (malformedLineTagPattern.test(value)) {
+                entries.push({ row, time: Number.NaN });
+            }
+        }
         if (wordTiming) rows[row].issue = wordTagIssue(value);
         if (!match[2]) break;
     }

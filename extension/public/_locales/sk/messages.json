@@ -1,7 +1,7 @@
 {
     "extensionName": { "message": "LRC Editor Media Bridge" },
     "extensionDescription": {
-        "message": "Lokálne spracuje YouTube, Bilibili a zdieľané odkazy NetEase pre LRC Editor."
+        "message": "Lokálne spracuje YouTube, Bilibili, NetEase a verejné skladby QQ Music pre LRC Editor."
     },
     "supportedSources": { "message": "Podporované zdroje" },
     "neteaseShareLinks": { "message": "Zdieľané odkazy NetEase" },

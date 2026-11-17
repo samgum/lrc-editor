@@ -1,5 +1,7 @@
 import {
     forwardRef,
+    lazy,
+    Suspense,
     useCallback,
     useContext,
     useEffect,
@@ -24,9 +26,11 @@ import {
 } from "../utils/beat-grid.js";
 import { timeRulerTicks } from "../utils/time-ruler.js";
 import { timingPanelHeights } from "../utils/waveform-data.js";
-import { appContext, ChangBits } from "./app.context.js";
+import { langContext } from "./app.context.js";
 import { BeatGridControls } from "./beat-grid-controls.js";
-import { Waveform, type WaveformHandle, type WaveformViewport } from "./waveform.js";
+import type { WaveformHandle, WaveformViewport } from "./waveform.js";
+
+const LazyWaveform = lazy(async () => import("./waveform.js").then(({ Waveform }) => ({ default: Waveform })));
 
 interface TimingWaveformPanelProps {
     source: string;
@@ -75,7 +79,7 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
     onAmplitudeChange,
     onHeightChange,
 }, ref) => {
-    const { lang } = useContext(appContext, ChangBits.lang);
+    const lang = useContext(langContext);
     const compact = useMediaQuery("(max-height: 620px)");
     const narrow = useMediaQuery("(max-width: 720px)");
     const displaySettings = useRef<HTMLDetailsElement>(null);
@@ -511,25 +515,27 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
                 onPointerMove={onPointerMove}
                 onPointerLeave={onPointerLeave}
             >
-                <Waveform
-                    ref={waveformRef}
-                    source={source}
-                    themeColor={themeColor}
-                    height={heights.wave}
-                    spectrogramHeight={heights.spectrum}
-                    minPxPerSec={zoom}
-                    autoScroll={false}
-                    pointMode={true}
-                    normalize={false}
-                    barHeight={amplitude}
-                    visualization={view}
-                    className="word-capture-waveform"
-                    ariaLabel={hint}
-                    onSeek={() => undefined}
-                    onReady={onPlotReady}
-                    onViewportChange={onViewportChange}
-                    onUnavailable={onUnavailable}
-                />
+                <Suspense fallback={null}>
+                    <LazyWaveform
+                        ref={waveformRef}
+                        source={source}
+                        themeColor={themeColor}
+                        height={heights.wave}
+                        spectrogramHeight={heights.spectrum}
+                        minPxPerSec={zoom}
+                        autoScroll={false}
+                        pointMode={true}
+                        normalize={false}
+                        barHeight={amplitude}
+                        visualization={view}
+                        className="word-capture-waveform"
+                        ariaLabel={hint}
+                        onSeek={() => undefined}
+                        onReady={onPlotReady}
+                        onViewportChange={onViewportChange}
+                        onUnavailable={onUnavailable}
+                    />
+                </Suspense>
                 {grid.enabled && (
                     <div className="word-beat-grid" aria-hidden="true">
                         {gridLines.map((line) => (

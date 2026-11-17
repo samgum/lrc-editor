@@ -205,4 +205,55 @@ describe("LocalAlignerClient", () => {
         const client = new LocalAlignerClient(fetchMock as unknown as typeof fetch);
         await expect(client.handle(startRequest())).rejects.toMatchObject({ code: "ALIGNER_BUSY" });
     });
+
+    it("streams chunks directly to disk when chunked_upload capability is enabled", async () => {
+        const token = "b".repeat(43);
+        const serverUploadId = "fedcba9876543210fedcba9876543210";
+        const receivedChunks: number[][] = [];
+        const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+            const url = input instanceof URL ? input : new URL(typeof input === "string" ? input : input.url);
+            if (url.pathname === "/openapi.json" && url.port === "8765") {
+                return Response.json({ info: { title: "Lyrics Forced Aligner", version: "0.2.27" } });
+            }
+            if (url.pathname === "/api/health") {
+                return Response.json({ ok: true, gpu_queue: { running: 0, queued: 0 } });
+            }
+            if (url.pathname === "/api/lrc-editor/capabilities") {
+                return Response.json({ control_token: token, chunked_upload: true });
+            }
+            if (url.pathname === "/api/lrc-editor/uploads" && init?.method === "POST") {
+                expect(new Headers(init.headers).get("X-LRC-Editor-Control")).toBe(token);
+                return Response.json({ upload_id: serverUploadId });
+            }
+            if (url.pathname === `/api/lrc-editor/uploads/${serverUploadId}/chunks/0` && init?.method === "PUT") {
+                expect(new Headers(init.headers).get("X-LRC-Editor-Control")).toBe(token);
+                const body = init.body as Uint8Array;
+                receivedChunks.push([...body]);
+                return Response.json({ received: body.byteLength });
+            }
+            if (url.pathname === `/api/lrc-editor/uploads/${serverUploadId}/commit` && init?.method === "POST") {
+                expect(new Headers(init.headers).get("X-LRC-Editor-Control")).toBe(token);
+                return Response.json({ id: jobId, status: "queued", stage: "queued", progress: 0 });
+            }
+            return new Response(null, { status: 404 });
+        });
+        const client = new LocalAlignerClient(fetchMock as unknown as typeof fetch);
+
+        const started = await client.handle(startRequest());
+        if (started.kind !== "start") throw new Error("Expected start");
+        await client.handle({
+            type: alignerChunkRequestType,
+            requestId: "request-chunk-0",
+            uploadId: started.uploadId,
+            index: 0,
+            data: "AQIDBA==",
+        });
+        const committed = await client.handle({
+            type: alignerCommitRequestType,
+            requestId: "request-commit",
+            uploadId: started.uploadId,
+        });
+        expect(committed).toMatchObject({ kind: "job", job: { id: jobId } });
+        expect(receivedChunks).toEqual([[1, 2, 3, 4]]);
+    });
 });

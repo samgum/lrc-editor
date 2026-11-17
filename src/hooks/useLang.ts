@@ -1,19 +1,33 @@
-import featureTranslations from "#const/feature_translations.json" assert { type: "json" };
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import enUS from "../languages/en-US.json" assert { type: "json" };
 import { languages } from "../languages/index.js";
 
 export const useLang = (): [Language, (lang: string) => Promise<void>] => {
     const [value, setValue] = useState<Language>(enUS);
+    const requestIdRef = useRef(0);
 
-    const setLang = async (langCode: string): Promise<void> => {
-        const l = await languages[`./${langCode}.json`]();
-        const base = mergeLanguage(enUS, l);
-        const features = featureTranslations[langCode as keyof typeof featureTranslations];
-        setValue(features ? mergeLanguage(base, features) : base);
-    };
+    const setLang = useCallback(async (langCode: string): Promise<void> => {
+        const requestId = ++requestIdRef.current;
+        if (langCode === "en-US") {
+            setValue(enUS);
+            return;
+        }
+        const loader = languages[`./${langCode}.json`];
+        if (!loader) {
+            setValue(enUS);
+            return;
+        }
+        try {
+            const loaded = await loader();
+            if (requestIdRef.current !== requestId) return;
+            setValue(mergeLanguage(enUS, loaded));
+        } catch {
+            if (requestIdRef.current !== requestId) return;
+            setValue(enUS);
+        }
+    }, []);
 
-    return [value, useCallback(async (lang: string) => setLang(lang), [])];
+    return [value, setLang];
 };
 
 const mergeLanguage = <T>(fallback: T, selected: unknown): T => {

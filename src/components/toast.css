@@ -1,16 +1,23 @@
 .toast-queue {
     position: fixed;
-    right: max(16px, env(safe-area-inset-right));
-    bottom: calc(76px + env(safe-area-inset-bottom));
-    z-index: 1200;
+    inset: auto max(16px, env(safe-area-inset-right)) calc(76px + env(safe-area-inset-bottom)) auto;
+    z-index: 1500;
     display: flex;
     flex-direction: column;
     gap: 8px;
     width: min(380px, calc(100% - 32px));
     max-height: min(38svh, 320px);
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
     overflow-y: auto;
     overscroll-behavior: contain;
     pointer-events: none;
+}
+
+.toast-queue:empty {
+    display: none;
 }
 
 .toast {

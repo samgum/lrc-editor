@@ -52,8 +52,8 @@ for prerequisite in curl ffmpeg ffprobe; do
 done
 
 for port in "${ports[@]}"; do
-    if curl -fsS --max-time 1 "http://127.0.0.1:$port/openapi.json" 2>/dev/null |
-        grep -q '"title"[[:space:]]*:[[:space:]]*"Lyrics Forced Aligner"'; then
+    openapi_json="$(curl -fsS --max-time 1 "http://127.0.0.1:$port/openapi.json" 2>/dev/null || true)"
+    if [[ "$openapi_json" == *'"title"'*'Lyrics Forced Aligner'* ]]; then
         echo "Lyrics Forced Aligner is already running at http://127.0.0.1:$port"
         exit 0
     fi

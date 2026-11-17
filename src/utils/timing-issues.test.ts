@@ -53,4 +53,15 @@ describe("timingIssueAt", () => {
             "invalidTimestamp",
         ]);
     });
+
+    it("detects duplicate and backwards timestamps across intervening untimed rows", () => {
+        const lines = [{ time: 4 }, {}, { time: 4 }, {}, { time: 2 }];
+        expect(lines.map((_, index) => timingIssueAt(lines, index))).toEqual([
+            "duplicateTimestamp",
+            null,
+            "duplicateTimestamp",
+            null,
+            "timestampBackwards",
+        ]);
+    });
 });

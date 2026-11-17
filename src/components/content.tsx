@@ -2,7 +2,7 @@ import LSK from "#const/local_key.json" assert { type: "json" };
 import ROUTER from "#const/router.json" assert { type: "json" };
 import SSK from "#const/session_key.json" assert { type: "json" };
 import STRINGS from "#const/strings.json" assert { type: "json" };
-import { parser, stringify } from "@lrc-maker/lrc-parser";
+import { parser } from "@lrc-maker/lrc-parser";
 import { type JSX, lazy, Suspense, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { AdvancedActionType, type AdvancedLyricsAction, useAdvancedLyrics } from "../hooks/useAdvancedLyrics.js";
 import { ActionType as LrcActionType, useLrc } from "../hooks/useLrc.js";
@@ -17,12 +17,14 @@ import {
     reconcileAdvancedDocument,
     toLineLrc,
 } from "../utils/advanced-lyrics.js";
+import { stringifyLrc } from "../utils/lrc-format.js";
 import { prependHash } from "../utils/router.js";
 import { hexToRgb, themeContrastColor, themeForegroundPalette } from "../utils/theme-color.js";
 import { parseWordEditorSource } from "../utils/word-source.js";
 import { classifyWorkspaceFiles, droppedMediaFilePubSub } from "../utils/workspace-drop.js";
-import { appContext, ChangBits } from "./app.context.js";
+import { appContext } from "./app.context.js";
 import { Home } from "./home.js";
+import { loadAudioDialogRef } from "./loadaudio.js";
 import { EditorSVG, LoadAudioSVG } from "./svg.js";
 import { toastPubSub } from "./toast.js";
 import { WorkspaceScroll } from "./workspace-scroll.js";
@@ -58,10 +60,7 @@ const LazyTools = lazy(async () =>
 );
 
 export const Content: React.FC = () => {
-    const { lang, prefState, prefDispatch, trimOptions } = useContext(
-        appContext,
-        ChangBits.lang | ChangBits.prefState,
-    );
+    const { lang, prefState, prefDispatch, trimOptions } = useContext(appContext);
 
     const [path, setPath] = useState(location.hash);
     const scrollPositions = useRef(new Map<string, number>());
@@ -140,6 +139,14 @@ export const Content: React.FC = () => {
             sessionStorage.removeItem(SSK.advancedWordCursor);
         }
     }, [advancedDispatch]);
+
+    useEffect(() => {
+        const saveTimer = setTimeout(() => {
+            localStorage.setItem(LSK.lyric, stringifyLrc(lrcState, prefState));
+            sessionStorage.setItem(SSK.selectIndex, lrcState.selectIndex.toString());
+        }, 120);
+        return () => clearTimeout(saveTimer);
+    }, [lrcState, prefState]);
 
     useEffect(() => {
         const saveTimer = setTimeout(() => {
@@ -289,13 +296,29 @@ export const Content: React.FC = () => {
         });
     }, [advancedDispatch, advancedState.document, lrcState.info, lrcState.lyric]);
 
+    const latestStateRef = useRef({
+        lrcState,
+        advancedState,
+        prefState,
+        trimOptions,
+        editorTimingMode,
+    });
+    latestStateRef.current = {
+        lrcState,
+        advancedState,
+        prefState,
+        trimOptions,
+        editorTimingMode,
+    };
+
     const resetAdvancedWordTiming = useCallback((lyrics: typeof lrcState.lyric) => {
-        if (!advancedState.document) return;
+        const current = latestStateRef.current;
+        if (!current.advancedState.document) return;
         advancedDispatch({
             type: AdvancedActionType.load,
-            payload: createWordTimedDocument(lyrics, lrcState.info),
+            payload: createWordTimedDocument(lyrics, current.lrcState.info),
         });
-    }, [advancedDispatch, advancedState.document, lrcState.info]);
+    }, [advancedDispatch]);
 
     useEffect(() => {
         sessionStorage.setItem(SSK.editorTimingMode, editorTimingMode);
@@ -308,45 +331,68 @@ export const Content: React.FC = () => {
     }, [prefState.advancedLyricsEnabled]);
 
     useEffect(() => {
+        function getFlushedInfo(baseInfo: ReadonlyMap<string, string>): Map<string, string> {
+            const nextInfo = new Map(baseInfo);
+            const active = document.activeElement;
+            if (
+                active instanceof HTMLInputElement
+                && (active.id === "info-ti" || active.id === "info-ar" || active.id === "info-al")
+                && active.name
+            ) {
+                const normalized = active.value.trim();
+                if (normalized) nextInfo.set(active.name, normalized);
+                else nextInfo.delete(active.name);
+            }
+            return nextInfo;
+        }
+
         function saveState(): void {
-            if (pendingEditorTextRef.current !== null && editorTimingMode === "word") {
+            const current = latestStateRef.current;
+            const flushedInfo = getFlushedInfo(current.lrcState.info);
+
+            if (pendingEditorTextRef.current !== null && current.editorTimingMode === "word") {
                 const document = parseWordEditorSource(pendingEditorTextRef.current);
-                localStorage.setItem(LSK.lyric, toLineLrc(document, prefState.fixed));
+                localStorage.setItem(LSK.lyric, toLineLrc(document, current.prefState.fixed));
                 localStorage.setItem(LSK.advancedLyrics, JSON.stringify(document));
             } else if (pendingEditorTextRef.current !== null) {
-                const parsedPending = parser(pendingEditorTextRef.current, trimOptions);
+                const parsedPending = parser(pendingEditorTextRef.current, current.trimOptions);
                 const effectiveInfo = parsedPending.info.size === 0 && pendingEditorTextRef.current.trim() !== ""
-                        && lrcState.info.size > 0
-                    ? new Map(lrcState.info)
+                        && flushedInfo.size > 0
+                    ? flushedInfo
                     : parsedPending.info;
                 localStorage.setItem(
                     LSK.lyric,
-                    stringify({ info: effectiveInfo, lyric: parsedPending.lyric }, prefState),
+                    stringifyLrc({ info: effectiveInfo, lyric: parsedPending.lyric }, current.prefState),
                 );
                 const reconciled = reconcileAdvancedDocument(
-                    advancedState.document,
+                    current.advancedState.document,
                     parsedPending.lyric,
                     effectiveInfo,
                 );
                 localStorage.setItem(LSK.advancedLyrics, JSON.stringify(reconciled));
             } else {
-                lrcDispatch({
-                    type: LrcActionType.getState,
-                    payload: (lrc) => {
-                        localStorage.setItem(LSK.lyric, stringify(lrc, prefState));
-                        sessionStorage.setItem(SSK.selectIndex, lrc.selectIndex.toString());
-                    },
-                });
+                localStorage.setItem(
+                    LSK.lyric,
+                    stringifyLrc({ info: flushedInfo, lyric: current.lrcState.lyric }, current.prefState),
+                );
+                sessionStorage.setItem(SSK.selectIndex, current.lrcState.selectIndex.toString());
 
-                if (advancedState.document) {
-                    localStorage.setItem(LSK.advancedLyrics, JSON.stringify(advancedState.document));
+                if (current.advancedState.document) {
+                    const nextDoc = flushedInfo.size !== current.lrcState.info.size
+                            || Array.from(flushedInfo.entries()).some(([k, v]) => current.lrcState.info.get(k) !== v)
+                        ? reconcileAdvancedDocument(
+                            current.advancedState.document,
+                            current.lrcState.lyric,
+                            flushedInfo,
+                        )
+                        : current.advancedState.document;
+                    localStorage.setItem(LSK.advancedLyrics, JSON.stringify(nextDoc));
                 } else {
                     localStorage.removeItem(LSK.advancedLyrics);
                 }
             }
-            sessionStorage.setItem(SSK.advancedWordCursor, JSON.stringify(advancedState.cursor));
-
-            localStorage.setItem(LSK.preferences, JSON.stringify(prefState));
+            sessionStorage.setItem(SSK.advancedWordCursor, JSON.stringify(current.advancedState.cursor));
+            localStorage.setItem(LSK.preferences, JSON.stringify(current.prefState));
         }
 
         function onVisibilitychange() {
@@ -362,40 +408,42 @@ export const Content: React.FC = () => {
             document.removeEventListener("visibilitychange", onVisibilitychange);
             window.removeEventListener("beforeunload", saveState);
         };
-    }, [
-        advancedState.cursor,
-        advancedState.document,
-        editorTimingMode,
-        lrcDispatch,
-        lrcState.info,
-        prefState,
-        trimOptions,
-    ]);
+    }, []);
 
     useEffect(() => {
         const containsFiles = (event: DragEvent): boolean =>
             Array.from(event.dataTransfer?.types || []).includes("Files");
+        const isInsideOpenDialog = (target: EventTarget | null): boolean =>
+            loadAudioDialogRef.isOpen || (target instanceof Element && target.closest("dialog[open]") !== null);
         const resetDragState = (): void => {
             workspaceDragDepth.current = 0;
             setWorkspaceDragActive(false);
         };
         const onDragEnter = (event: DragEvent): void => {
+            if (isInsideOpenDialog(event.target)) {
+                if (workspaceDragDepth.current > 0) resetDragState();
+                return;
+            }
             if (!containsFiles(event)) return;
             event.preventDefault();
             workspaceDragDepth.current += 1;
             setWorkspaceDragActive(true);
         };
         const onDragOver = (event: DragEvent): void => {
-            if (!containsFiles(event)) return;
+            if (isInsideOpenDialog(event.target) || !containsFiles(event)) return;
             event.preventDefault();
             if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
         };
-        const onDragLeave = (): void => {
-            if (workspaceDragDepth.current === 0) return;
+        const onDragLeave = (event: DragEvent): void => {
+            if (isInsideOpenDialog(event.target) || workspaceDragDepth.current === 0) return;
             workspaceDragDepth.current = Math.max(0, workspaceDragDepth.current - 1);
             if (workspaceDragDepth.current === 0) setWorkspaceDragActive(false);
         };
         const onDrop = (event: DragEvent): void => {
+            if (isInsideOpenDialog(event.target)) {
+                if (workspaceDragDepth.current > 0) resetDragState();
+                return;
+            }
             if (!containsFiles(event)) return;
             event.preventDefault();
             event.stopPropagation();
@@ -436,7 +484,23 @@ export const Content: React.FC = () => {
             [ThemeMode.dark]: "dark",
         } as const;
 
-        document.documentElement.dataset.theme = values[prefState.themeMode];
+        const mode = values[prefState.themeMode] ?? "auto";
+        document.documentElement.dataset.theme = mode;
+        const colorSchemeMeta = document.querySelector<HTMLMetaElement>("meta[name=\"color-scheme\"]");
+        if (colorSchemeMeta) {
+            colorSchemeMeta.content = mode === "auto" ? "light dark" : mode;
+        }
+        const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+        const syncThemeColorMeta = (): void => {
+            const themeColorMeta = document.querySelector<HTMLMetaElement>("meta[name=\"theme-color\"]");
+            if (!themeColorMeta) return;
+            const resolvedDark = mode === "dark" || (mode === "auto" && mediaQuery.matches);
+            themeColorMeta.content = resolvedDark ? "#0f1117" : "#f2f4f8";
+        };
+        syncThemeColorMeta();
+        if (mode !== "auto") return;
+        mediaQuery.addEventListener("change", syncThemeColorMeta);
+        return () => mediaQuery.removeEventListener("change", syncThemeColorMeta);
     }, [prefState.themeMode]);
 
     useEffect(() => {
@@ -602,6 +666,7 @@ export const Content: React.FC = () => {
                         event.preventDefault();
                         setPendingLyricFile(null);
                     }}
+                    onClose={() => setPendingLyricFile(null)}
                 >
                     <article>
                         <h2 id="lyric-overwrite-title">{lang.workspaceDrop.overwriteTitle}</h2>

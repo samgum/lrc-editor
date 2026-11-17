@@ -20,7 +20,7 @@ body {
     display: flex;
     min-height: 100vh;
     min-height: 100svh;
-    padding: 76px 16px 72px;
+    padding: 76px 16px calc(72px + env(safe-area-inset-bottom));
 }
 
 .app-main > * {
@@ -118,7 +118,7 @@ body {
     position: fixed;
     inset: 0;
     z-index: 1400;
-    display: grid;
+    display: none;
     place-items: center;
     width: 100%;
     max-width: none;
@@ -127,9 +127,12 @@ body {
     margin: 0;
     padding: 20px;
     color: var(--font-color);
-    background: #11131868;
+    background: transparent;
     border: 0;
-    backdrop-filter: blur(10px);
+}
+
+.lyric-overwrite-dialog[open] {
+    display: grid;
 }
 
 .lyric-overwrite-dialog::backdrop {
@@ -247,7 +250,8 @@ body {
 @media (width <= 720px) {
     .app-main {
         min-height: 100svh;
-        padding: 68px max(8px, env(safe-area-inset-right)) 100px max(8px, env(safe-area-inset-left));
+        padding: 68px max(8px, env(safe-area-inset-right)) calc(100px + env(safe-area-inset-bottom))
+            max(8px, env(safe-area-inset-left));
     }
 
     .workspace-loading, .workspace-empty {

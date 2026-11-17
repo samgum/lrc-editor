@@ -1,26 +1,50 @@
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { enqueueNotification, type NotificationEntry, type NotificationMessage } from "../utils/notification-queue.js";
 import { createPubSub } from "../utils/pubsub.js";
-import { appContext, ChangBits } from "./app.context.js";
+import { langContext } from "./app.context.js";
 import { CheckSVG, CloseSVG, InfoSVG, ProblemSVG } from "./svg.js";
 
 export const toastPubSub = createPubSub<NotificationMessage>();
 
 export const Toast: React.FC = () => {
-    const { lang } = useContext(appContext, ChangBits.lang);
+    const lang = useContext(langContext);
     const self = useRef(Symbol(Toast.name));
     const sequence = useRef(0);
+    const containerRef = useRef<HTMLDivElement>(null);
     const [queue, setQueue] = useState<NotificationEntry[]>([]);
     useEffect(() =>
         toastPubSub.sub(self.current, (message) => {
             const id = ++sequence.current;
             setQueue((current) => enqueueNotification(current, message, id));
         }), []);
+    useLayoutEffect(() => {
+        const element = containerRef.current as
+            | (HTMLDivElement & {
+                showPopover?: () => void;
+                hidePopover?: () => void;
+            })
+            | null;
+        if (!element || typeof element.showPopover !== "function") return;
+        try {
+            if (queue.length > 0) {
+                if (element.matches(":popover-open")) element.hidePopover?.();
+                element.showPopover();
+            } else if (element.matches(":popover-open")) {
+                element.hidePopover?.();
+            }
+        } catch {
+            // Keep standard fixed-layer rendering if popover toggling fails.
+        }
+    }, [queue]);
     const dismiss = useCallback((id: number) => {
         setQueue((current) => current.filter((item) => item.id !== id));
     }, []);
     return (
-        <div className="toast-queue">
+        <div
+            ref={containerRef}
+            className="toast-queue"
+            {...({ popover: "manual" } as Record<string, string>)}
+        >
             {queue.map((entry) => (
                 <ToastItem
                     key={entry.id}

@@ -34,7 +34,7 @@
         "https://i2.y.qq.com/*",
         "https://aqqmusic.tc.qq.com/*",
         "https://lrc.sgmy.org/*",
-        "https://samgum.github.io/*",
+        "https://samgum.github.io/lrc-editor/*",
         "http://localhost/*",
         "http://127.0.0.1/*"
     ],
@@ -69,7 +69,7 @@
         "128": "icons/icon-128.png",
         "192": "icons/icon-192.png"
     },
-    "content_security_policy": "script-src 'self'; object-src 'self'; frame-src https://c6.y.qq.com https://i.y.qq.com https://i2.y.qq.com https://lrc.sgmy.org https://samgum.github.io http://localhost http://127.0.0.1",
+    "content_security_policy": "script-src 'self'; object-src 'self'; frame-src https://c6.y.qq.com https://i.y.qq.com https://i2.y.qq.com https://lrc.sgmy.org https://samgum.github.io http://localhost:* http://127.0.0.1:*",
     "browser_specific_settings": {
         "gecko": {
             "id": "lrc-editor-media-bridge@sgmy.org",

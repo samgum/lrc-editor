@@ -154,8 +154,20 @@ export const advancedLyricsReducer = (
             return updateTiming(state, Math.max(0, Math.round(action.payload)), false);
         case AdvancedActionType.finishHold:
             return finishHoldTiming(state, Math.max(0, Math.round(action.payload)));
-        case AdvancedActionType.deleteTime:
-            return updateCurrentWord(state, (word) => ({ text: word.text }), false);
+        case AdvancedActionType.deleteTime: {
+            const nextState = updateCurrentWord(state, (word) => ({ text: word.text }), false);
+            if (nextState === state || !nextState.document) return nextState;
+            const lineIndex = state.cursor.lineIndex;
+            const line = nextState.document.lines[lineIndex];
+            const syncStart = state.cursor.wordIndex === 0
+                ? line.words.find((candidate) => candidate.startMs !== undefined)?.startMs
+                : line.startMs;
+            const syncEnd = state.cursor.wordIndex === line.words.length - 1 ? undefined : line.endMs;
+            return {
+                ...nextState,
+                document: replaceLine(nextState.document, lineIndex, { ...line, startMs: syncStart, endMs: syncEnd }),
+            };
+        }
         case AdvancedActionType.adjustTime: {
             const word = currentWord(state);
             if (!word || word.startMs === undefined) return state;
@@ -208,7 +220,16 @@ export const advancedLyricsReducer = (
             if (words.length === 1) words[0] = { text: "" };
             else words.splice(action.payload.wordIndex, 1);
             const lines = document.lines.slice();
-            lines[action.payload.lineIndex] = { ...line, words };
+            const removedFirst = action.payload.wordIndex === 0;
+            const removedLast = action.payload.wordIndex >= line.words.length - 1;
+            lines[action.payload.lineIndex] = {
+                ...line,
+                startMs: removedFirst
+                    ? words.find((candidate) => candidate.startMs !== undefined)?.startMs
+                    : line.startMs,
+                endMs: removedLast ? words.at(-1)?.endMs : line.endMs,
+                words,
+            };
             return commit(state, { ...document, lines }, {
                 lineIndex: action.payload.lineIndex,
                 wordIndex: Math.min(action.payload.wordIndex, words.length - 1),
@@ -237,7 +258,12 @@ export const advancedLyricsReducer = (
                 index < action.payload.wordIndex ? word : { text: word.text }
             );
             const lines = document.lines.slice();
-            lines[action.payload.lineIndex] = { ...line, words };
+            lines[action.payload.lineIndex] = {
+                ...line,
+                startMs: action.payload.wordIndex === 0 ? undefined : line.startMs,
+                endMs: undefined,
+                words,
+            };
             return commit(state, { ...document, lines }, action.payload);
         }
         case AdvancedActionType.undo: {
@@ -332,12 +358,38 @@ const updateTiming = (
                 : line.endMs,
         });
     } else {
-        nextDocument = replaceWord(document, state.cursor, { ...word, startMs: constrainedStartMs });
+        const followingStart = nextTimedWordStart(document, state.cursor);
+        const minEnd = constrainedStartMs + minimumCapturedWordDurationMs;
+        let adjustedEnd = word.endMs;
+        if (adjustedEnd !== undefined && adjustedEnd < minEnd) {
+            const delta = constrainedStartMs - (word.startMs ?? constrainedStartMs);
+            const shifted = Math.max(minEnd, adjustedEnd + Math.max(0, delta));
+            adjustedEnd = followingStart !== undefined ? Math.min(followingStart, shifted) : shifted;
+        }
+        nextDocument = replaceWord(document, state.cursor, {
+            ...word,
+            startMs: constrainedStartMs,
+            ...(adjustedEnd !== undefined ? { endMs: adjustedEnd } : {}),
+        });
+        const currentLine = nextDocument.lines[state.cursor.lineIndex];
+        const minLineEnd = adjustedEnd ?? minEnd;
+        if (currentLine.endMs !== undefined && currentLine.endMs < minLineEnd) {
+            nextDocument = replaceLine(nextDocument, state.cursor.lineIndex, {
+                ...currentLine,
+                endMs: minLineEnd,
+            });
+        }
     }
     const previousCursor = nextWordCursor(document, state.cursor, -1);
     if (previousCursor.lineIndex === state.cursor.lineIndex && previousCursor.wordIndex !== state.cursor.wordIndex) {
         const previous = nextDocument.lines[previousCursor.lineIndex].words[previousCursor.wordIndex];
-        if (previous.startMs !== undefined) {
+        if (
+            previous.startMs !== undefined
+            && (mode === "capture"
+                || previous.endMs === undefined
+                || previous.endMs === word.startMs
+                || previous.endMs > constrainedStartMs)
+        ) {
             nextDocument = replaceWord(nextDocument, previousCursor, { ...previous, endMs: constrainedStartMs });
         }
     }
@@ -493,6 +545,9 @@ const isAdvancedDocument = (value: unknown): value is AdvancedLyricsDocument => 
     if (typeof value !== "object" || value === null) return false;
     const candidate = value as Partial<AdvancedLyricsDocument>;
     return Array.isArray(candidate.lines)
+        && candidate.lines.every((line) => typeof line === "object" && line !== null && Array.isArray(line.words))
         && (candidate.timingMode === "line" || candidate.timingMode === "word")
-        && typeof candidate.metadata === "object";
+        && typeof candidate.metadata === "object"
+        && candidate.metadata !== null
+        && !Array.isArray(candidate.metadata);
 };

@@ -58,8 +58,10 @@ export type Action = Map$Type$Payload<
 >;
 
 export const guard = (value: number, min: number, max: number): number => {
+    const safeMax = Math.max(min, max);
+    if (!Number.isFinite(value)) return value === Infinity ? safeMax : min;
     if (value < min) return min;
-    if (value > max) return max;
+    if (value > safeMax) return safeMax;
     return value;
 };
 
@@ -122,7 +124,7 @@ export const lrcReducer = (state: IState, action: Action): IState => {
 
         case ActionType.next: {
             const timed = lrcReducer(state, { type: ActionType.time, payload: action.payload });
-            return { ...timed, selectIndex: guard(state.selectIndex + 1, 0, state.lyric.length - 1) };
+            return { ...timed, selectIndex: guard(state.selectIndex + 1, 0, Math.max(0, state.lyric.length - 1)) };
         }
 
         case ActionType.time: {
@@ -139,11 +141,11 @@ export const lrcReducer = (state: IState, action: Action): IState => {
             if ((state.info.get(name) || "") === value) return state;
             const info = new Map(state.info);
             value ? info.set(name, value) : info.delete(name);
-            return { ...state, info };
+            return commit(state, { ...state, info });
         }
 
         case ActionType.select: {
-            const selectIndex = guard(action.payload(state.selectIndex), 0, state.lyric.length - 1);
+            const selectIndex = guard(action.payload(state.selectIndex), 0, Math.max(0, state.lyric.length - 1));
             return state.selectIndex === selectIndex ? state : { ...state, selectIndex };
         }
 
@@ -152,11 +154,12 @@ export const lrcReducer = (state: IState, action: Action): IState => {
             if (state.lyric[index]?.time === undefined) return state;
             const lyric = state.lyric.slice();
             lyric[index] = { text: lyric[index].text };
+            const invalidateBounds = index === state.currentIndex || index === state.nextIndex;
             return commit(state, {
                 ...state,
                 lyric,
-                currentTime: index === state.currentIndex ? Infinity : state.currentTime,
-                nextTime: index === state.currentIndex ? -Infinity : state.nextTime,
+                currentTime: invalidateBounds ? Infinity : state.currentTime,
+                nextTime: invalidateBounds ? -Infinity : state.nextTime,
             });
         }
 

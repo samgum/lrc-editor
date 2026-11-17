@@ -42,13 +42,19 @@ def _save_lossless_audio(
         subtype = "FLOAT"
     else:
         subtype = {16: "PCM_16", 24: "PCM_24", 32: "PCM_32"}[bits_per_sample]
-    soundfile.write(
-        str(destination),
-        audio,
-        samplerate,
-        format="WAV",
-        subtype=subtype,
-    )
+    partial = destination.with_name(f"{destination.stem}.partial{destination.suffix}")
+    partial.unlink(missing_ok=True)
+    try:
+        soundfile.write(
+            str(partial),
+            audio,
+            samplerate,
+            format="WAV",
+            subtype=subtype,
+        )
+        partial.replace(destination)
+    finally:
+        partial.unlink(missing_ok=True)
 
 
 def main() -> None:

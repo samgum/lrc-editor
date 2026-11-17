@@ -1,7 +1,7 @@
 import BRAND from "#const/brand.json" assert { type: "json" };
 import ROUTER from "#const/router.json" assert { type: "json" };
 import SSK from "#const/session_key.json" assert { type: "json" };
-import { parser, type State as LrcState, stringify } from "@lrc-maker/lrc-parser";
+import { parser, type State as LrcState } from "@lrc-maker/lrc-parser";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { AdvancedActionType, type AdvancedLyricsAction, type AdvancedLyricsState } from "../hooks/useAdvancedLyrics.js";
 import type { Action as LrcAction } from "../hooks/useLrc.js";
@@ -38,6 +38,7 @@ import {
     runLocalAiAlignment,
 } from "../utils/local-ai-alignment.js";
 import { lrcFileName } from "../utils/lrc-file-name.js";
+import { stringifyLrc } from "../utils/lrc-format.js";
 import { prependHash } from "../utils/router.js";
 import { parseWordEditorSource } from "../utils/word-source.js";
 import { requestPreferenceFocus } from "../utils/workspace-navigation.js";
@@ -119,7 +120,7 @@ export const Editor: React.FC<{
                 && editedWordSource.current.fixed === prefState.fixed
             ? editedWordSource.current.source
             : toEnhancedLrc(advancedState.document, prefState.fixed)
-        : stringify(lrcState, prefState);
+        : stringifyLrc(lrcState, prefState);
 
     const commitText = useCallback(
         (rawText: string) => {
@@ -232,8 +233,7 @@ export const Editor: React.FC<{
 
     useEffect(() => setExportFormat(timingMode === "word" ? "enhanced-lrc" : "lrc"), [timingMode]);
 
-    const onDownloadClick = useCallback((event: React.MouseEvent<HTMLAnchorElement>) => {
-        event.preventDefault();
+    const onDownloadClick = useCallback(() => {
         let payload: string | Uint8Array;
         try {
             payload = exportPayload();
@@ -295,15 +295,28 @@ export const Editor: React.FC<{
             toastPubSub.pub({ type: "warning", text: lang.advancedLyrics.krcCopyUnavailable });
             return;
         }
+        const copyFallback = (value: string): boolean => {
+            const helper = document.createElement("textarea");
+            helper.value = value;
+            helper.setAttribute("readonly", "");
+            helper.style.position = "fixed";
+            helper.style.opacity = "0";
+            document.body.append(helper);
+            helper.select();
+            const ok = document.execCommand("copy");
+            helper.remove();
+            return ok;
+        };
         void navigator.clipboard.writeText(payload).then(() => {
             toastPubSub.pub({ type: "success", text: lang.advancedLyrics.copyComplete });
+        }).catch(() => {
+            if (copyFallback(payload)) {
+                toastPubSub.pub({ type: "success", text: lang.advancedLyrics.copyComplete });
+            } else {
+                toastPubSub.pub({ type: "warning", text: lang.advancedLyrics.exportUnavailable });
+            }
         });
     }, [exportPayload, lang.advancedLyrics]);
-
-    const downloadName = useMemo(
-        () => lrcFileName(lrcState.info, exportExtension),
-        [exportExtension, lrcState.info],
-    );
 
     const statusText = useCallback((progress: AiAlignmentSessionState): string => {
         const huhu = progress.provider === "huhu";
@@ -659,16 +672,15 @@ export const Editor: React.FC<{
                         >
                             <CopySVG />
                         </button>
-                        <a
+                        <button
+                            type="button"
                             className="editor-tools-item ripple"
                             title={lang.advancedLyrics.downloadExport}
                             aria-label={lang.advancedLyrics.downloadExport}
-                            href="#"
                             onClick={onDownloadClick}
-                            download={downloadName}
                         >
                             <DownloadSVG />
-                        </a>
+                        </button>
 
                         <a
                             title={lang.editor.utils}
@@ -788,6 +800,7 @@ export const Editor: React.FC<{
                         event.preventDefault();
                         onDismissWordTiming();
                     }}
+                    onClose={onDismissWordTiming}
                 >
                     <article>
                         <h2 id="word-timing-offer-title">{lang.advancedLyrics.wordDetectedTitle}</h2>

@@ -2,12 +2,13 @@ import BRAND from "#const/brand.json" assert { type: "json" };
 import ROUTER from "#const/router.json" assert { type: "json" };
 import { useContext, useEffect, useState } from "react";
 import { useKeyBindings } from "../hooks/useKeyBindings.js";
+import { useMediaQuery } from "../hooks/useMediaQuery.js";
 import { ThemeMode } from "../hooks/usePref.js";
 import { InputAction } from "../utils/input-action.js";
-import { isKeyboardElement } from "../utils/is-keyboard-element.js";
+import { shouldIgnoreGlobalShortcut } from "../utils/is-keyboard-element.js";
 import { getMatchedAction } from "../utils/keybindings.js";
 import { prependHash } from "../utils/router.js";
-import { appContext, ChangBits } from "./app.context.js";
+import { appContext } from "./app.context.js";
 import {
     BrandSVG,
     EditorSVG,
@@ -21,10 +22,10 @@ import {
 } from "./svg.js";
 
 export const Header: React.FC = () => {
-    const { lang, prefDispatch, prefState } = useContext(appContext, ChangBits.lang | ChangBits.prefState);
+    const { lang, prefDispatch, prefState } = useContext(appContext);
     const keyBindings = useKeyBindings();
     const [path, setPath] = useState(location.hash.slice(1) || ROUTER.home);
-    const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const systemDark = useMediaQuery("(prefers-color-scheme: dark)");
     const darkMode = prefState.themeMode === ThemeMode.dark || (prefState.themeMode === ThemeMode.auto && systemDark);
 
     const toggleTheme = (): void => {
@@ -39,7 +40,7 @@ export const Header: React.FC = () => {
 
     useEffect(() => {
         const onKeyDown = (ev: KeyboardEvent): void => {
-            if (!isKeyboardElement(ev.target) && getMatchedAction(ev, keyBindings) === InputAction.ShowHelp) {
+            if (!shouldIgnoreGlobalShortcut(ev) && getMatchedAction(ev, keyBindings) === InputAction.ShowHelp) {
                 ev.preventDefault();
                 location.hash = ROUTER.home;
             }

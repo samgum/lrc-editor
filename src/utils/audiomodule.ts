@@ -23,7 +23,8 @@ export const audioRef: IAudioRef = {
     },
 
     get duration() {
-        return this.current?.duration ?? 0;
+        const duration = this.current?.duration;
+        return duration !== undefined && Number.isFinite(duration) && duration > 0 ? duration : 0;
     },
 
     get paused() {
@@ -34,17 +35,18 @@ export const audioRef: IAudioRef = {
         return this.current?.playbackRate ?? 1;
     },
     set playbackRate(rate: number) {
-        if (this.current !== null) {
+        if (this.current !== null && Number.isFinite(rate) && rate > 0) {
             this.current.playbackRate = rate;
         }
     },
 
     get currentTime() {
-        return this.current?.currentTime ?? 0;
+        const time = this.current?.currentTime;
+        return time !== undefined && Number.isFinite(time) ? time : 0;
     },
     set currentTime(time: number) {
-        if (this.current !== null && this.current.duration !== 0) {
-            this.current.currentTime = time;
+        if (this.current !== null && Number.isFinite(time) && this.duration > 0) {
+            this.current.currentTime = guard(time, 0, this.duration);
         }
     },
 
@@ -63,8 +65,12 @@ export const audioRef: IAudioRef = {
     },
 
     toggle() {
-        if (this.current?.duration) {
-            void (this.current.paused ? this.current.play() : this.current.pause());
+        if (this.current && this.duration > 0) {
+            if (this.current.paused) {
+                void this.current.play().catch(() => undefined);
+            } else {
+                this.current.pause();
+            }
         }
     },
 };

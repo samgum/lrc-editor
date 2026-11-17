@@ -76,4 +76,8 @@ companion/install-location.txt
 .e2e-edge-profile*/
 .tmp-ai-test.wav
 
+# Python bytecode
+__pycache__/
+*.py[cod]
+
 .DS_Store

@@ -5,11 +5,19 @@
   Strict-Transport-Security: max-age=31536000
 
 /
+  Cache-Control: no-cache
   X-Frame-Options: DENY
 
 /index.html
   Cache-Control: no-cache
   X-Frame-Options: DENY
+
+/youtube-token.html
+  Cache-Control: no-cache
+  Content-Security-Policy: frame-ancestors 'self' chrome-extension: moz-extension:
+
+/youtube-token.js
+  Cache-Control: no-cache
 
 /sw.js
   Cache-Control: public, max-age=0, must-revalidate

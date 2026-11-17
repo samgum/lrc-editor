@@ -10,6 +10,18 @@
                     "operation": "set",
                     "value": "https://www.bilibili.com/"
                 }
+            ],
+            "responseHeaders": [
+                {
+                    "header": "Access-Control-Allow-Origin",
+                    "operation": "set",
+                    "value": "*"
+                },
+                {
+                    "header": "Access-Control-Expose-Headers",
+                    "operation": "set",
+                    "value": "Accept-Ranges, Content-Length, Content-Range"
+                }
             ]
         },
         "condition": {

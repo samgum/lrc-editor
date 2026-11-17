@@ -81,15 +81,22 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
     const self = useRef(Symbol(WordTimingStage.name));
     const currentTimeRef = useRef<HTMLTimeElement>(null);
     const playheadRef = useRef<HTMLElement>(null);
+    const laneRef = useRef<HTMLDivElement>(null);
     const selectedWordRef = useRef<HTMLButtonElement>(null);
     const endMarkerRef = useRef<HTMLSpanElement>(null);
     const line = document.lines[cursor.lineIndex];
     const word = line?.words[cursor.wordIndex];
     const previousLine = document.lines[cursor.lineIndex - 1];
     const nextLine = document.lines[cursor.lineIndex + 1];
-    const lastWordEnd = line
-        ? [...line.words].reverse().find((candidate) => candidate.endMs !== undefined)?.endMs
-        : undefined;
+    let lastWordEnd: number | undefined;
+    if (line) {
+        for (let i = line.words.length - 1; i >= 0; i -= 1) {
+            if (line.words[i].endMs !== undefined) {
+                lastWordEnd = line.words[i].endMs;
+                break;
+            }
+        }
+    }
     const lineStartMs = line?.startMs;
     const lineEndMs = line?.endMs ?? lastWordEnd ?? nextLine?.startMs;
 
@@ -99,10 +106,14 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
                 currentTimeRef.current.textContent = formatLrcTimestamp(seconds * 1000, fixed).slice(1, -1);
             }
             if (
-                playheadRef.current && lineStartMs !== undefined && lineEndMs !== undefined && lineEndMs > lineStartMs
+                lineStartMs !== undefined && lineEndMs !== undefined && lineEndMs > lineStartMs
             ) {
-                const ratio = Math.max(0, Math.min(1, (seconds * 1000 - lineStartMs) / (lineEndMs - lineStartMs)));
-                playheadRef.current.style.left = `${ratio * 100}%`;
+                const clampedMs = Math.max(lineStartMs, Math.min(lineEndMs, Math.round(seconds * 1000)));
+                laneRef.current?.setAttribute("aria-valuenow", String(clampedMs));
+                if (playheadRef.current) {
+                    const ratio = (clampedMs - lineStartMs) / (lineEndMs - lineStartMs);
+                    playheadRef.current.style.left = `${ratio * 100}%`;
+                }
             }
         };
         update(audioRef.currentTime);
@@ -318,16 +329,43 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
                 <div className="word-stage-lane-wrap">
                     <span>{language.timingLane}</span>
                     <div
+                        ref={laneRef}
                         className="word-stage-lane"
                         role="slider"
+                        tabIndex={0}
                         aria-label={language.timingLane}
                         aria-valuemin={lineStartMs}
                         aria-valuemax={lineEndMs}
-                        aria-valuenow={Math.round(audioRef.currentTime * 1000)}
+                        aria-valuenow={Math.max(
+                            lineStartMs,
+                            Math.min(lineEndMs, Math.round(audioRef.currentTime * 1000)),
+                        )}
                         onPointerDown={(event) => {
+                            if (event.pointerType === "mouse" && event.button !== 0) return;
                             const bounds = event.currentTarget.getBoundingClientRect();
                             const ratio = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width));
                             onSeek(lineStartMs + ratio * (lineEndMs - lineStartMs));
+                        }}
+                        onKeyDown={(event) => {
+                            const span = lineEndMs - lineStartMs;
+                            const step = Math.max(50, Math.round(span * 0.05));
+                            const currentMs = Math.max(
+                                lineStartMs,
+                                Math.min(lineEndMs, Math.round(audioRef.currentTime * 1000)),
+                            );
+                            if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
+                                event.preventDefault();
+                                onSeek(Math.max(lineStartMs, currentMs - step));
+                            } else if (event.key === "ArrowRight" || event.key === "ArrowUp") {
+                                event.preventDefault();
+                                onSeek(Math.min(lineEndMs, currentMs + step));
+                            } else if (event.key === "Home") {
+                                event.preventDefault();
+                                onSeek(lineStartMs);
+                            } else if (event.key === "End") {
+                                event.preventDefault();
+                                onSeek(lineEndMs);
+                            }
                         }}
                     >
                         {line.words.map((candidate, wordIndex) => {
@@ -410,6 +448,7 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
                     onClick={() => captureMode === "tap" && onStamp()}
                     onPointerDown={(event) => {
                         if (captureMode !== "hold" || !mediaReady) return;
+                        if (event.pointerType === "mouse" && event.button !== 0) return;
                         event.preventDefault();
                         event.currentTarget.setPointerCapture(event.pointerId);
                         onHoldStart();

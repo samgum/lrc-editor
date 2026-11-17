@@ -57,19 +57,31 @@ export const detectLosslessCodec = async (
     }
 
     const head = new Uint8Array(await file.slice(0, Math.min(file.size, scanBytes)).arrayBuffer());
-    if (hasAsciiMarker(head, "alac")) {
+    if (hasAlacBoxMarker(head)) {
         return "alac";
     }
     if (file.size > scanBytes) {
         const tail = new Uint8Array(await file.slice(Math.max(0, file.size - scanBytes)).arrayBuffer());
-        if (hasAsciiMarker(tail, "alac")) {
+        if (hasAlacBoxMarker(tail)) {
             return "alac";
         }
     }
     return null;
 };
 
-const hasAsciiMarker = (data: Uint8Array, marker: string): boolean => {
-    const bytes = [...marker].map((character) => character.charCodeAt(0));
-    return data.some((_, index) => bytes.every((value, offset) => data[index + offset] === value));
+const hasAlacBoxMarker = (data: Uint8Array): boolean => {
+    let index = data.indexOf(0x61, 4);
+    while (index !== -1 && index + 3 < data.length) {
+        if (
+            data[index + 1] === 0x6c
+            && data[index + 2] === 0x61
+            && data[index + 3] === 0x63
+            && data[index - 4] === 0
+            && data[index - 3] === 0
+        ) {
+            return true;
+        }
+        index = data.indexOf(0x61, index + 1);
+    }
+    return false;
 };

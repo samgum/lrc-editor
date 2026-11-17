@@ -5,6 +5,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 $launcherRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $resolver = Join-Path $launcherRoot "resolve-ai-aligner-install.ps1"
 if (-not (Test-Path -LiteralPath $resolver)) {
@@ -64,15 +65,33 @@ if ($null -eq $serviceProcessId) {
     return
 }
 
-Stop-Process -Id $serviceProcessId
-for ($attempt = 0; $attempt -lt 50; $attempt += 1) {
+foreach ($port in $ports) {
+    try {
+        $capabilities = Invoke-RestMethod -Uri "http://127.0.0.1:$port/api/lrc-editor/capabilities" -TimeoutSec 1
+        if ($capabilities.control_token) {
+            Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:$port/api/lrc-editor/service/stop" `
+                -Headers @{ "X-LRC-Editor-Control" = [string]$capabilities.control_token } -TimeoutSec 2 | Out-Null
+        }
+    } catch {
+    }
+}
+for ($attempt = 0; $attempt -lt 15; $attempt += 1) {
     if ($null -eq (Get-Process -Id $serviceProcessId -ErrorAction SilentlyContinue)) {
         break
     }
     Start-Sleep -Milliseconds 200
 }
 if ($null -ne (Get-Process -Id $serviceProcessId -ErrorAction SilentlyContinue)) {
-    Stop-Process -Id $serviceProcessId -Force
+    Stop-Process -Id $serviceProcessId -ErrorAction SilentlyContinue
+    for ($attempt = 0; $attempt -lt 35; $attempt += 1) {
+        if ($null -eq (Get-Process -Id $serviceProcessId -ErrorAction SilentlyContinue)) {
+            break
+        }
+        Start-Sleep -Milliseconds 200
+    }
+}
+if ($null -ne (Get-Process -Id $serviceProcessId -ErrorAction SilentlyContinue)) {
+    Stop-Process -Id $serviceProcessId -Force -ErrorAction SilentlyContinue
 }
 if (Test-Path -LiteralPath $pidPath) {
     [System.IO.File]::Delete($pidPath)

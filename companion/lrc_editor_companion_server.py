@@ -1,19 +1,24 @@
 from __future__ import annotations
 
 import contextvars
+import hashlib
 import hmac
 import os
 import re
 import secrets
 import shutil
+import signal
 import subprocess
 import threading
 import time
+import uuid
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import uvicorn
-from fastapi import File, Form, Header, HTTPException, UploadFile
+from fastapi import File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from pydantic import BaseModel
 from lyrics_aligner import server as engine
 from lyrics_aligner import audio as aligner_audio
 from lyrics_aligner import separation as aligner_separation
@@ -36,7 +41,7 @@ _requested_device: contextvars.ContextVar[str] = contextvars.ContextVar(
 )
 
 
-class AlignmentCancelled(RuntimeError):
+class AlignmentCancelled(BaseException):
     pass
 
 
@@ -79,10 +84,39 @@ def _run_job(job_id: str) -> None:
     _job_context.job_id = job_id
     try:
         _original_run_job(job_id)
+    except AlignmentCancelled:
+        _original_set_job(
+            job_id,
+            status="failed",
+            stage="failed",
+            detail="任务已停止",
+            error="Alignment stopped by the user",
+        )
     finally:
         _job_context.job_id = ""
         _job_devices.pop(job_id, None)
         _cancel_events.pop(job_id, None)
+
+
+def _terminate_process_tree(process: subprocess.Popen, *, force: bool) -> None:
+    if process.poll() is not None:
+        return
+    if os.name == "nt":
+        subprocess.run(
+            ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+            capture_output=True,
+            check=False,
+        )
+        return
+    try:
+        os.killpg(process.pid, signal.SIGKILL if force else signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+    except OSError:
+        if force:
+            process.kill()
+        else:
+            process.terminate()
 
 
 class _DeviceExecutor:
@@ -117,22 +151,28 @@ class _SubprocessProxy:
                 raise ValueError("stdout and stderr arguments may not be used with capture_output")
             kwargs["stdout"] = subprocess.PIPE
             kwargs["stderr"] = subprocess.PIPE
+        if os.name == "nt":
+            kwargs["creationflags"] = int(kwargs.get("creationflags", 0)) | getattr(
+                subprocess, "CREATE_NEW_PROCESS_GROUP", 0
+            )
+        else:
+            kwargs.setdefault("start_new_session", True)
         process = subprocess.Popen(*popenargs, **kwargs)
         deadline = None if timeout is None else time.monotonic() + float(timeout)
         pending_input = input
         try:
             while True:
                 if event.is_set():
-                    process.terminate()
+                    _terminate_process_tree(process, force=False)
                     try:
                         process.communicate(timeout=3)
                     except subprocess.TimeoutExpired:
-                        process.kill()
+                        _terminate_process_tree(process, force=True)
                         process.communicate()
                     raise AlignmentCancelled("Alignment stopped by the user")
                 remaining = None if deadline is None else deadline - time.monotonic()
                 if remaining is not None and remaining <= 0:
-                    process.kill()
+                    _terminate_process_tree(process, force=True)
                     stdout, stderr = process.communicate()
                     raise subprocess.TimeoutExpired(process.args, timeout, output=stdout, stderr=stderr)
                 try:
@@ -143,6 +183,14 @@ class _SubprocessProxy:
                     break
                 except subprocess.TimeoutExpired:
                     pending_input = None
+        except BaseException:
+            if process.poll() is None:
+                _terminate_process_tree(process, force=True)
+                try:
+                    process.communicate(timeout=2)
+                except Exception:
+                    pass
+            raise
         finally:
             pending_input = None
         completed = subprocess.CompletedProcess(process.args, process.returncode, stdout, stderr)
@@ -187,9 +235,20 @@ def _job_cache_path(job: engine.Job) -> Path:
     return engine.RUNTIME_ROOT / "work-cache" / f"{job.audio_digest}-{suffix}"
 
 
+def _shared_cache_in_use(job: engine.Job) -> bool:
+    with engine.jobs_lock:
+        return any(
+            other.id != job.id
+            and not other.bypass_cache
+            and other.audio_digest == job.audio_digest
+            and other.separate == job.separate
+            for other in engine.jobs.values()
+        )
+
+
 def _delete_job(job: engine.Job, *, reusable_cache: bool) -> int:
     reclaimed = _remove_tree(job.directory)
-    if reusable_cache and not job.bypass_cache:
+    if reusable_cache and not job.bypass_cache and not _shared_cache_in_use(job):
         reclaimed += _remove_tree(_job_cache_path(job))
     return reclaimed
 
@@ -215,15 +274,195 @@ def delete_job_cache(job_id: str) -> dict[str, object]:
     return {"deleted": True, "reclaimed_bytes": reclaimed}
 
 
+@dataclass(slots=True)
+class _StagedUpload:
+    id: str
+    directory: Path
+    audio_name: str
+    audio_path: Path
+    audio_size: int
+    transcript_text: str
+    separate: bool
+    bypass_cache: bool
+    preserve_blank_lines: bool
+    word_timing_beta: bool
+    device: str
+    next_index: int = 0
+    received: int = 0
+    digest: "hashlib._Hash" = field(default_factory=hashlib.sha256)
+    updated_at: float = field(default_factory=time.monotonic)
+    lock: threading.Lock = field(default_factory=threading.Lock)
+
+
+class _CreateUploadBody(BaseModel):
+    audio_name: str = "audio.bin"
+    audio_type: str = "application/octet-stream"
+    audio_size: int
+    transcript_text: str
+    separate: bool = True
+    bypass_cache: bool = False
+    preserve_blank_lines: bool = True
+    word_timing_beta: bool = False
+    device: str = "auto"
+
+
+_staged_uploads: dict[str, _StagedUpload] = {}
+_staged_uploads_lock = threading.Lock()
+
+
 @app.get("/api/lrc-editor/capabilities")
 def companion_capabilities() -> dict[str, object]:
     visible_cuda = os.environ.get("CUDA_VISIBLE_DEVICES", "-1").strip()
     gpu_available = visible_cuda not in {"", "-1"}
     return {
         "control_token": _control_token,
+        "chunked_upload": True,
         "gpu_available": gpu_available,
         "device_options": ["auto", "cpu"],
     }
+
+
+@app.post("/api/lrc-editor/uploads")
+def create_companion_upload(
+    body: _CreateUploadBody,
+    control_token: str | None = Header(None, alias="X-LRC-Editor-Control"),
+) -> dict[str, object]:
+    _require_control_token(control_token)
+    if body.audio_size <= 0 or body.audio_size > engine.MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="上传文件超过本地任务允许的大小。")
+    text = body.transcript_text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="请上传歌词文件或粘贴文字稿。")
+    if len(text.encode("utf-8")) > engine.MAX_TRANSCRIPT_BYTES:
+        raise HTTPException(status_code=413, detail="文字稿过大。")
+    upload_id = uuid.uuid4().hex
+    directory = engine.RUNTIME_ROOT / "uploads" / upload_id
+    audio_name = engine._safe_name(body.audio_name, "audio.bin")
+    audio_path = directory / f"input{engine._safe_audio_suffix(audio_name)}"
+    audio_path.parent.mkdir(parents=True, exist_ok=True)
+    audio_path.write_bytes(b"")
+    selected_device = body.device if body.device in {"auto", "cpu"} else "auto"
+    staged = _StagedUpload(
+        id=upload_id,
+        directory=directory,
+        audio_name=audio_name,
+        audio_path=audio_path,
+        audio_size=body.audio_size,
+        transcript_text=text,
+        separate=body.separate,
+        bypass_cache=body.bypass_cache,
+        preserve_blank_lines=body.preserve_blank_lines,
+        word_timing_beta=body.word_timing_beta,
+        device=selected_device,
+    )
+    with _staged_uploads_lock:
+        _staged_uploads[upload_id] = staged
+    return {"upload_id": upload_id}
+
+
+@app.put("/api/lrc-editor/uploads/{upload_id}/chunks/{index}")
+async def append_companion_upload_chunk(
+    upload_id: str,
+    index: int,
+    request: Request,
+    control_token: str | None = Header(None, alias="X-LRC-Editor-Control"),
+) -> dict[str, object]:
+    _require_control_token(control_token)
+    if not re.fullmatch(r"[a-f0-9]{32}", upload_id, re.IGNORECASE):
+        raise HTTPException(status_code=400, detail="Invalid upload ID")
+    with _staged_uploads_lock:
+        staged = _staged_uploads.get(upload_id)
+    if staged is None:
+        raise HTTPException(status_code=404, detail="Upload session expired")
+    chunk = await request.body()
+    if not chunk:
+        raise HTTPException(status_code=400, detail="Empty upload chunk")
+    with staged.lock:
+        if index != staged.next_index:
+            raise HTTPException(status_code=409, detail="Out-of-order upload chunk")
+        if staged.received + len(chunk) > staged.audio_size:
+            raise HTTPException(status_code=413, detail="Upload chunk exceeds declared size")
+        with staged.audio_path.open("ab") as handle:
+            handle.write(chunk)
+        staged.digest.update(chunk)
+        staged.received += len(chunk)
+        staged.next_index += 1
+        staged.updated_at = time.monotonic()
+        received = staged.received
+    return {"received": received}
+
+
+@app.post("/api/lrc-editor/uploads/{upload_id}/commit")
+def commit_companion_upload(
+    upload_id: str,
+    control_token: str | None = Header(None, alias="X-LRC-Editor-Control"),
+) -> dict[str, object]:
+    _require_control_token(control_token)
+    if not re.fullmatch(r"[a-f0-9]{32}", upload_id, re.IGNORECASE):
+        raise HTTPException(status_code=400, detail="Invalid upload ID")
+    with _staged_uploads_lock:
+        staged = _staged_uploads.pop(upload_id, None)
+    if staged is None:
+        raise HTTPException(status_code=404, detail="Upload session expired")
+    job_id = uuid.uuid4().hex
+    job_directory = engine.RUNTIME_ROOT / "jobs" / job_id
+    try:
+        with staged.lock:
+            if staged.received != staged.audio_size:
+                raise HTTPException(status_code=400, detail="Upload is incomplete")
+            input_dir = job_directory / "input"
+            input_dir.mkdir(parents=True, exist_ok=True)
+            audio_path = input_dir / staged.audio_path.name
+            staged.audio_path.replace(audio_path)
+            transcript_path = input_dir / "pasted-lyrics.txt"
+            transcript_path.write_text(
+                staged.transcript_text + "\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            audio_digest = staged.digest.hexdigest()
+    except Exception:
+        shutil.rmtree(job_directory, ignore_errors=True)
+        raise
+    finally:
+        shutil.rmtree(staged.directory, ignore_errors=True)
+
+    job = engine.Job(
+        id=job_id,
+        audio_name=staged.audio_name,
+        transcript_name="pasted-lyrics.txt",
+        directory=job_directory,
+        audio_path=audio_path,
+        transcript_path=transcript_path,
+        audio_digest=audio_digest,
+        separate=staged.separate,
+        bypass_cache=staged.bypass_cache,
+        preserve_blank_lines=staged.preserve_blank_lines,
+        word_timing_beta=staged.word_timing_beta,
+    )
+    with engine.jobs_lock:
+        engine.jobs[job_id] = job
+    context_token = _requested_device.set(staged.device)
+    try:
+        engine.executor.submit(engine._run_job, job_id)
+    finally:
+        _requested_device.reset(context_token)
+    return job.public()
+
+
+@app.delete("/api/lrc-editor/uploads/{upload_id}")
+def delete_companion_upload(
+    upload_id: str,
+    control_token: str | None = Header(None, alias="X-LRC-Editor-Control"),
+) -> dict[str, object]:
+    _require_control_token(control_token)
+    if not re.fullmatch(r"[a-f0-9]{32}", upload_id, re.IGNORECASE):
+        raise HTTPException(status_code=400, detail="Invalid upload ID")
+    with _staged_uploads_lock:
+        staged = _staged_uploads.pop(upload_id, None)
+    if staged is not None:
+        shutil.rmtree(staged.directory, ignore_errors=True)
+    return {"deleted": True}
 
 
 @app.post("/api/lrc-editor/jobs")
@@ -351,6 +590,9 @@ def clear_companion_cache(
 
 
 def _remove_abandoned_default_jobs() -> None:
+    uploads_root = engine.RUNTIME_ROOT / "uploads"
+    if uploads_root.is_dir():
+        _remove_tree(uploads_root)
     jobs_root = engine.RUNTIME_ROOT / "jobs"
     if not jobs_root.is_dir():
         return
@@ -363,6 +605,14 @@ def _janitor() -> None:
     while True:
         time.sleep(5)
         now = time.monotonic()
+        stale_uploads: list[_StagedUpload] = []
+        with _staged_uploads_lock:
+            for upload_id, staged in list(_staged_uploads.items()):
+                if now - staged.updated_at >= 120:
+                    _staged_uploads.pop(upload_id, None)
+                    stale_uploads.append(staged)
+        for staged in stale_uploads:
+            shutil.rmtree(staged.directory, ignore_errors=True)
         cleanup: list[engine.Job] = []
         with engine.jobs_lock:
             for job_id, job in list(engine.jobs.items()):

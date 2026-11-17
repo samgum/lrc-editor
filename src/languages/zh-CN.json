@@ -30,7 +30,13 @@
         "replay5s": "后退 5 秒",
         "forward5s": "前进 5 秒",
         "resetRate": "重置播放速度",
-        "error": ["音频错误", "音频请求被用户终止", "音频网络请求错误", "音频解码错误", "浏览器无法支持此音频格式"]
+        "error": [
+            "音频错误",
+            "音频请求被用户终止",
+            "音频网络请求错误",
+            "音频解码错误",
+            "浏览器无法支持此音频格式"
+        ]
     },
     "loadAudio": {
         "file": "文件",
@@ -435,6 +441,7 @@
         "splitTranslation": "拆分翻译",
         "overwrite": "歌词覆写",
         "translation": "覆写 / 译文歌词",
+        "translationShort": "翻译",
         "sections": "清理段落标签",
         "tracklist": "清理曲目列表",
         "replaceText": "批量替换",

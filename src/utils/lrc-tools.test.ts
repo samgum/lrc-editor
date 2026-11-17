@@ -456,4 +456,17 @@ describe("LRC tools", () => {
             "[00:03.000]World 「世界」",
         ]);
     });
+
+    it("preserves literal dollar signs in inline templates and protects metadata tags during case conversion", () => {
+        const lrc = parser("[ti: Cash]\n[00:01.000]Price");
+        const inlineDollar = interleaveOverwriteLyrics(lrc, "$100 $&", options, {
+            outputMode: "inline",
+            inlineTemplate: "%orig / %trans",
+        });
+        expect(inlineDollar.text).toContain("[00:01.000]Price / $100 $&");
+
+        expect(convertLyricsCase("[ti: My Song]\n[ar: DJ]\n[00:01.000]in the dark", "title", true, true)).toBe(
+            "[ti: My Song]\n[ar: DJ]\n[00:01.000]In the Dark",
+        );
+    });
 });

@@ -18,6 +18,7 @@ import {
     alignerStartRequestType,
     type AlignerStatusRequest,
     alignerStatusRequestType,
+    isLocalAlignerBaseUrl,
     type LocalAlignerJob,
     localAlignerMaxAudioBytes,
     type LocalAlignerPayload,
@@ -25,6 +26,7 @@ import {
     type LocalAlignerResponse,
 } from "../shared/local-aligner-protocol.js";
 import { mediaExtensionAckType } from "../shared/media-extension-protocol.js";
+import { randomId } from "./random-id.js";
 
 export class LocalAiAlignmentError extends Error {
     constructor(
@@ -76,14 +78,14 @@ export const runLocalAiAlignment = async (options: LocalAlignmentOptions): Promi
     if (options.audio.size <= 0 || options.audio.size > localAlignerMaxAudioBytes) {
         throw new LocalAiAlignmentError("failed", "The loaded media size is not supported for local alignment");
     }
-    const uploadId = crypto.randomUUID();
+    const uploadId = randomId();
     let activeJob: { baseUrl: string; job: LocalAlignerJob } | undefined;
     try {
         options.onProgress?.({ phase: "connecting", progress: 0.01 });
         const startPayload = await requestAligner(
             {
                 type: alignerStartRequestType,
-                requestId: crypto.randomUUID(),
+                requestId: randomId(),
                 uploadId,
                 audioName: options.audioName,
                 audioType: options.audio.type || "application/octet-stream",
@@ -98,7 +100,12 @@ export const runLocalAiAlignment = async (options: LocalAlignmentOptions): Promi
             8_000,
             options.signal,
         );
-        if (startPayload.kind !== "start" || startPayload.uploadId !== uploadId) {
+        if (
+            startPayload.kind !== "start"
+            || startPayload.uploadId !== uploadId
+            || !Number.isSafeInteger(startPayload.chunkSize)
+            || startPayload.chunkSize <= 0
+        ) {
             throw new LocalAiAlignmentError("failed", "Invalid aligner start response");
         }
 
@@ -109,7 +116,7 @@ export const runLocalAiAlignment = async (options: LocalAlignmentOptions): Promi
             const payload = await requestAligner(
                 {
                     type: alignerChunkRequestType,
-                    requestId: crypto.randomUUID(),
+                    requestId: randomId(),
                     uploadId,
                     index,
                     data: encodeBase64(new Uint8Array(await chunk.arrayBuffer())),
@@ -129,13 +136,13 @@ export const runLocalAiAlignment = async (options: LocalAlignmentOptions): Promi
         const commitPayload = await requestAligner(
             {
                 type: alignerCommitRequestType,
-                requestId: crypto.randomUUID(),
+                requestId: randomId(),
                 uploadId,
             } satisfies AlignerCommitRequest,
             120_000,
             options.signal,
         );
-        if (commitPayload.kind !== "job") {
+        if (commitPayload.kind !== "job" || !isLocalAlignerBaseUrl(commitPayload.baseUrl)) {
             throw new LocalAiAlignmentError("failed", "Invalid aligner job response");
         }
 
@@ -148,14 +155,14 @@ export const runLocalAiAlignment = async (options: LocalAlignmentOptions): Promi
             const statusPayload = await requestAligner(
                 {
                     type: alignerStatusRequestType,
-                    requestId: crypto.randomUUID(),
+                    requestId: randomId(),
                     baseUrl: activeJob.baseUrl,
                     jobId: activeJob.job.id,
                 } satisfies AlignerStatusRequest,
                 15_000,
                 options.signal,
             );
-            if (statusPayload.kind !== "job") {
+            if (statusPayload.kind !== "job" || !isLocalAlignerBaseUrl(statusPayload.baseUrl)) {
                 throw new LocalAiAlignmentError("failed", "Invalid aligner status response");
             }
             activeJob = { baseUrl: statusPayload.baseUrl, job: statusPayload.job };
@@ -169,7 +176,7 @@ export const runLocalAiAlignment = async (options: LocalAlignmentOptions): Promi
         const resultPayload = await requestAligner(
             {
                 type: alignerResultRequestType,
-                requestId: crypto.randomUUID(),
+                requestId: randomId(),
                 baseUrl: activeJob.baseUrl,
                 jobId: job.id,
                 precision: options.precision,
@@ -191,7 +198,7 @@ export const runLocalAiAlignment = async (options: LocalAlignmentOptions): Promi
             const cleanupPayload = await requestAligner(
                 {
                     type: alignerCleanupRequestType,
-                    requestId: crypto.randomUUID(),
+                    requestId: randomId(),
                     baseUrl: activeJob.baseUrl,
                     jobId: job.id,
                 } satisfies AlignerCleanupRequest,
@@ -216,13 +223,13 @@ export const runLocalAiAlignment = async (options: LocalAlignmentOptions): Promi
         const cancelRequest: AlignerCancelRequest = activeJob
             ? {
                 type: alignerCancelRequestType,
-                requestId: crypto.randomUUID(),
+                requestId: randomId(),
                 baseUrl: activeJob.baseUrl,
                 jobId: activeJob.job.id,
             }
             : {
                 type: alignerCancelRequestType,
-                requestId: crypto.randomUUID(),
+                requestId: randomId(),
                 uploadId,
             };
         await requestAligner(cancelRequest, 15_000).catch(() => undefined);
@@ -234,7 +241,7 @@ export const stopLocalAiService = async (): Promise<void> => {
     const payload = await requestAligner(
         {
             type: alignerServiceStopRequestType,
-            requestId: crypto.randomUUID(),
+            requestId: randomId(),
         } satisfies AlignerServiceStopRequest,
         8_000,
     );
@@ -247,7 +254,7 @@ export const clearLocalAiCache = async (): Promise<number> => {
     const payload = await requestAligner(
         {
             type: alignerCacheClearRequestType,
-            requestId: crypto.randomUUID(),
+            requestId: randomId(),
         } satisfies AlignerCacheClearRequest,
         30_000,
     );
@@ -392,6 +399,10 @@ const requestAligner = (
             reject(new LocalAiAlignmentError("cancelled", "Local alignment stopped by the user"));
             return;
         }
+        if (location.origin === "null") {
+            reject(new LocalAiAlignmentError("missing", "Media Bridge is unavailable on opaque origins"));
+            return;
+        }
         signal?.addEventListener("abort", onAbort, { once: true });
         extensionTimeout = window.setTimeout(() => {
             finish();
@@ -412,9 +423,14 @@ const isAck = (
 
 const isAlignerResponse = (value: unknown, requestId: string): value is LocalAlignerResponse => {
     if (typeof value !== "object" || value === null) return false;
-    const response = value as Partial<LocalAlignerResponse>;
-    return response.type === alignerResponseType && response.requestId === requestId
-        && typeof response.ok === "boolean";
+    const response = value as Record<string, unknown>;
+    if (response.type !== alignerResponseType || response.requestId !== requestId || typeof response.ok !== "boolean") {
+        return false;
+    }
+    if (!response.ok) return typeof response.error === "string";
+    return typeof response.payload === "object"
+        && response.payload !== null
+        && typeof (response.payload as Record<string, unknown>).kind === "string";
 };
 
 const isSupportedVersion = (version: string | undefined): boolean => {

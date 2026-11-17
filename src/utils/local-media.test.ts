@@ -32,4 +32,10 @@ describe("local media codec handling", () => {
         await expect(shouldCreateCompressedAlignmentMedia(new File(["data"], "track.alac"))).resolves.toBe(true);
         await expect(shouldCreateCompressedAlignmentMedia(new File(["data"], "track.mp3"))).resolves.toBe(false);
     });
+
+    it("does not misclassify AAC M4A metadata containing 'palace' as ALAC", async () => {
+        const metadata = new TextEncoder().encode("ftypM4A \0\0\0\0Crystal Palace Live");
+        const file = new File([metadata], "palace.m4a", { type: "audio/mp4" });
+        await expect(detectLosslessCodec(file)).resolves.toBeNull();
+    });
 });

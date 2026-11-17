@@ -1,8 +1,18 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
     <head>
         <meta charset="utf-8" />
         <title>LRC Editor</title>
+        <meta name="color-scheme" content="light dark" />
+        <script>
+        try {
+                const stored = JSON.parse(localStorage.getItem("lrc-editor-preferences") || "{}");
+                const mode = stored.themeMode === 1 ? "light" : stored.themeMode === 2 ? "dark" : "auto";
+                document.documentElement.dataset.theme = mode;
+                const meta = document.querySelector("meta[name=\"color-scheme\"]");
+                if (meta) meta.content = mode === "auto" ? "light dark" : mode;
+            } catch {}
+        </script>
         <meta name="description" content="LRC Editor｜跨平台歌词编辑与时间轴制作工具" />
         <meta name="keywords" content="lrc editor, lrc maker, lrc generate, 歌词制作, 歌词打轴" />
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />

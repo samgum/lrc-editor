@@ -4,6 +4,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+$env:PYTHONUTF8 = "1"
 $launcherRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $resolver = Join-Path $launcherRoot "resolve-ai-aligner-install.ps1"
 if (-not (Test-Path -LiteralPath $resolver)) {
@@ -111,7 +113,7 @@ if ($null -eq $selectedPort) {
 
 $statePath = Join-Path $resolvedInstallRoot "install-state.json"
 $installState = if (Test-Path -LiteralPath $statePath) {
-    Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+    [System.IO.File]::ReadAllText($statePath, [System.Text.Encoding]::UTF8).Trim([char]0xFEFF) | ConvertFrom-Json
 } else {
     $null
 }
@@ -156,7 +158,7 @@ try {
 } finally {
     Pop-Location
 }
-$expectedExitCodes = @(0, -1, 130, -1073741510, 3221225786)
+$expectedExitCodes = @(0, 1, -1, 130, -1073741510, 3221225786)
 if ([long]$serverExitCode -notin $expectedExitCodes) {
     throw "Lyrics Forced Aligner exited unexpectedly with code $serverExitCode."
 }

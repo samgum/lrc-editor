@@ -1,48 +1,40 @@
 import STRINGS from "#const/strings.json" assert { type: "json" };
-import { stringify } from "@lrc-maker/lrc-parser";
-import { memo, useCallback, useContext, useState } from "react";
-import { type Action, ActionType } from "../hooks/useLrc.js";
+import { memo, useCallback, useContext } from "react";
+import { type Action, ActionType, type IState } from "../hooks/useLrc.js";
 import { type State as PrefState } from "../hooks/usePref.js";
 import { lrcFileName } from "../utils/lrc-file-name.js";
-import { appContext } from "./app.context.js";
+import { stringifyLrc } from "../utils/lrc-format.js";
+import { langContext } from "./app.context.js";
 import { ArrowLeftSVG, ArrowRightSVG, DownloadSVG, LockSVG } from "./svg.js";
 import { SyncMode } from "./synchronizer.js";
 
 export const AsidePanel: React.FC<{
     syncMode: SyncMode;
     setSyncMode: React.Dispatch<React.SetStateAction<SyncMode>>;
+    lrcState: Pick<IState, "info" | "lyric">;
     lrcDispatch: React.Dispatch<Action>;
     prefState: PrefState;
-}> = memo(({ syncMode, setSyncMode, lrcDispatch, prefState }) => {
-    const { lang } = useContext(appContext);
-    const [href, setHref] = useState<string>();
-    const [name, setName] = useState<string>();
+}> = memo(({ syncMode, setSyncMode, lrcState, lrcDispatch, prefState }) => {
+    const lang = useContext(langContext);
 
     const onSyncModeToggle = useCallback(() => {
-        setSyncMode((syncMode) => (syncMode === SyncMode.select ? SyncMode.highlight : SyncMode.select));
+        setSyncMode((current) => (current === SyncMode.select ? SyncMode.highlight : SyncMode.select));
     }, [setSyncMode]);
 
     const onDownloadClick = useCallback(() => {
-        lrcDispatch({
-            type: ActionType.getState,
-            payload: (state) => {
-                const text = stringify(state, prefState);
-                setHref((url) => {
-                    if (url) {
-                        URL.revokeObjectURL(url);
-                    }
-
-                    return URL.createObjectURL(
-                        new Blob([text], {
-                            type: "text/plain;charset=UTF-8",
-                        }),
-                    );
-                });
-
-                setName(lrcFileName(state.info));
-            },
-        });
-    }, [lrcDispatch, prefState]);
+        const text = stringifyLrc(lrcState, prefState);
+        const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=UTF-8" }));
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = lrcFileName(lrcState.info);
+        link.hidden = true;
+        document.body.append(link);
+        link.click();
+        setTimeout(() => {
+            link.remove();
+            URL.revokeObjectURL(url);
+        }, 1000);
+    }, [lrcState, prefState]);
 
     const mode = syncMode === SyncMode.select ? "select" : "highlight";
 
@@ -86,18 +78,23 @@ export const AsidePanel: React.FC<{
             >
                 <ArrowRightSVG />
             </button>
-            <a
-                href={href}
-                download={name}
+            <button
+                type="button"
                 className="aside-button ripple glow"
                 title={lang.editor.downloadText}
                 aria-label={lang.editor.downloadText}
                 onClick={onDownloadClick}
             >
                 <DownloadSVG />
-            </a>
+            </button>
         </aside>
     );
-});
+}, (prev, next) =>
+    prev.syncMode === next.syncMode
+    && prev.setSyncMode === next.setSyncMode
+    && prev.lrcDispatch === next.lrcDispatch
+    && prev.prefState === next.prefState
+    && prev.lrcState.info === next.lrcState.info
+    && prev.lrcState.lyric === next.lrcState.lyric);
 
-AsidePanel.displayName = AsidePanel.name;
+AsidePanel.displayName = "AsidePanel";

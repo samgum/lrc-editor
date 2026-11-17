@@ -16,9 +16,7 @@ const polyfilldetails = (): void => {
             set(this: HTMLDetailsElement, value: boolean): void {
                 if (this.tagName === "DETAILS") {
                     if (value !== this.hasAttribute("open")) {
-                        const event = document.createEvent("Event");
-                        event.initEvent("toggle", false, false);
-                        this.dispatchEvent(event);
+                        this.dispatchEvent(new Event("toggle", { bubbles: false, cancelable: false }));
                     }
                     return value ? this.setAttribute("open", "") : this.removeAttribute("open");
                 } else {
@@ -29,8 +27,10 @@ const polyfilldetails = (): void => {
     });
 
     document.addEventListener("click", (event) => {
-        const element = event.target as Element;
-        const summary = element.closest("summary");
+        if (!(event.target instanceof Element)) {
+            return;
+        }
+        const summary = event.target.closest("summary");
         const details = summary?.parentElement as HTMLDetailsElement | null | undefined;
         if (!details || details.tagName !== "DETAILS") {
             return;

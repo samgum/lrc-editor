@@ -9,6 +9,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+$env:PYTHONUTF8 = "1"
 $engineRevision = "4898a3cbc569349c5db87bbc931c9d6fa124d64d"
 
 if ($env:OS -ne "Windows_NT") {
@@ -664,7 +666,12 @@ $state = [ordered]@{
     modelSource = $ModelSource
     modelEndpoint = $modelEndpoint
 }
-$state | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $resolvedInstallRoot "install-state.json") -Encoding UTF8
+$utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+[System.IO.File]::WriteAllText(
+    (Join-Path $resolvedInstallRoot "install-state.json"),
+    ($state | ConvertTo-Json) + [Environment]::NewLine,
+    $utf8NoBom
+)
 
 foreach ($locationFile in @(
     (Join-Path $resolvedInstallRoot "install-location.txt"),
@@ -674,7 +681,7 @@ foreach ($locationFile in @(
     try {
         $locationDirectory = Split-Path -Parent $locationFile
         New-Item -ItemType Directory -Path $locationDirectory -Force | Out-Null
-        Set-Content -LiteralPath $locationFile -Value $resolvedInstallRoot -Encoding UTF8
+        [System.IO.File]::WriteAllText($locationFile, $resolvedInstallRoot + [Environment]::NewLine, $utf8NoBom)
     } catch {
         Write-Warning "Unable to record the install location in $locationFile"
     }

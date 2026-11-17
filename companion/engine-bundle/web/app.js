@@ -60,6 +60,7 @@ const stageNames = {
   recognize: "粗锚点",
   merge: "合并",
   "word-align": "逐字对齐",
+  stopping: "正在停止",
   done: "完成",
   failed: "失败",
 };
@@ -407,5 +408,5 @@ retryButton.addEventListener("click", () => {
 });
 
 fetch("/api/health", { cache: "no-store" }).catch(() => {
-  formError.textContent = "本地服务尚未就绪，请运行 start.ps1。";
+  formError.textContent = "本地服务尚未就绪，请先运行 start-ai-aligner 启动服务。";
 });

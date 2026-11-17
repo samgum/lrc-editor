@@ -1,14 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-test_root="$(mktemp -d "${TMPDIR:-/tmp}/lrc-editor-uv-space.XXXXXX")"
+tmp_base="${TMPDIR:-/tmp}"
+tmp_base="${tmp_base%/}"
+test_root="$(mktemp -d "$tmp_base/lrc-editor-uv-space.XXXXXX")"
 cleanup() {
     case "$test_root" in
-        "${TMPDIR:-/tmp}"/lrc-editor-uv-space.*) rm -rf -- "$test_root" ;;
+        "$tmp_base"/lrc-editor-uv-space.*) rm -rf -- "$test_root" ;;
         *) exit 1 ;;
     esac
 }
 trap cleanup EXIT
+
+export HOME="$test_root/isolated-home"
+export XDG_CONFIG_HOME="$test_root/xdg-config"
+export XDG_DATA_HOME="$test_root/xdg-data"
+mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME"
 
 spaced_root="$test_root/LRC Editor AI"
 mkdir -p "$spaced_root"
@@ -33,5 +40,11 @@ if lrc_ai_resolve_install_root "$missing_root" "" >/dev/null; then
     echo "Resolver unexpectedly accepted a missing installation" >&2
     exit 1
 fi
+
+registry_file="$(lrc_ai_location_registry)"
+mkdir -p "$(dirname "$registry_file")"
+printf '%s\n' "$installed_root" > "$registry_file"
+resolved_from_registry="$(lrc_ai_resolve_install_root "$missing_root" "")"
+[[ "$resolved_from_registry" == "$installed_root" ]]
 
 bash -n companion/*.sh companion/*.command

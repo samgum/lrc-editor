@@ -102,11 +102,12 @@ try {
     Remove-Item -LiteralPath $extensionStage -Recurse -Force
     Copy-Item -LiteralPath (Join-Path $repositoryRoot "extension-edge-mobile-dist") `
         -Destination $edgeMobileStage -Recurse
-    Compress-Archive -LiteralPath $edgeMobileStage -DestinationPath $edgeMobileArchive -CompressionLevel Optimal
+    Compress-Archive -Path (Join-Path $edgeMobileStage "*") `
+        -DestinationPath $edgeMobileArchive -CompressionLevel Optimal
     Remove-Item -LiteralPath $edgeMobileStage -Recurse -Force
     Copy-Item -LiteralPath (Join-Path $repositoryRoot "extension-firefox-android-dist") `
         -Destination $firefoxAndroidStage -Recurse
-    Compress-Archive -LiteralPath $firefoxAndroidStage `
+    Compress-Archive -Path (Join-Path $firefoxAndroidStage "*") `
         -DestinationPath $firefoxAndroidArchive -CompressionLevel Optimal
     Remove-Item -LiteralPath $firefoxAndroidStage -Recurse -Force
 
@@ -124,7 +125,7 @@ try {
     }
     foreach ($mobileArchive in @($edgeMobileArchive, $firefoxAndroidArchive)) {
         $entries = @(& tar -tf $mobileArchive)
-        if (-not ($entries -match "/manifest\.json$") -or -not ($entries -match "/INSTALL\.txt$")) {
+        if (-not ($entries -match "(?:^|/)manifest\.json$") -or -not ($entries -match "(?:^|/)INSTALL\.txt$")) {
             throw "A mobile extension archive is incomplete."
         }
     }

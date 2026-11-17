@@ -111,7 +111,13 @@ export const resolveMediaInput = async (value: string): Promise<ResolvedMediaSou
     }
     if (parsed.kind === "bilibili") {
         const audio = await requestBilibiliAudio(parsed.originalUrl);
-        return { src: audio.url, mimeType: audio.mimeType, persist: false, provider: "bilibili-extension" };
+        return {
+            src: audio.url,
+            ...(audio.data ? { data: audio.data } : {}),
+            mimeType: audio.mimeType,
+            persist: false,
+            provider: "bilibili-extension",
+        };
     }
     if (parsed.kind === "netease-short" || parsed.kind === "netease") {
         try {
@@ -158,7 +164,17 @@ export const resolveMediaInput = async (value: string): Promise<ResolvedMediaSou
     };
 };
 
-export const materializeExtensionMedia = async (source: ResolvedMediaSource): Promise<string> => {
+const maxExtensionMediaBytes = 512 * 1024 * 1024;
+
+export interface MaterializeMediaOptions {
+    signal?: AbortSignal;
+    onBlob?: (blob: Blob) => void;
+}
+
+export const materializeExtensionMedia = async (
+    source: ResolvedMediaSource,
+    options?: MaterializeMediaOptions,
+): Promise<string> => {
     if (
         source.provider !== "youtube-extension" && source.provider !== "bilibili-extension"
         && source.provider !== "netease-extension" && source.provider !== "qqmusic-extension"
@@ -167,12 +183,17 @@ export const materializeExtensionMedia = async (source: ResolvedMediaSource): Pr
     }
     try {
         if (source.data) {
+            if (source.data.length > Math.ceil(maxExtensionMediaBytes * 4 / 3) + 16) {
+                throw new RangeError("Resolved media exceeds maximum supported size");
+            }
             const binary = atob(source.data);
             const bytes = new Uint8Array(binary.length);
             for (let index = 0; index < binary.length; index += 1) {
                 bytes[index] = binary.charCodeAt(index);
             }
-            return URL.createObjectURL(new Blob([bytes], { type: source.mimeType }));
+            const media = new Blob([bytes], { type: source.mimeType });
+            options?.onBlob?.(media);
+            return URL.createObjectURL(media);
         }
         const url = new URL(source.src);
         let mediaLength = Number.parseInt(url.searchParams.get("clen") || "", 10);
@@ -180,35 +201,62 @@ export const materializeExtensionMedia = async (source: ResolvedMediaSource): Pr
             const probe = await fetch(source.src, {
                 credentials: "omit",
                 headers: { Range: "bytes=0-0" },
+                signal: options?.signal,
             });
-            const total = /\/(\d+)$/.exec(probe.headers.get("Content-Range") || "")?.[1];
-            mediaLength = Number.parseInt(total || "", 10);
+            if (probe.status === 200) {
+                const fullBuffer = await probe.arrayBuffer();
+                if (fullBuffer.byteLength === 0 || fullBuffer.byteLength > maxExtensionMediaBytes) {
+                    throw new RangeError("Media response size is invalid");
+                }
+                const media = new Blob([fullBuffer], { type: source.mimeType });
+                options?.onBlob?.(media);
+                return URL.createObjectURL(media);
+            }
+            const total = /\/(\d+)$/.exec(probe.headers.get("Content-Range") || "")?.[1]
+                || probe.headers.get("Content-Length")
+                || "";
+            mediaLength = Number.parseInt(total, 10);
             if (!probe.ok || !Number.isSafeInteger(mediaLength) || mediaLength <= 0) {
                 throw new Error(`Media size request failed with status ${probe.status}`);
             }
         }
-        const parts: ArrayBuffer[] = [];
-        const chunkSize = 1024 * 1024;
-        for (let start = 0; start < mediaLength; start += chunkSize) {
-            const end = Math.min(start + chunkSize - 1, mediaLength - 1);
-            const response = await fetch(source.src, {
-                credentials: "omit",
-                headers: { Range: `bytes=${start}-${end}` },
-            });
-            if (!response.ok) {
-                throw new Error(`Media request failed with status ${response.status}`);
-            }
-            const part = await response.arrayBuffer();
-            if (response.status === 200) {
-                parts.splice(0, parts.length, part);
-                break;
-            }
-            parts.push(part);
+        if (mediaLength > maxExtensionMediaBytes) {
+            throw new RangeError("Resolved media exceeds maximum supported size");
         }
-        const media = new Blob(parts, { type: source.mimeType });
+        const chunkSize = 2 * 1024 * 1024;
+        const totalChunks = Math.ceil(mediaLength / chunkSize);
+        const parts = Array.from<ArrayBuffer>({ length: totalChunks });
+        let nextChunk = 0;
+        let singleShotBuffer: ArrayBuffer | null = null;
+        const downloadWorker = async (): Promise<void> => {
+            while (singleShotBuffer === null) {
+                const chunkIndex = nextChunk;
+                nextChunk += 1;
+                if (chunkIndex >= totalChunks) return;
+                const start = chunkIndex * chunkSize;
+                const end = Math.min(start + chunkSize - 1, mediaLength - 1);
+                const response = await fetch(source.src, {
+                    credentials: "omit",
+                    headers: { Range: `bytes=${start}-${end}` },
+                    signal: options?.signal,
+                });
+                if (!response.ok) {
+                    throw new Error(`Media request failed with status ${response.status}`);
+                }
+                const part = await response.arrayBuffer();
+                if (response.status === 200) {
+                    if (chunkIndex === 0) singleShotBuffer = part;
+                    return;
+                }
+                parts[chunkIndex] = part;
+            }
+        };
+        await Promise.all(Array.from({ length: Math.min(3, totalChunks) }, () => downloadWorker()));
+        const media = new Blob(singleShotBuffer ? [singleShotBuffer] : parts, { type: source.mimeType });
         if (media.size === 0) {
             throw new Error("Media response was empty");
         }
+        options?.onBlob?.(media);
         return URL.createObjectURL(media);
     } catch (error) {
         throw new MediaExtensionError(
@@ -223,7 +271,18 @@ export const extractSharedMediaUrl = (url: URL): string | null => {
     const explicit = search.get("url");
     const sharedText = explicit || search.get("text") || search.get("title") || "";
     try {
-        return extractMediaUrl(sharedText);
+        const extracted = extractMediaUrl(sharedText);
+        const parsed = new URL(extracted);
+        const host = parsed.hostname.toLowerCase();
+        if (
+            host === "localhost"
+            || host === "127.0.0.1"
+            || host === "[::1]"
+            || /^(?:10\.|127\.|169\.254\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(host)
+        ) {
+            return null;
+        }
+        return extracted;
     } catch {
         return null;
     }

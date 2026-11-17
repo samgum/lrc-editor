@@ -57,8 +57,18 @@ export const LoadAudio: React.FC<ILoadAudioOptions> = ({
     const [dragging, setDragging] = useState(false);
     const [fileError, setFileError] = useState(false);
     const dragDepth = useRef(0);
+    const pressedOutsideRef = useRef(false);
 
     useEffect(() => setUrl(rememberedUrl), [rememberedUrl]);
+
+    useEffect(() => {
+        const resetDrag = (): void => {
+            dragDepth.current = 0;
+            setDragging(false);
+        };
+        window.addEventListener("dragend", resetDrag);
+        return () => window.removeEventListener("dragend", resetDrag);
+    }, []);
 
     useEffect(() => {
         return audioStatePubSub.sub(self.current, (data) => {
@@ -120,12 +130,38 @@ export const LoadAudio: React.FC<ILoadAudioOptions> = ({
         if (file) loadFile(file);
     }, [loadFile]);
 
+    const isPointOutsideDialog = (event: React.PointerEvent<HTMLDialogElement>): boolean => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        return (
+            event.clientX < rect.left
+            || event.clientX > rect.right
+            || event.clientY < rect.top
+            || event.clientY > rect.bottom
+        );
+    };
+
     return ReactDOM.createPortal(
         <dialog
             ref={loadAudioDialogRef}
             className="dialog fixed loadaudio-dialog"
             aria-labelledby="load-media-title"
-            onClick={(event) => event.target === event.currentTarget && loadAudioDialogRef.close()}
+            {...({ closedby: "any" } as Record<string, string>)}
+            onClose={() => {
+                dragDepth.current = 0;
+                setDragging(false);
+                setFileError(false);
+            }}
+            onPointerDown={(event) => {
+                if ("closedBy" in HTMLDialogElement.prototype) return;
+                pressedOutsideRef.current = event.target === event.currentTarget && isPointOutsideDialog(event);
+            }}
+            onPointerUp={(event) => {
+                if ("closedBy" in HTMLDialogElement.prototype) return;
+                if (pressedOutsideRef.current && event.target === event.currentTarget && isPointOutsideDialog(event)) {
+                    loadAudioDialogRef.close();
+                }
+                pressedOutsideRef.current = false;
+            }}
         >
             <button
                 className="dialog-close"

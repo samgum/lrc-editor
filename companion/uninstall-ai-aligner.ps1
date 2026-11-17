@@ -2,6 +2,7 @@
 param([string]$InstallRoot)
 
 $ErrorActionPreference = "Stop"
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 $launcherRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $resolver = Join-Path $launcherRoot "resolve-ai-aligner-install.ps1"
 if (-not (Test-Path -LiteralPath $resolver)) {
@@ -55,7 +56,7 @@ if (Test-Path -LiteralPath $resolvedInstallRoot) {
 }
 foreach ($locationFile in @((Join-Path $launcherRoot "install-location.txt"), $locationRegistry)) {
     if (Test-Path -LiteralPath $locationFile) {
-        $recordedRoot = (Get-Content -LiteralPath $locationFile -Raw).Trim()
+        $recordedRoot = [System.IO.File]::ReadAllText($locationFile, [System.Text.Encoding]::UTF8).Trim([char]0xFEFF).Trim()
         if ($recordedRoot.Equals($resolvedInstallRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
             [System.IO.File]::Delete($locationFile)
         }

@@ -20,14 +20,25 @@
             text-align: center;
         }
         a {
-            color: #e85f86;
+            color: #ae4b69;
+        }
+        @media (prefers-color-scheme: dark) {
+            a {
+                color: #f58ea8;
+            }
         }
         </style>
     </head>
     <body>
         <main>
             <h1>Page not found</h1>
-            <a href="./">Open LRC Editor</a>
+            <a id="app-root" href="/">Open LRC Editor</a>
         </main>
+        <script>
+        const p = location.pathname;
+            const base = p === "/lrc-editor" || p.startsWith("/lrc-editor/") ? "/lrc-editor/" : "/";
+            const link = document.getElementById("app-root");
+            if (link) link.href = base;
+        </script>
     </body>
 </html>

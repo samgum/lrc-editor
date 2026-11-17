@@ -169,7 +169,11 @@ const GridNumberInput: React.FC<{
                     onChange(next);
                 }}
                 onKeyDown={(event) => {
-                    if (event.key === "Enter") event.currentTarget.blur();
+                    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
+                    if (event.key === "Enter") {
+                        event.preventDefault();
+                        event.currentTarget.blur();
+                    }
                     if (event.key === "Escape" && draft !== String(value)) {
                         event.preventDefault();
                         event.stopPropagation();

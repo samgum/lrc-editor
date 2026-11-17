@@ -80,7 +80,17 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
     const siteBaseUrl = sender.url ? getSiteBaseUrl(sender.url) : null;
     if (!siteBaseUrl) return false;
     if (isResolveRequest(message)) {
-        void resolveAudio(message, siteBaseUrl, sender.tab?.id).then(sendResponse);
+        void resolveAudio(message, siteBaseUrl, sender.tab?.id).then(
+            sendResponse,
+            (error: unknown) =>
+                sendResponse(
+                    failure(
+                        message.requestId,
+                        "RESOLVE_FAILED",
+                        error instanceof Error ? error.message : undefined,
+                    ),
+                ),
+        );
         return true;
     }
     if (isLocalAlignerRequest(message)) {
@@ -341,7 +351,17 @@ const openMediaFrame = async (request: MediaFrameRequest, tabId?: number): Promi
                     ? "Generate a YouTube playback token for the requested media"
                     : "Read the public QQ Music playback data selected by the user",
             });
-            const response = await chrome.runtime.sendMessage(request) as unknown;
+            let response: unknown;
+            for (let attempt = 0; attempt < 4; attempt += 1) {
+                try {
+                    response = await chrome.runtime.sendMessage(request) as unknown;
+                    if (isSuccessfulFrameLoad(response)) break;
+                } catch {
+                }
+                if (attempt < 3) {
+                    await new Promise((resolve) => setTimeout(resolve, 40 * (attempt + 1)));
+                }
+            }
             if (!isSuccessfulFrameLoad(response)) throw new Error("The offscreen media frame did not open");
             return { kind: "offscreen" };
         } catch {
@@ -417,7 +437,7 @@ const resolveBilibili = async (request: BilibiliExtensionRequest): Promise<Media
         playUrl.searchParams.set("fnver", "0");
         playUrl.searchParams.set("fourk", "1");
         const play = await fetchBilibiliJson<BilibiliPlayInfo>(playUrl);
-        const formats = [...play.dash?.audio || []].sort((left, right) =>
+        const formats = (play.dash?.audio || []).slice().sort((left, right) =>
             (right.bandwidth || 0) - (left.bandwidth || 0)
         );
         for (const format of formats) {
@@ -460,12 +480,14 @@ const resolveNetease = async (request: NeteaseExtensionRequest): Promise<MediaEx
 
 const resolveQQMusic = async (request: QQMusicExtensionRequest, tabId?: number): Promise<MediaExtensionResponse> => {
     const key = request.songMid || request.url || "";
+    let currentPending: Promise<QQMusicResolvedAudio> | undefined;
     try {
         let pending = qqMusicResolutionPromises.get(key);
         if (!pending) {
             pending = resolveQQMusicFromFrame(request, tabId);
             qqMusicResolutionPromises.set(key, pending);
         }
+        currentPending = pending;
         const audio = await pending;
         return {
             type: mediaExtensionResponseType,
@@ -484,7 +506,9 @@ const resolveQQMusic = async (request: QQMusicExtensionRequest, tabId?: number):
             error instanceof Error ? error.message : undefined,
         );
     } finally {
-        qqMusicResolutionPromises.delete(key);
+        if (currentPending && qqMusicResolutionPromises.get(key) === currentPending) {
+            qqMusicResolutionPromises.delete(key);
+        }
     }
 };
 
@@ -608,6 +632,10 @@ const setRequestHeader = (
     else headers.push({ name, value });
 };
 
+if (firefoxAndroid) {
+    installLegacyHeaderRules();
+}
+
 const isQQMusicFrameResult = (
     value: unknown,
 ): value is { type: typeof qqMusicFrameResultType; html: string; songMid: string } => {
@@ -618,8 +646,17 @@ const isQQMusicFrameResult = (
         && result.html.includes("__ssrFirstPageData__");
 };
 
-const isQQMusicFrameSender = (sender: chrome.runtime.MessageSender, songMid: string): boolean =>
-    extractQQMusicSongMid(sender.url || "") === songMid;
+const isQQMusicFrameSender = (sender: chrome.runtime.MessageSender, songMid: string): boolean => {
+    if (!sender.url) return false;
+    try {
+        const url = new URL(sender.url);
+        return url.protocol === "https:"
+            && (url.hostname === "i2.y.qq.com" || url.hostname === "i.y.qq.com")
+            && extractQQMusicSongMid(sender.url) === songMid;
+    } catch {
+        return false;
+    }
+};
 
 const isSuccessfulFrameLoad = (value: unknown): value is { ok: true } =>
     typeof value === "object" && value !== null && (value as Record<string, unknown>).ok === true;

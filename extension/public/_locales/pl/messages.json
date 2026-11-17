@@ -1,7 +1,7 @@
 {
     "extensionName": { "message": "LRC Editor Media Bridge" },
     "extensionDescription": {
-        "message": "Lokalnie obsługuje YouTube, Bilibili i linki udostępniania NetEase dla LRC Editor."
+        "message": "Lokalnie obsługuje YouTube, Bilibili, NetEase oraz publiczne utwory QQ Music dla LRC Editor."
     },
     "supportedSources": { "message": "Obsługiwane źródła" },
     "neteaseShareLinks": { "message": "Linki udostępniania NetEase" },

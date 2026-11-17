@@ -14,8 +14,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .export import (
@@ -32,9 +32,17 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 WEB_ROOT = PROJECT_ROOT / "web"
 RUNTIME_ROOT = PROJECT_ROOT / "runtime"
 CACHE_ROOT = PROJECT_ROOT / ".cache"
-MAX_UPLOAD_BYTES = 4 * 1024 * 1024 * 1024
+MAX_UPLOAD_BYTES = 512 * 1024 * 1024
 MAX_TRANSCRIPT_BYTES = 4 * 1024 * 1024
 DEFAULT_SERVER_PORT = 8765
+_WINDOWS_RESERVED_STEMS = {
+    "CON",
+    "PRN",
+    "AUX",
+    "NUL",
+    *{f"COM{index}" for index in range(1, 10)},
+    *{f"LPT{index}" for index in range(1, 10)},
+}
 
 
 def _server_port() -> int:
@@ -111,11 +119,41 @@ app = FastAPI(
 )
 app.mount("/static", StaticFiles(directory=WEB_ROOT), name="static")
 
+_ALLOWED_ORIGIN_RE = re.compile(
+    r"^(?:http://(?:127\.0\.0\.1|localhost)(?::\d{1,5})?|(?:chrome|moz|safari-web)-extension://[A-Za-z0-9._-]+)$",
+    re.IGNORECASE,
+)
+
+
+@app.middleware("http")
+async def _verify_mutating_origin(request: Request, call_next):
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        origin = request.headers.get("origin")
+        if origin is not None and not _ALLOWED_ORIGIN_RE.fullmatch(origin.strip()):
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "Cross-origin requests to the local aligner are not permitted."},
+            )
+    return await call_next(request)
+
 
 def _safe_name(filename: str | None, fallback: str) -> str:
     name = Path(filename or fallback).name
     sanitized = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name).strip(" .")
-    return sanitized or fallback
+    if not sanitized:
+        sanitized = fallback
+    parsed = Path(sanitized)
+    suffix = re.sub(r"[^.A-Za-z0-9_-]", "", parsed.suffix)[:16]
+    stem = (parsed.stem[: len(sanitized) - len(parsed.suffix)] if parsed.suffix else sanitized).strip(" .") or "audio"
+    stem = stem[:80].rstrip(" .") or "audio"
+    if stem.upper() in _WINDOWS_RESERVED_STEMS:
+        stem = f"_{stem}"
+    return f"{stem}{suffix}"
+
+
+def _safe_audio_suffix(filename: str) -> str:
+    suffix = Path(filename).suffix.casefold()
+    return suffix if re.fullmatch(r"\.[a-z0-9]{1,10}", suffix) else ".bin"
 
 
 async def _save_upload(
@@ -127,18 +165,21 @@ async def _save_upload(
     destination.parent.mkdir(parents=True, exist_ok=True)
     written = 0
     digest = hashlib.sha256()
-    with destination.open("wb") as handle:
-        while chunk := await upload.read(1024 * 1024):
-            written += len(chunk)
-            if written > limit:
-                raise HTTPException(
-                    status_code=413,
-                    detail="上传文件超过本地任务允许的大小。",
-                )
-            handle.write(chunk)
-            digest.update(chunk)
-    await upload.close()
+    try:
+        with destination.open("wb") as handle:
+            while chunk := await upload.read(1024 * 1024):
+                written += len(chunk)
+                if written > limit:
+                    raise HTTPException(
+                        status_code=413,
+                        detail="上传文件超过本地任务允许的大小。",
+                    )
+                handle.write(chunk)
+                digest.update(chunk)
+    finally:
+        await upload.close()
     if written == 0:
+        destination.unlink(missing_ok=True)
         raise HTTPException(status_code=400, detail="上传文件为空。")
     return written, digest.hexdigest()
 
@@ -250,7 +291,7 @@ def _run_job(job_id: str) -> None:
                 }
         output_dir = job.directory / "outputs"
         output_dir.mkdir(parents=True, exist_ok=True)
-        stem = Path(job.audio_name).stem
+        stem = (_safe_name(job.audio_name, "audio") and Path(_safe_name(job.audio_name, "audio")).stem) or "audio"
         output_paths = {
             "lrc3": output_dir / f"{stem}.aligned.lrc",
             "lrc2": output_dir / f"{stem}.aligned.2digits.lrc",
@@ -387,6 +428,7 @@ async def create_job(
     word_timing_beta: bool = Form(False),
 ) -> dict[str, object]:
     if transcript is None and not (transcript_text or "").strip():
+        await audio.close()
         raise HTTPException(
             status_code=400,
             detail="请上传歌词文件或粘贴文字稿。",
@@ -394,33 +436,41 @@ async def create_job(
     job_id = uuid.uuid4().hex
     directory = RUNTIME_ROOT / "jobs" / job_id
     audio_name = _safe_name(audio.filename, "audio.bin")
-    audio_path = directory / "input" / audio_name
-    _, audio_digest = await _save_upload(
-        audio,
-        audio_path,
-        limit=MAX_UPLOAD_BYTES,
-    )
+    audio_path = directory / "input" / f"input{_safe_audio_suffix(audio_name)}"
+    try:
+        _, audio_digest = await _save_upload(
+            audio,
+            audio_path,
+            limit=MAX_UPLOAD_BYTES,
+        )
 
-    if transcript is not None and transcript.filename:
-        transcript_name = _safe_name(transcript.filename, "lyrics.txt")
-        transcript_path = directory / "input" / transcript_name
-        await _save_upload(
-            transcript,
-            transcript_path,
-            limit=MAX_TRANSCRIPT_BYTES,
-        )
-    else:
-        text = (transcript_text or "").strip()
-        if len(text.encode("utf-8")) > MAX_TRANSCRIPT_BYTES:
-            raise HTTPException(status_code=413, detail="文字稿过大。")
-        transcript_name = "pasted-lyrics.txt"
-        transcript_path = directory / "input" / transcript_name
-        transcript_path.parent.mkdir(parents=True, exist_ok=True)
-        transcript_path.write_text(
-            text + "\n",
-            encoding="utf-8",
-            newline="\n",
-        )
+        if transcript is not None and transcript.filename:
+            transcript_name = _safe_name(transcript.filename, "lyrics.txt")
+            transcript_path = directory / "input" / "lyrics.txt"
+            await _save_upload(
+                transcript,
+                transcript_path,
+                limit=MAX_TRANSCRIPT_BYTES,
+            )
+        else:
+            if transcript is not None:
+                await transcript.close()
+            text = (transcript_text or "").strip()
+            if len(text.encode("utf-8")) > MAX_TRANSCRIPT_BYTES:
+                raise HTTPException(status_code=413, detail="文字稿过大。")
+            transcript_name = "pasted-lyrics.txt"
+            transcript_path = directory / "input" / transcript_name
+            transcript_path.parent.mkdir(parents=True, exist_ok=True)
+            transcript_path.write_text(
+                text + "\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+    except Exception:
+        if transcript is not None:
+            await transcript.close()
+        shutil.rmtree(directory, ignore_errors=True)
+        raise
 
     job = Job(
         id=job_id,

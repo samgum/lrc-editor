@@ -37,6 +37,8 @@ export class LocalAlignerClientError extends Error {
 interface UploadSession {
     baseUrl: string;
     serviceVersion: string;
+    controlToken?: string;
+    serverUploadId?: string;
     audioName: string;
     audioType: string;
     audioSize: number;
@@ -47,10 +49,16 @@ interface UploadSession {
     wordTimingBeta: boolean;
     device: "auto" | "cpu";
     parts: Uint8Array<ArrayBuffer>[];
+    nextChunkIndex: number;
     received: number;
     updatedAt: number;
     cancelled: boolean;
     committing: boolean;
+}
+
+interface CompanionCapabilities {
+    controlToken?: string;
+    chunkedUpload?: boolean;
 }
 
 export class LocalAlignerClient {
@@ -67,7 +75,7 @@ export class LocalAlignerClient {
             case alignerStartRequestType:
                 return await this.start(request);
             case alignerChunkRequestType:
-                return this.chunk(request);
+                return await this.chunk(request);
             case alignerCommitRequestType:
                 return await this.commit(request);
             case alignerStatusRequestType:
@@ -90,26 +98,66 @@ export class LocalAlignerClient {
         if (this.startLocked || this.commitLocked || this.uploads.size > 0) {
             throw new LocalAlignerClientError("ALIGNER_BUSY", "A local alignment task is already being prepared");
         }
+        if (
+            !Number.isSafeInteger(request.audioSize) || request.audioSize <= 0 || request.audioSize > 512 * 1024 * 1024
+        ) {
+            throw new LocalAlignerClientError("INVALID_REQUEST", "Local alignment audio size is unsupported");
+        }
         this.startLocked = true;
         try {
             const service = await this.findService();
             await this.ensureServiceIdle(service.baseUrl);
+            const capabilities = await this.optionalCapabilities(service.baseUrl);
             if (this.cancelledUploads.delete(request.uploadId)) {
                 throw new LocalAlignerClientError("UPLOAD_LOST", "Local alignment upload was stopped");
+            }
+            const sanitizedName = sanitizeFileName(request.audioName);
+            const audioType = request.audioType || "application/octet-stream";
+            const device = request.useGpuAcceleration ? "auto" : "cpu";
+            let serverUploadId: string | undefined;
+            if (capabilities.chunkedUpload && capabilities.controlToken) {
+                const uploadInit = await this.fetchFn(new URL("/api/lrc-editor/uploads", service.baseUrl), {
+                    method: "POST",
+                    cache: "no-store",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-LRC-Editor-Control": capabilities.controlToken,
+                    },
+                    body: JSON.stringify({
+                        audio_name: sanitizedName,
+                        audio_type: audioType,
+                        audio_size: request.audioSize,
+                        transcript_text: request.transcript,
+                        separate: request.separate,
+                        bypass_cache: request.bypassCache,
+                        preserve_blank_lines: request.preserveBlankLines,
+                        word_timing_beta: request.wordTimingBeta,
+                        device,
+                    }),
+                });
+                if (uploadInit.ok) {
+                    const initPayload = await uploadInit.json().catch(() => ({})) as { upload_id?: unknown };
+                    if (typeof initPayload.upload_id === "string" && /^[a-f0-9]{32}$/i.test(initPayload.upload_id)) {
+                        serverUploadId = initPayload.upload_id;
+                    }
+                }
             }
             this.uploads.set(request.uploadId, {
                 baseUrl: service.baseUrl,
                 serviceVersion: service.version,
-                audioName: sanitizeFileName(request.audioName),
-                audioType: request.audioType || "application/octet-stream",
+                controlToken: capabilities.controlToken,
+                serverUploadId,
+                audioName: sanitizedName,
+                audioType,
                 audioSize: request.audioSize,
                 transcript: request.transcript,
                 separate: request.separate,
                 bypassCache: request.bypassCache,
                 preserveBlankLines: request.preserveBlankLines,
                 wordTimingBeta: request.wordTimingBeta,
-                device: request.useGpuAcceleration ? "auto" : "cpu",
+                device,
                 parts: [],
+                nextChunkIndex: 0,
                 received: 0,
                 updatedAt: Date.now(),
                 cancelled: false,
@@ -127,18 +175,41 @@ export class LocalAlignerClient {
         }
     }
 
-    private chunk(request: AlignerChunkRequest): LocalAlignerPayload {
+    private async chunk(request: AlignerChunkRequest): Promise<LocalAlignerPayload> {
         const upload = this.uploads.get(request.uploadId);
         if (!upload) throw new LocalAlignerClientError("UPLOAD_LOST", "Local alignment upload expired");
         if (upload.cancelled) throw new LocalAlignerClientError("UPLOAD_LOST", "Local alignment upload was stopped");
-        if (request.index !== upload.parts.length) {
+        if (request.index !== upload.nextChunkIndex) {
             throw new LocalAlignerClientError("INVALID_REQUEST", "Local alignment chunks are out of order");
         }
         const part = decodeBase64(request.data);
         if (part.byteLength === 0 || upload.received + part.byteLength > upload.audioSize) {
             throw new LocalAlignerClientError("INVALID_REQUEST", "Local alignment chunk size is invalid");
         }
-        upload.parts.push(part);
+        upload.nextChunkIndex += 1;
+        if (upload.serverUploadId && upload.controlToken) {
+            const response = await this.fetchFn(
+                new URL(`/api/lrc-editor/uploads/${upload.serverUploadId}/chunks/${request.index}`, upload.baseUrl),
+                {
+                    method: "PUT",
+                    cache: "no-store",
+                    headers: {
+                        "Content-Type": "application/octet-stream",
+                        "X-LRC-Editor-Control": upload.controlToken,
+                    },
+                    body: part,
+                },
+            );
+            if (!response.ok) {
+                const payload = await response.json().catch(() => ({})) as { detail?: string };
+                throw new LocalAlignerClientError(
+                    "ALIGNER_FAILED",
+                    payload.detail || "Local alignment chunk upload failed",
+                );
+            }
+        } else {
+            upload.parts.push(part);
+        }
         upload.received += part.byteLength;
         upload.updatedAt = Date.now();
         return { kind: "chunk", received: upload.received };
@@ -160,24 +231,39 @@ export class LocalAlignerClient {
                 throw new LocalAlignerClientError("INVALID_REQUEST", "Local alignment upload is incomplete");
             }
 
-            const form = new FormData();
-            form.append("audio", new Blob(upload.parts, { type: upload.audioType }), upload.audioName);
-            form.append("transcript_text", upload.transcript);
-            form.append("separate", String(upload.separate));
-            form.append("bypass_cache", String(upload.bypassCache));
-            form.append("preserve_blank_lines", String(upload.preserveBlankLines));
-            form.append("word_timing_beta", String(upload.wordTimingBeta));
-            form.append("device", upload.device);
+            let response: Response;
+            if (upload.serverUploadId && upload.controlToken) {
+                response = await this.fetchFn(
+                    new URL(`/api/lrc-editor/uploads/${upload.serverUploadId}/commit`, upload.baseUrl),
+                    {
+                        method: "POST",
+                        cache: "no-store",
+                        headers: { "X-LRC-Editor-Control": upload.controlToken },
+                    },
+                );
+            } else {
+                const form = new FormData();
+                form.append("audio", new Blob(upload.parts, { type: upload.audioType }), upload.audioName);
+                form.append("transcript_text", upload.transcript);
+                form.append("separate", String(upload.separate));
+                form.append("bypass_cache", String(upload.bypassCache));
+                form.append("preserve_blank_lines", String(upload.preserveBlankLines));
+                form.append("word_timing_beta", String(upload.wordTimingBeta));
+                form.append("device", upload.device);
+                const headers = upload.controlToken ? { "X-LRC-Editor-Control": upload.controlToken } : undefined;
 
-            let response = await this.fetchFn(new URL("/api/lrc-editor/jobs", upload.baseUrl), {
-                method: "POST",
-                body: form,
-            });
-            if (response.status === 404) {
-                response = await this.fetchFn(new URL("/api/jobs", upload.baseUrl), {
+                response = await this.fetchFn(new URL("/api/lrc-editor/jobs", upload.baseUrl), {
                     method: "POST",
+                    headers,
                     body: form,
                 });
+                if (response.status === 404) {
+                    response = await this.fetchFn(new URL("/api/jobs", upload.baseUrl), {
+                        method: "POST",
+                        headers,
+                        body: form,
+                    });
+                }
             }
             const job = await readJobResponse(response);
             if (upload.cancelled) {
@@ -212,9 +298,11 @@ export class LocalAlignerClient {
     }
 
     private async cleanup(request: AlignerCleanupRequest): Promise<LocalAlignerPayload> {
+        const capabilities = await this.optionalCapabilities(request.baseUrl);
+        const headers = capabilities.controlToken ? { "X-LRC-Editor-Control": capabilities.controlToken } : undefined;
         const response = await this.fetchFn(
             new URL(`/api/jobs/${request.jobId}/cache`, request.baseUrl),
-            { method: "DELETE", cache: "no-store" },
+            { method: "DELETE", cache: "no-store", headers },
         );
         const payload = await response.json() as { reclaimed_bytes?: unknown; detail?: string };
         if (!response.ok || typeof payload.reclaimed_bytes !== "number" || payload.reclaimed_bytes < 0) {
@@ -232,6 +320,16 @@ export class LocalAlignerClient {
             if (upload) {
                 upload.cancelled = true;
                 upload.parts.length = 0;
+                if (upload.serverUploadId && upload.controlToken) {
+                    await this.fetchFn(
+                        new URL(`/api/lrc-editor/uploads/${upload.serverUploadId}`, upload.baseUrl),
+                        {
+                            method: "DELETE",
+                            cache: "no-store",
+                            headers: { "X-LRC-Editor-Control": upload.controlToken },
+                        },
+                    ).catch(() => undefined);
+                }
                 if (!upload.committing) this.uploads.delete(request.uploadId);
             } else {
                 this.cancelledUploads.set(request.uploadId, Date.now());
@@ -296,6 +394,24 @@ export class LocalAlignerClient {
             );
         }
         return { kind: "cache-clear", reclaimedBytes: payload.reclaimed_bytes };
+    }
+
+    private async optionalCapabilities(baseUrl: string): Promise<CompanionCapabilities> {
+        try {
+            const response = await this.fetchFn(new URL("/api/lrc-editor/capabilities", baseUrl), {
+                cache: "no-store",
+            });
+            if (!response.ok) return {};
+            const payload = await response.json() as { control_token?: unknown; chunked_upload?: unknown };
+            return {
+                controlToken: typeof payload.control_token === "string" && payload.control_token.length >= 32
+                    ? payload.control_token
+                    : undefined,
+                chunkedUpload: payload.chunked_upload === true,
+            };
+        } catch {
+            return {};
+        }
     }
 
     private async controlToken(baseUrl: string): Promise<string> {

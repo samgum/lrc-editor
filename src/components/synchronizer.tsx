@@ -1,8 +1,8 @@
 import ROUTER from "#const/router.json" assert { type: "json" };
 import SSK from "#const/session_key.json" assert { type: "json" };
 import STRINGS from "#const/strings.json" assert { type: "json" };
-import { convertTimeToTag, formatText, type ILyric } from "@lrc-maker/lrc-parser";
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { formatText, type ILyric } from "@lrc-maker/lrc-parser";
+import { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
     AdvancedActionType,
     type AdvancedLyricsAction,
@@ -30,12 +30,13 @@ import {
     visibleFollowOffset,
 } from "../utils/follow-scroll.js";
 import { InputAction } from "../utils/input-action.js";
-import { isKeyboardElement } from "../utils/is-keyboard-element.js";
+import { shouldIgnoreGlobalShortcut } from "../utils/is-keyboard-element.js";
 import { formatKeyBinding, getMatchedAction } from "../utils/keybindings.js";
+import { formatTimeTag } from "../utils/lrc-format.js";
 import { prependHash } from "../utils/router.js";
 import { timingIssueAt } from "../utils/timing-issues.js";
 import { captureWaveformTime, setWaveformTimingHandler } from "../utils/waveform-timing.js";
-import { wordsAtTime } from "../utils/word-playback.js";
+import { buildWordPlaybackIndex, wordsAtTimeFromIndex } from "../utils/word-playback.js";
 import { appContext } from "./app.context.js";
 import { AsidePanel } from "./asidepanel.js";
 import { Curser } from "./curser.js";
@@ -44,10 +45,23 @@ import { TimingWaveformPanel } from "./timing-waveform-panel.js";
 import type { WaveformHandle } from "./waveform.js";
 import { WordTimingStage } from "./word-timing-stage.js";
 
-const SpaceButton: React.FC<{ sync: () => void }> = ({ sync }) => {
+const EMPTY_PLAYBACK_WORDS: readonly number[] = [];
+
+const SpaceButton: React.FC<{
+    sync: () => void;
+    disabled: boolean;
+    label: string;
+    shortcutLabel: string | null;
+}> = ({ sync, disabled, label, shortcutLabel }) => {
     return (
-        <button className="space-button" onClick={sync}>
-            space
+        <button
+            type="button"
+            className="space-button"
+            disabled={disabled}
+            data-shortcut={shortcutLabel || undefined}
+            onClick={sync}
+        >
+            {label}
         </button>
     );
 };
@@ -281,6 +295,11 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
         timingMode,
     ]);
 
+    const wordPlaybackIndex = useMemo(
+        () => advancedState.document ? buildWordPlaybackIndex(advancedState.document.lines) : [],
+        [advancedState.document],
+    );
+
     useEffect(() => {
         return currentTimePubSub.sub(self.current, (time) => {
             if (previewEndRef.current !== null && time * 1000 >= previewEndRef.current - 8) {
@@ -290,7 +309,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
             }
             dispatch({ type: ActionType.refresh, payload: time });
             if (timingMode === "word" && advancedState.document) {
-                const next = wordsAtTime(advancedState.document.lines, Math.round(time * 1000));
+                const next = wordsAtTimeFromIndex(wordPlaybackIndex, Math.round(time * 1000));
                 setPlaybackWords((current) =>
                     current.length === next.length
                         && current.every((cursor, index) => cursorsEqual(cursor, next[index]))
@@ -299,7 +318,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                 );
             }
         });
-    }, [advancedState.document, dispatch, timingMode]);
+    }, [advancedState.document, dispatch, timingMode, wordPlaybackIndex]);
 
     useEffect(() =>
         audioStatePubSub.sub(self.current, (state) => {
@@ -322,6 +341,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
     const stampWordAt = useCallback((timeMs: number) => {
         if (timingMode === "word" && advancedState.document) {
             const line = advancedState.document.lines[advancedState.cursor.lineIndex];
+            if (!line) return;
             const next = !advancedState.cursor.end && advancedState.cursor.wordIndex === line.words.length - 1
                 ? advancedState.cursor
                 : nextWordCursor(advancedState.document, advancedState.cursor, 1);
@@ -470,19 +490,21 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
 
     const selectWord = useCallback((cursor: WordCursor, follow: "reveal" | "preserve" = "reveal") => {
         const document = advancedState.document;
-        if (!document) return;
+        if (!document || document.lines.length === 0) return;
+        const clampedLineIndex = guard(cursor.lineIndex, 0, document.lines.length - 1);
+        const targetLine = document.lines[clampedLineIndex];
         const next = {
-            lineIndex: guard(cursor.lineIndex, 0, document.lines.length - 1),
+            lineIndex: clampedLineIndex,
             wordIndex: guard(
                 cursor.wordIndex,
                 0,
-                Math.max(0, document.lines[guard(cursor.lineIndex, 0, document.lines.length - 1)].words.length - 1),
+                Math.max(0, (targetLine?.words.length ?? 1) - 1),
             ),
         };
         requestWordFollow(follow);
         advancedDispatch({ type: AdvancedActionType.select, payload: next });
         dispatch({ type: ActionType.select, payload: () => next.lineIndex });
-        const time = document.lines[next.lineIndex].words[next.wordIndex]?.startMs;
+        const time = targetLine?.words[next.wordIndex]?.startMs;
         if (prefState.interactiveSeek && time !== undefined) audioRef.currentTime = time / 1000;
     }, [advancedDispatch, advancedState.document, dispatch, prefState.interactiveSeek, requestWordFollow]);
 
@@ -531,7 +553,13 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
         if (!document || !line) return;
         const nextLineStart = document.lines.slice(advancedState.cursor.lineIndex + 1)
             .find((candidate) => candidate.startMs !== undefined)?.startMs;
-        const lastWordEnd = [...line.words].reverse().find((word) => word.endMs !== undefined)?.endMs;
+        let lastWordEnd: number | undefined;
+        for (let i = line.words.length - 1; i >= 0; i -= 1) {
+            if (line.words[i].endMs !== undefined) {
+                lastWordEnd = line.words[i].endMs;
+                break;
+            }
+        }
         const fallbackEnd = line.startMs === undefined
             ? undefined
             : Math.min(audioRef.duration * 1000, line.startMs + 4000);
@@ -565,13 +593,13 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
 
     useEffect(() => {
         function onKeydown(ev: KeyboardEvent): void {
-            if (isKeyboardElement(ev.target)) {
-                return;
-            }
-
             if (ev.key === "Escape" && holdingWordRef.current) {
                 ev.preventDefault();
                 cancelWordHold();
+                return;
+            }
+
+            if (shouldIgnoreGlobalShortcut(ev)) {
                 return;
             }
 
@@ -690,11 +718,11 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                     break;
                 case InputAction.LastLine:
                     ev.preventDefault();
-                    if (timingMode === "word" && advancedState.document) {
+                    if (timingMode === "word" && advancedState.document && advancedState.document.lines.length > 0) {
                         const lineIndex = advancedState.document.lines.length - 1;
                         selectWord({
                             lineIndex,
-                            wordIndex: Math.max(0, advancedState.document.lines[lineIndex].words.length - 1),
+                            wordIndex: Math.max(0, (advancedState.document.lines[lineIndex]?.words.length ?? 1) - 1),
                         });
                     } else selectLine(() => Infinity);
                     break;
@@ -831,22 +859,47 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
         [advancedState.document, lyric, selectLine, selectWord, timingMode],
     );
 
+    const lineIssues = useMemo(
+        () => lyric.map((_, index) => timingIssueAt(lyric, index, timingMode === "word")),
+        [lyric, timingMode],
+    );
+
+    const wordIssuesByLine = useMemo(
+        () =>
+            timingMode === "word" && advancedState.document
+                ? advancedState.document.lines.map((line, lineIndex) =>
+                    line.words.map((_, wordIndex) => wordTimingIssueAt(advancedState.document!, lineIndex, wordIndex))
+                )
+                : [],
+        [advancedState.document, timingMode],
+    );
+
+    const playbackWordsByLine = useMemo(() => {
+        const grouped = new Map<number, number[]>();
+        for (const cursor of playbackWords) {
+            const list = grouped.get(cursor.lineIndex);
+            if (list) list.push(cursor.wordIndex);
+            else grouped.set(cursor.lineIndex, [cursor.wordIndex]);
+        }
+        return grouped;
+    }, [playbackWords]);
+
     const LyricLineIter = useCallback(
-        (line: Readonly<ILyric>, index: number, lines: readonly ILyric[]) => {
+        (line: Readonly<ILyric>, index: number) => {
             const select = index === selectIndex;
-            const activeWords = playbackWords.filter((cursor) => cursor.lineIndex === index);
-            const highlight = timingMode === "word" ? activeWords.length > 0 : index === highlightIndex;
-            const issue = timingIssueAt(lines, index, timingMode === "word");
-            const wordIssue = timingMode === "word" && advancedState.document
-                ? firstWordIssue(advancedState.document, index)
-                : null;
-            const timingPending = timingMode === "word" && !!advancedState.document?.lines[index]
-                && isWordTimingPending(advancedState.document.lines[index]);
-            const error = issue !== null || wordIssue !== null || timingPending;
+            const linePlaybackWords = playbackWordsByLine.get(index) ?? EMPTY_PLAYBACK_WORDS;
+            const highlight = timingMode === "word" ? linePlaybackWords.length > 0 : index === highlightIndex;
+            const issue = lineIssues[index] ?? null;
+            const advancedLine = timingMode === "word" ? advancedState.document?.lines[index] : undefined;
+            const lineWordIssues = timingMode === "word" ? wordIssuesByLine[index] : undefined;
+            const firstIssue = lineWordIssues?.find((candidate): candidate is WordTimingIssue => candidate !== null)
+                ?? null;
+            const timingPending = timingMode === "word" && !!advancedLine && isWordTimingPending(advancedLine);
+            const error = issue !== null || firstIssue !== null || timingPending;
             const issueLabel = issue
                 ? lang.timing[issue]
-                : wordIssue
-                ? wordIssueLabel(wordIssue.issue, lang.advancedLyrics)
+                : firstIssue
+                ? wordIssueLabel(firstIssue, lang.advancedLyrics)
                 : timingPending
                 ? lang.advancedLyrics.wordTimingPending
                 : undefined;
@@ -878,15 +931,11 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                     highlight={highlight}
                     prefState={prefState}
                     issueLabel={issueLabel}
-                    timingPending={timingPending && issue === null && wordIssue === null}
-                    advancedLine={timingMode === "word" ? advancedState.document?.lines[index] : undefined}
-                    wordIssues={timingMode === "word" && advancedState.document
-                        ? advancedState.document.lines[index].words.map((_, wordIndex) =>
-                            wordTimingIssueAt(advancedState.document!, index, wordIndex)
-                        )
-                        : undefined}
+                    timingPending={timingPending && issue === null && firstIssue === null}
+                    advancedLine={advancedLine}
+                    wordIssues={lineWordIssues}
                     selectedWord={advancedState.cursor.lineIndex === index ? advancedState.cursor.wordIndex : undefined}
-                    playbackWords={activeWords.map((cursor) => cursor.wordIndex)}
+                    playbackWords={linePlaybackWords}
                     language={lang.advancedLyrics}
                 />
             );
@@ -897,10 +946,12 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
             highlightIndex,
             lang.advancedLyrics,
             lang.timing,
-            playbackWords,
+            lineIssues,
+            playbackWordsByLine,
             prefState,
             selectIndex,
             timingMode,
+            wordIssuesByLine,
         ],
     );
 
@@ -930,7 +981,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
         : lyric[selectIndex]?.time;
     const selectedTimeLabel = selectedTime === undefined
         ? lang.timing.noTimestamp
-        : convertTimeToTag(selectedTime, prefState.fixed).slice(1, -1);
+        : formatTimeTag(selectedTime, prefState.fixed, false);
 
     return (
         <section
@@ -949,7 +1000,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                                 .replace("%d", (advancedState.cursor.wordIndex + 1).toString())
                                 .replace(
                                     "%t",
-                                    advancedState.document.lines[advancedState.cursor.lineIndex].words.length
+                                    (advancedState.document.lines[advancedState.cursor.lineIndex]?.words.length ?? 0)
                                         .toString(),
                                 )
                             : `${selectIndex + 1} / ${lyric.length}`}
@@ -1225,12 +1276,18 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                 <AsidePanel
                     syncMode={syncMode}
                     setSyncMode={setSyncMode}
+                    lrcState={state}
                     lrcDispatch={dispatch}
                     prefState={prefState}
                 />
             </section>
             {prefState.screenButton && timingMode === "line" && prefState.lineCaptureMode === "standard" && (
-                <SpaceButton sync={sync} />
+                <SpaceButton
+                    sync={sync}
+                    disabled={!mediaReady}
+                    label={lang.keybindings.actions.sync}
+                    shortcutLabel={syncShortcutLabel}
+                />
             )}
         </section>
     );
@@ -1253,7 +1310,7 @@ interface ILyricLineProps {
     language: Language["advancedLyrics"];
 }
 
-const LyricLine: React.FC<ILyricLineProps> = ({
+const LyricLine: React.FC<ILyricLineProps> = memo(({
     line,
     index,
     select,
@@ -1269,7 +1326,7 @@ const LyricLine: React.FC<ILyricLineProps> = ({
     playbackWords,
     language,
 }) => {
-    const lineTime = line.time === undefined ? "—" : convertTimeToTag(line.time, prefState.fixed).slice(1, -1);
+    const lineTime = line.time === undefined ? "—" : formatTimeTag(line.time, prefState.fixed, false);
 
     const lineText = formatText(line.text, prefState.spaceStart, prefState.spaceEnd);
 
@@ -1355,7 +1412,26 @@ const LyricLine: React.FC<ILyricLineProps> = ({
             )}
         </li>
     );
-};
+}, (prev, next) =>
+    prev.line === next.line
+    && prev.index === next.index
+    && prev.select === next.select
+    && prev.showLiveTime === next.showLiveTime
+    && prev.highlight === next.highlight
+    && prev.className === next.className
+    && prev.prefState === next.prefState
+    && prev.issueLabel === next.issueLabel
+    && prev.timingPending === next.timingPending
+    && prev.advancedLine === next.advancedLine
+    && prev.wordIssues === next.wordIssues
+    && prev.selectedWord === next.selectedWord
+    && prev.language === next.language
+    && numberArraysEqual(prev.playbackWords, next.playbackWords));
+
+LyricLine.displayName = "LyricLine";
+
+const numberArraysEqual = (left: readonly number[], right: readonly number[]): boolean =>
+    left === right || (left.length === right.length && left.every((value, index) => value === right[index]));
 
 const cursorsEqual = (left: WordCursor | null, right: WordCursor | null): boolean =>
     left?.lineIndex === right?.lineIndex && left?.wordIndex === right?.wordIndex;
@@ -1367,6 +1443,7 @@ const nextUntimedWordCursor = (
     const flattened: WordCursor[] = document.lines.flatMap((line, lineIndex) =>
         line.words.map((_, wordIndex) => ({ lineIndex, wordIndex }))
     );
+    if (flattened.length === 0) return cursor;
     const currentIndex = flattened.findIndex((candidate) =>
         candidate.lineIndex === cursor.lineIndex && candidate.wordIndex === cursor.wordIndex
     );
@@ -1376,18 +1453,6 @@ const nextUntimedWordCursor = (
         if (word?.startMs === undefined) return candidate;
     }
     return cursor;
-};
-
-const firstWordIssue = (
-    document: NonNullable<AdvancedLyricsState["document"]>,
-    lineIndex: number,
-): { readonly wordIndex: number; readonly issue: WordTimingIssue } | null => {
-    const words = document.lines[lineIndex]?.words || [];
-    for (const [wordIndex] of words.entries()) {
-        const issue = wordTimingIssueAt(document, lineIndex, wordIndex);
-        if (issue) return { wordIndex, issue };
-    }
-    return null;
 };
 
 const wordIssueLabel = (issue: WordTimingIssue, language: Language["advancedLyrics"]): string => {

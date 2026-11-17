@@ -58,6 +58,9 @@ export const KeyBindingsPage: React.FC = () => {
         }
 
         const onKeyDown = (ev: KeyboardEvent): void => {
+            if (ev.isComposing || ev.keyCode === 229) {
+                return;
+            }
             ev.preventDefault();
             ev.stopImmediatePropagation();
 

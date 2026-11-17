@@ -1,4 +1,5 @@
-import { type IFormatOptions, type ILyric, type State, stringify } from "@lrc-maker/lrc-parser";
+import { type IFormatOptions, type ILyric, type State } from "@lrc-maker/lrc-parser";
+import { stringifyLrc as stringify } from "./lrc-format.js";
 
 export const removeTags = (state: State, options: IFormatOptions): string => {
     let seenContent = false;
@@ -196,7 +197,7 @@ const formatInlineBilingual = (sourceText: string, replacementText: string, temp
     if (!cleanSource) return replacementText;
     if (!cleanTrans || cleanSource === cleanTrans) return sourceText;
     if (template.includes("%orig") || template.includes("%trans")) {
-        return template.replace("%orig", cleanSource).replace("%trans", cleanTrans);
+        return template.replace(/%orig|%trans/g, (token) => token === "%orig" ? cleanSource : cleanTrans);
     }
     return `${cleanSource}${template}${cleanTrans}`;
 };
@@ -488,7 +489,7 @@ export const repairTimeline = (
 
     const rawLines = sourceText.replace(/^\uFEFF/, "").split(/\r\n|\n|\r/u);
     const singleTimeTag = /^\[\s*(\d{1,3}):(\d{1,2}(?:[:.]\d{1,3})?)\s*\]/;
-    const infoTag = /^\[\s*(\w{1,6})\s*:(.*?)\]\s*$/;
+    const infoTag = /^\[\s*([A-Za-z][A-Za-z0-9_-]{0,31})\s*:(.*?)\]\s*$/;
     const info = new Map<string, string>();
 
     interface ParsedItem {
@@ -943,10 +944,11 @@ export const replaceText = (
     text: string,
     options: ReplaceTextOptions,
 ): { text: string; count: number; error?: string } => {
-    const find = options.find.trim();
-    if (!find) return { text, count: 0 };
+    const find = options.regex ? options.find.trim() : options.find;
+    if (find.length === 0) return { text, count: 0 };
     try {
-        const pieces = options.regex ? [find] : find.split("|").filter(Boolean).map(escapeRegExp);
+        const pieces = options.regex ? [find] : find.split("|").filter((piece) => piece.length > 0).map(escapeRegExp);
+        if (pieces.length === 0) return { text, count: 0 };
         const pattern = new RegExp(options.regex ? find : pieces.join("|"), `g${options.caseSensitive ? "" : "i"}`);
         let count = 0;
         const output = text.replace(pattern, () => {
@@ -1003,13 +1005,25 @@ export const convertLyricsCase = (
                 "via",
                 "out",
             ]);
-            output = safeText.toLowerCase().replace(/\b([A-Za-z][A-Za-z'’]*)\b/g, (word, _inner, offset, fullText) => {
-                const before = fullText.slice(0, offset).match(/[A-Za-z][A-Za-z'’]*\b/g) || [];
-                const after = fullText.slice(offset + word.length).match(/\b[A-Za-z][A-Za-z'’]*/g) || [];
-                return before.length > 0 && after.length > 0 && minor.has(word)
-                    ? word
-                    : word[0].toUpperCase() + word.slice(1);
-            });
+            output = safeText
+                .toLowerCase()
+                .split(/(\r\n|\n|\r)/)
+                .map((segment) => {
+                    if (/^\r\n|\n|\r$/.test(segment)) {
+                        return segment;
+                    }
+                    const wordMatches = Array.from(segment.matchAll(/\b[A-Za-z][A-Za-z'’]*\b/g));
+                    if (wordMatches.length === 0) {
+                        return segment;
+                    }
+                    const firstIndex = wordMatches[0].index!;
+                    const lastIndex = wordMatches[wordMatches.length - 1].index!;
+                    return segment.replace(/\b([A-Za-z][A-Za-z'’]*)\b/g, (word, _inner, offset) =>
+                        offset !== firstIndex && offset !== lastIndex && minor.has(word)
+                            ? word
+                            : word[0].toUpperCase() + word.slice(1));
+                })
+                .join("");
         }
         if (mode === "sentence") {
             let capitalize = true;
@@ -1030,10 +1044,13 @@ export const convertLyricsCase = (
 
 const protectTimestamps = (text: string, transform: (value: string) => string): string => {
     const timestamps: string[] = [];
-    const protectedText = text.replace(/\[(?:\d{1,3}:)?\d{1,2}:\d{2}(?:[.:]\d{1,3})?\]/g, (match) => {
-        const token = `\uE000${timestamps.length}\uE001`;
-        timestamps.push(match);
-        return token;
-    });
+    const protectedText = text.replace(
+        /\[(?:\d{1,3}:)?\d{1,2}:\d{2}(?:[.:]\d{1,3})?\]|<\s*(?:\d{1,3}:)?\d{1,2}:\d{2}(?:[.:]\d{1,3})?\s*>|^\[\s*[A-Za-z][A-Za-z0-9_-]{0,31}\s*:.*?\]\s*$/gm,
+        (match) => {
+            const token = `\uE000${timestamps.length}\uE001`;
+            timestamps.push(match);
+            return token;
+        },
+    );
     return transform(protectedText).replace(/\uE000(\d+)\uE001/g, (_, index) => timestamps[Number(index)]);
 };

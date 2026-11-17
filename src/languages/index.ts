@@ -1,4 +1,4 @@
-const languages = import.meta.glob<Language>("./*.json", { query: "?json", import: "default" });
+const languages = import.meta.glob<Language>(["./*.json", "!./en-US.json"], { query: "?json", import: "default" });
 
 export { languages };
 

@@ -26,6 +26,15 @@
     border-radius: 4px;
 }
 
+dialog:modal {
+    overscroll-behavior: contain;
+}
+
+dialog::backdrop {
+    overflow: hidden;
+    overscroll-behavior: contain;
+}
+
 .dialog::backdrop {
     background: #00000080;
     animation: backdrop-enter var(--animation-duration) ease-out;
@@ -196,7 +205,7 @@
 
 .media-file-error {
     margin-top: 9px;
-    color: #b72f47;
+    color: var(--error-color);
     font-size: 0.68rem;
     font-weight: 700;
 }

@@ -62,6 +62,9 @@ describe("extension package", () => {
         const packageVersion = JSON.parse(readFileSync(resolve("package.json"), "utf8")).version;
         expect(manifest.version).toBe(packageVersion);
         expect(rules[0].condition.resourceTypes).toEqual(expect.arrayContaining(["media", "xmlhttprequest"]));
+        expect(rules[0].action.responseHeaders?.map((header) => header.header)).toContain(
+            "Access-Control-Allow-Origin",
+        );
         expect(rules[1].condition.resourceTypes).toEqual(expect.arrayContaining(["media", "xmlhttprequest"]));
         expect(rules[1].action.responseHeaders?.map((header) => header.header)).toContain(
             "Access-Control-Allow-Origin",
@@ -117,7 +120,7 @@ describe("extension package", () => {
             "https://i2.y.qq.com/*",
             "https://aqqmusic.tc.qq.com/*",
             "https://lrc.sgmy.org/*",
-            "https://samgum.github.io/*",
+            "https://samgum.github.io/lrc-editor/*",
             "http://localhost/*",
             "http://127.0.0.1/*",
         ]);

@@ -16,6 +16,8 @@ export const LyricTextEditor: React.FC<{
 }> = ({ text, inputRef, onBlur, onCommitText, onDraftChange, wordTiming = false, language }) => {
     const normalizedText = text.replace(/\r\n?/g, "\n");
     const [draft, setDraft] = useState(normalizedText);
+    const [analysisText, setAnalysisText] = useState(normalizedText);
+    const composingRef = useRef(false);
     const mirror = useRef<HTMLDivElement>(null);
     const committedRef = useRef(normalizedText);
     const draftRef = useRef(normalizedText);
@@ -24,7 +26,23 @@ export const LyricTextEditor: React.FC<{
     onCommitRef.current = onCommitText;
     onDraftChangeRef.current = onDraftChange;
 
-    const rows = useMemo(() => textTimingRows(draft, wordTiming), [draft, wordTiming]);
+    const analyzedRows = useMemo(() => textTimingRows(analysisText, wordTiming), [analysisText, wordTiming]);
+    const rows = useMemo(() => {
+        if (draft === analysisText) return analyzedRows;
+        const rawLines = draft.replace(/\r\n?/g, "\n").split("\n");
+        let offset = 0;
+        return rawLines.map((line, index) => {
+            const start = offset;
+            const end = start + line.length;
+            offset = end + 1;
+            return {
+                text: line,
+                start,
+                end,
+                issue: rawLines.length === analyzedRows.length ? analyzedRows[index]?.issue ?? null : null,
+            };
+        });
+    }, [analysisText, analyzedRows, draft]);
     const issueIndexes = useMemo(() => rows.flatMap((row, index) => row.issue ? [index] : []), [rows]);
 
     const syncScroll = useCallback(() => {
@@ -36,10 +54,12 @@ export const LyricTextEditor: React.FC<{
 
     useLayoutEffect(() => {
         if (inputRef.current && inputRef.current.value !== normalizedText) inputRef.current.value = normalizedText;
+        composingRef.current = false;
         committedRef.current = normalizedText;
         draftRef.current = normalizedText;
         onDraftChangeRef.current?.(null);
         setDraft(normalizedText);
+        setAnalysisText(normalizedText);
         syncScroll();
     }, [inputRef, syncScroll, normalizedText]);
 
@@ -75,10 +95,20 @@ export const LyricTextEditor: React.FC<{
         syncScroll();
     };
     const nextIssue = (direction: -1 | 1): void => {
+        if (issueIndexes.length === 0) return;
         const position = inputRef.current?.selectionStart ?? 0;
-        const index = direction === 1
-            ? issueIndexes.find((index) => rows[index].start > position) ?? issueIndexes[0]
-            : [...issueIndexes].reverse().find((index) => rows[index].start < position) ?? issueIndexes.at(-1);
+        let index: number | undefined;
+        if (direction === 1) {
+            index = issueIndexes.find((candidate) => rows[candidate].start > position) ?? issueIndexes[0];
+        } else {
+            for (let i = issueIndexes.length - 1; i >= 0; i -= 1) {
+                if (rows[issueIndexes[i]].start < position) {
+                    index = issueIndexes[i];
+                    break;
+                }
+            }
+            index ??= issueIndexes[issueIndexes.length - 1];
+        }
         if (index !== undefined) selectIssue(index);
     };
 
@@ -156,11 +186,20 @@ export const LyricTextEditor: React.FC<{
                     aria-invalid={issueIndexes.length > 0 || undefined}
                     aria-describedby={issueIndexes.length > 0 ? "editor-timing-status" : undefined}
                     onBlur={(event) => {
+                        composingRef.current = false;
                         const next = event.currentTarget.value.replace(/\r\n?/g, "\n");
                         committedRef.current = next;
                         draftRef.current = next;
+                        setAnalysisText(next);
                         onDraftChangeRef.current?.(null);
                         onBlur(event);
+                    }}
+                    onCompositionStart={() => {
+                        composingRef.current = true;
+                    }}
+                    onCompositionEnd={(event) => {
+                        composingRef.current = false;
+                        setAnalysisText(event.currentTarget.value.replace(/\r\n?/g, "\n"));
                     }}
                     onScroll={syncScroll}
                     onChange={(event) => {
@@ -168,7 +207,10 @@ export const LyricTextEditor: React.FC<{
                         const normalizedNext = next.replace(/\r\n?/g, "\n");
                         draftRef.current = normalizedNext;
                         onDraftChangeRef.current?.(normalizedNext === committedRef.current ? null : next);
-                        setDraft(next);
+                        setDraft(normalizedNext);
+                        if (!composingRef.current) {
+                            setAnalysisText(normalizedNext);
+                        }
                     }}
                     autoCapitalize="none"
                     autoComplete="off"

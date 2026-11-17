@@ -17,18 +17,24 @@ interface SecretRecord {
 }
 
 let databasePromise: Promise<IDBDatabase> | undefined;
+let writeQueue: Promise<void> = Promise.resolve();
 
 export const saveHuhuApiKey = async (apiKey: string): Promise<void> => {
     const normalized = apiKey.trim();
     if (!normalized || normalized.length > 2_048) throw new Error("INVALID_API_KEY");
-    const wrappingKey = await getOrCreateWrappingKey();
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const ciphertext = await crypto.subtle.encrypt(
-        { name: "AES-GCM", iv, additionalData: secretContext },
-        wrappingKey,
-        new TextEncoder().encode(normalized),
-    );
-    await putRecord({ id: apiKeyId, ciphertext, iv });
+    const run = async (): Promise<void> => {
+        const wrappingKey = await getOrCreateWrappingKey();
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const ciphertext = await crypto.subtle.encrypt(
+            { name: "AES-GCM", iv, additionalData: secretContext },
+            wrappingKey,
+            new TextEncoder().encode(normalized),
+        );
+        await putRecord({ id: apiKeyId, ciphertext, iv });
+    };
+    const next = writeQueue.then(run, run);
+    writeQueue = next.catch(() => undefined);
+    await next;
 };
 
 export const hasHuhuApiKey = async (): Promise<boolean> => {
@@ -45,13 +51,18 @@ export const readHuhuApiKey = async (): Promise<string | null> => {
         getRecord<SecretRecord>(apiKeyId),
     ]);
     if (!keyRecord || !secretRecord) return null;
-    const plaintext = await crypto.subtle.decrypt(
-        { name: "AES-GCM", iv: secretRecord.iv, additionalData: secretContext },
-        keyRecord.value,
-        secretRecord.ciphertext,
-    );
-    const apiKey = new TextDecoder().decode(plaintext).trim();
-    return apiKey || null;
+    try {
+        const plaintext = await crypto.subtle.decrypt(
+            { name: "AES-GCM", iv: secretRecord.iv, additionalData: secretContext },
+            keyRecord.value,
+            secretRecord.ciphertext,
+        );
+        const apiKey = new TextDecoder().decode(plaintext).trim();
+        return apiKey || null;
+    } catch {
+        await clearHuhuApiKey().catch(() => undefined);
+        return null;
+    }
 };
 
 export const clearHuhuApiKey = async (): Promise<void> => {
@@ -93,6 +104,9 @@ const openDatabase = (): Promise<IDBDatabase> => {
             const database = request.result;
             database.onversionchange = () => {
                 database.close();
+                databasePromise = undefined;
+            };
+            database.onclose = () => {
                 databasePromise = undefined;
             };
             resolve(database);

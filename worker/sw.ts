@@ -36,13 +36,23 @@ swWorker.addEventListener("fetch", (event) => {
     const url = new URL(event.request.url);
     if (url.origin !== swWorker.location.origin) return;
 
+    const scopeUrl = new URL("./", swWorker.registration.scope);
+    const indexUrl = new URL("index.html", scopeUrl);
+    const swUrl = new URL("sw.js", scopeUrl);
+    const tokenHtmlUrl = new URL("youtube-token.html", scopeUrl);
+    const tokenScriptUrl = new URL("youtube-token.js", scopeUrl);
+
     if (event.request.mode === "navigate") {
-        event.respondWith(navigationResponse(event));
+        if (url.pathname === scopeUrl.pathname || url.pathname === indexUrl.pathname) {
+            event.respondWith(navigationResponse(event, scopeUrl, indexUrl));
+        }
         return;
     }
 
     const cacheableAsset = /\.(?:css|js|png|svg|ico|xml|webmanifest)$/i.test(url.pathname)
-        && url.pathname !== "/sw.js";
+        && url.pathname !== swUrl.pathname
+        && url.pathname !== tokenHtmlUrl.pathname
+        && url.pathname !== tokenScriptUrl.pathname;
 
     if (!cacheableAsset) return;
 
@@ -78,6 +88,7 @@ const precacheOfflineShell = async (): Promise<void> => {
     const paths = ["./", ...manifest.assets];
     await Promise.all(paths.map(async (path) => {
         const url = new URL(path, scopeUrl);
+        const isRequiredCore = path === "./" || path === "index.html" || /\.(?:css|js)$/i.test(path);
         try {
             const response = await fetch(url.href, { cache: "no-store" });
             if (!isExpectedOfflineResponse(url, response)) {
@@ -86,13 +97,13 @@ const precacheOfflineShell = async (): Promise<void> => {
             await cache.put(url.href, response.clone());
         } catch (error) {
             console.error(`Unable to precache offline asset: ${path}`, error);
+            if (isRequiredCore) throw error;
         }
     }));
 };
 
-const navigationResponse = async (event: FetchEvent): Promise<Response> => {
+const navigationResponse = async (event: FetchEvent, shellUrl: URL, indexUrl: URL): Promise<Response> => {
     const cache = await caches.open(CACHENAME);
-    const shellUrl = new URL("./", swWorker.registration.scope);
     try {
         const response = await fetch(event.request, { cache: "no-store" });
         if (response.type === "basic" && isExpectedOfflineResponse(shellUrl, response)) {
@@ -100,6 +111,6 @@ const navigationResponse = async (event: FetchEvent): Promise<Response> => {
         }
         return response;
     } catch {
-        return await cache.match(shellUrl.href) || Response.error();
+        return await cache.match(shellUrl.href) || await cache.match(indexUrl.href) || Response.error();
     }
 };

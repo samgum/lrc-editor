@@ -47,15 +47,33 @@ if [[ -z "$service_process_id" ]]; then
     exit 0
 fi
 
-kill "$service_process_id"
-for _ in {1..50}; do
+if command -v curl >/dev/null 2>&1; then
+    for port in 8765 {8876..8895}; do
+        capabilities="$(curl -fsS --max-time 1 "http://127.0.0.1:$port/api/lrc-editor/capabilities" 2>/dev/null || true)"
+        token="$(printf '%s' "$capabilities" | sed -n 's/.*"control_token"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+        if [[ -n "$token" ]]; then
+            curl -fsS -X POST --max-time 2 -H "X-LRC-Editor-Control: $token" \
+                "http://127.0.0.1:$port/api/lrc-editor/service/stop" >/dev/null 2>&1 || true
+        fi
+    done
+fi
+for _ in {1..15}; do
     if ! kill -0 "$service_process_id" 2>/dev/null; then
         break
     fi
     sleep 0.2
 done
 if kill -0 "$service_process_id" 2>/dev/null; then
-    kill -KILL "$service_process_id"
+    kill "$service_process_id" 2>/dev/null || true
+    for _ in {1..35}; do
+        if ! kill -0 "$service_process_id" 2>/dev/null; then
+            break
+        fi
+        sleep 0.2
+    done
+fi
+if kill -0 "$service_process_id" 2>/dev/null; then
+    kill -KILL "$service_process_id" 2>/dev/null || true
 fi
 rm -f -- "$pid_path"
 echo "LRC Editor AI Aligner stopped."

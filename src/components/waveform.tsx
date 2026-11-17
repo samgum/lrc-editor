@@ -99,6 +99,10 @@ export const Waveform = forwardRef<WaveformHandle, IWaveformProps>(({
     });
     const errorReportedRef = useRef(false);
     const pendingCenterTimeRef = useRef<number | null>(null);
+    const zoomRafRef = useRef(0);
+    useEffect(() => () => {
+        if (zoomRafRef.current) cancelAnimationFrame(zoomRafRef.current);
+    }, []);
     const cachedPeaksRef = useRef({ source, value: waveformPeakCache.get(source), pcm: readTimingPcm(source) });
     if (cachedPeaksRef.current.source !== source) {
         cachedPeaksRef.current = { source, value: waveformPeakCache.get(source), pcm: readTimingPcm(source) };
@@ -109,7 +113,7 @@ export const Waveform = forwardRef<WaveformHandle, IWaveformProps>(({
         container: containerRef,
         url: source,
         media: audioRef.current || undefined,
-        waveColor: "#eeeeee",
+        waveColor: "#8892a480",
         progressColor: initialThemeColor.current,
         cursorColor: initialThemeColor.current,
         normalize,
@@ -166,7 +170,9 @@ export const Waveform = forwardRef<WaveformHandle, IWaveformProps>(({
             const anchorTime = timeAtOffset(offsetPixels);
             pixelsPerSecondRef.current = pixelsPerSecond;
             wavesurfer.zoom(pixelsPerSecond);
-            requestAnimationFrame(() => {
+            if (zoomRafRef.current) cancelAnimationFrame(zoomRafRef.current);
+            zoomRafRef.current = requestAnimationFrame(() => {
+                zoomRafRef.current = 0;
                 wavesurfer.setScroll(Math.max(0, anchorTime * pixelsPerSecond - offsetPixels));
             });
         },
@@ -314,7 +320,7 @@ export const Waveform = forwardRef<WaveformHandle, IWaveformProps>(({
 
     useEffect(() => {
         wavesurfer?.setOptions({
-            waveColor: "#eeeeee",
+            waveColor: "#8892a480",
             progressColor: themeColor,
             cursorColor: themeColor,
         });

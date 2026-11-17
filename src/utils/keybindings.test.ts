@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { defaultKeyBindings } from "./default-keybindings.js";
 import { InputAction } from "./input-action.js";
-import { cloneKeyBindings, findKeyBindingConflicts, normalizeKeyBindings } from "./keybindings.js";
+import { cloneKeyBindings, findKeyBindingConflicts, getMatchedAction, normalizeKeyBindings } from "./keybindings.js";
 
 describe("key binding helpers", () => {
     it("fills missing actions from defaults while preserving deliberately empty actions", () => {
@@ -14,5 +14,22 @@ describe("key binding helpers", () => {
         const bindings = cloneKeyBindings(defaultKeyBindings);
         bindings[InputAction.NextLine] = [{ code: "Space" }];
         expect(findKeyBindingConflicts(bindings)).toHaveLength(1);
+    });
+
+    it("distinguishes Shift/Alt modifiers in conflict checks and prefers exact modifier matches", () => {
+        const bindings = cloneKeyBindings(defaultKeyBindings);
+        bindings[InputAction.Sync] = [{ code: "KeyM" }];
+        bindings[InputAction.DeleteTime] = [{ code: "KeyM", shiftKey: true }];
+        expect(findKeyBindingConflicts(bindings)).toHaveLength(0);
+
+        const shiftEvent = {
+            code: "KeyM",
+            key: "M",
+            ctrlKey: false,
+            metaKey: false,
+            shiftKey: true,
+            altKey: false,
+        } as KeyboardEvent;
+        expect(getMatchedAction(shiftEvent, bindings)).toBe(InputAction.DeleteTime);
     });
 });

@@ -2,10 +2,9 @@ import SSK from "#const/session_key.json" assert { type: "json" };
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useKeyBindings } from "../hooks/useKeyBindings.js";
 import { alignmentMediaName, clearAlignmentMediaSource, setAlignmentMediaSource } from "../utils/alignment-media.js";
-import { AudioEngineDownloadError } from "../utils/audio-engine-assets.js";
 import { AudioActionType, audioRef, audioStatePubSub, currentTimePubSub } from "../utils/audiomodule.js";
 import { InputAction } from "../utils/input-action.js";
-import { isKeyboardElement } from "../utils/is-keyboard-element.js";
+import { shouldIgnoreGlobalShortcut } from "../utils/is-keyboard-element.js";
 import { getMatchedAction } from "../utils/keybindings.js";
 import { isLocalMediaFile, needsCodecFallback, shouldCreateCompressedAlignmentMedia } from "../utils/local-media.js";
 import { MediaExtensionError } from "../utils/media-extension-bridge.js";
@@ -18,9 +17,9 @@ import {
     resolveMediaInput,
 } from "../utils/media-source.js";
 import { droppedMediaFilePubSub } from "../utils/workspace-drop.js";
-import { appContext, ChangBits } from "./app.context.js";
+import { appContext } from "./app.context.js";
 import { LrcAudio } from "./audio.js";
-import { LoadAudio } from "./loadaudio.js";
+import { LoadAudio, loadAudioDialogRef } from "./loadaudio.js";
 import { toastPubSub } from "./toast.js";
 
 const accept = [
@@ -45,7 +44,7 @@ const accept = [
 ].join(", ");
 
 export const Footer: React.FC = () => {
-    const { prefState, lang } = useContext(appContext, ChangBits.lang | ChangBits.builtInAudio | ChangBits.prefState);
+    const { prefState, lang } = useContext(appContext);
     const keyBindings = useKeyBindings();
     const resumeAfterBackgroundRef = useRef(false);
 
@@ -96,13 +95,30 @@ export const Footer: React.FC = () => {
     const droppedMediaSubscriber = useRef(Symbol("dropped-media-file"));
     const youtubeMusicNotice = useRef<string | undefined>(undefined);
     const mediaLoadIdRef = useRef(0);
+    const mediaAbortRef = useRef<AbortController | null>(null);
+    const currentBlobSrcRef = useRef<string | undefined>(undefined);
+    const rafId = useRef(0);
     const setAudioSrc = useCallback((newSrc: string): void => {
+        cancelAnimationFrame(rafId.current);
         setAudioSrcState((oldSrc) => {
             if (oldSrc && oldSrc !== newSrc && oldSrc.startsWith("blob:")) {
                 URL.revokeObjectURL(oldSrc);
             }
+            currentBlobSrcRef.current = newSrc.startsWith("blob:") ? newSrc : undefined;
             return newSrc;
         });
+        audioStatePubSub.pub({ type: AudioActionType.pause, payload: true });
+        audioStatePubSub.pub({ type: AudioActionType.getDuration, payload: 0 });
+        currentTimePubSub.pub(0);
+    }, []);
+
+    useEffect(() => () => {
+        cancelAnimationFrame(rafId.current);
+        mediaAbortRef.current?.abort();
+        if (currentBlobSrcRef.current) {
+            URL.revokeObjectURL(currentBlobSrcRef.current);
+            currentBlobSrcRef.current = undefined;
+        }
     }, []);
 
     useEffect(() => {
@@ -147,6 +163,9 @@ export const Footer: React.FC = () => {
 
     const loadMediaUrl = useCallback(
         async (value: string): Promise<void> => {
+            mediaAbortRef.current?.abort();
+            const abortController = new AbortController();
+            mediaAbortRef.current = abortController;
             const loadId = ++mediaLoadIdRef.current;
             youtubeMusicNotice.current = undefined;
             localFileRef.current = null;
@@ -178,7 +197,13 @@ export const Footer: React.FC = () => {
                 }
                 const source = await resolveMediaInput(value);
                 if (mediaLoadIdRef.current !== loadId) return;
-                const playableSrc = await materializeExtensionMedia(source);
+                let materializedBlob: Blob | undefined;
+                const playableSrc = await materializeExtensionMedia(source, {
+                    signal: abortController.signal,
+                    onBlob: (blob) => {
+                        materializedBlob = blob;
+                    },
+                });
                 if (mediaLoadIdRef.current !== loadId) {
                     if (playableSrc.startsWith("blob:")) URL.revokeObjectURL(playableSrc);
                     return;
@@ -200,15 +225,11 @@ export const Footer: React.FC = () => {
                 } else {
                     sessionStorage.removeItem(SSK.audioSrc);
                 }
-                if (playableSrc.startsWith("blob:")) {
-                    const blob = await fetch(playableSrc).then((response) => response.blob());
-                    if (mediaLoadIdRef.current !== loadId) {
-                        URL.revokeObjectURL(playableSrc);
-                        return;
-                    }
+                if (materializedBlob) {
                     setAlignmentMediaSource({
-                        blob,
-                        name: source.name || alignmentMediaName(source.provider, source.mimeType || blob.type),
+                        blob: materializedBlob,
+                        name: source.name
+                            || alignmentMediaName(source.provider, source.mimeType || materializedBlob.type),
                     });
                 } else {
                     setAlignmentMediaSource({
@@ -261,11 +282,26 @@ export const Footer: React.FC = () => {
     );
 
     useEffect(() => {
-        const sharedUrl = extractSharedMediaUrl(new URL(location.href));
+        const currentUrl = new URL(location.href);
+        const sharedUrl = extractSharedMediaUrl(currentUrl);
         if (sharedUrl !== null) {
             const key = `input:${sharedUrl}`;
             if (restoredMediaRef.current === key) return;
             restoredMediaRef.current = key;
+            currentUrl.searchParams.delete("url");
+            currentUrl.searchParams.delete("text");
+            currentUrl.searchParams.delete("title");
+            history.replaceState(null, "", currentUrl.pathname + currentUrl.search + currentUrl.hash);
+            try {
+                const parsed = parseMediaInput(sharedUrl);
+                if (parsed.kind === "direct") {
+                    setRememberedMediaUrl(sharedUrl);
+                    requestAnimationFrame(() => loadAudioDialogRef.open());
+                    return;
+                }
+            } catch {
+                return;
+            }
             void loadMediaUrl(sharedUrl).catch(() => undefined);
             return;
         }
@@ -290,7 +326,7 @@ export const Footer: React.FC = () => {
 
     useEffect(() => {
         function onKeydown(ev: KeyboardEvent) {
-            if (isKeyboardElement(ev.target)) {
+            if (shouldIgnoreGlobalShortcut(ev)) {
                 return;
             }
 
@@ -337,6 +373,7 @@ export const Footer: React.FC = () => {
     }, [keyBindings, prefState.seekStepMs]);
 
     const onAudioFile = useCallback((file: File) => {
+        mediaAbortRef.current?.abort();
         const loadId = ++mediaLoadIdRef.current;
         youtubeMusicNotice.current = undefined;
         sessionStorage.removeItem(SSK.audioSrc);
@@ -365,6 +402,7 @@ export const Footer: React.FC = () => {
                             setAudioSrc(URL.createObjectURL(converted));
                             localFileRef.current = null;
                         } else if (compressForAlignment && !browserFallback) {
+                            setAlignmentMediaSource({ blob: file, name: file.name });
                             setAudioSrc(URL.createObjectURL(file));
                         }
                     } else {
@@ -388,6 +426,7 @@ export const Footer: React.FC = () => {
                             setAlignmentMediaSource({ blob: converted, name: compressedMediaName(name) });
                             setAudioSrc(URL.createObjectURL(converted));
                         } else {
+                            setAlignmentMediaSource({ blob: media, name });
                             setAudioSrc(URL.createObjectURL(media));
                         }
                         return;
@@ -404,8 +443,6 @@ export const Footer: React.FC = () => {
     }, [lang, setAudioSrc]);
 
     useEffect(() => droppedMediaFilePubSub.sub(droppedMediaSubscriber.current, onAudioFile), [onAudioFile]);
-
-    const rafId = useRef(0);
 
     const onAudioLoadedMetadata = useCallback(() => {
         cancelAnimationFrame(rafId.current);
@@ -429,6 +466,7 @@ export const Footer: React.FC = () => {
     }, []);
 
     const onAudioPlay = useCallback(() => {
+        cancelAnimationFrame(rafId.current);
         rafId.current = requestAnimationFrame(syncCurrentTime);
         if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "playing";
         audioStatePubSub.pub({
@@ -470,6 +508,7 @@ export const Footer: React.FC = () => {
 
     const onAudioError = useCallback(
         (ev: React.SyntheticEvent<HTMLAudioElement>) => {
+            cancelAnimationFrame(rafId.current);
             const localFile = localFileRef.current;
             if (localFile && !fallbackAttemptedRef.current) {
                 fallbackAttemptedRef.current = true;
@@ -481,9 +520,11 @@ export const Footer: React.FC = () => {
                 });
                 return;
             }
+            audioStatePubSub.pub({ type: AudioActionType.pause, payload: true });
+            audioStatePubSub.pub({ type: AudioActionType.getDuration, payload: 0 });
             const audio = ev.target as HTMLAudioElement;
-            const error = audio.error!;
-            const message = lang.audio.error[error.code] || error.message || lang.audio.error[0];
+            const errorCode = audio.error?.code ?? 0;
+            const message = lang.audio.error[errorCode] || audio.error?.message || lang.audio.error[0];
             toastPubSub.pub({ channel: "media", type: "warning", text: message });
         },
         [lang, setAudioSrc],
@@ -577,7 +618,7 @@ const convertLocalFile = async (file: File, lang: Language): Promise<Blob | null
         toastPubSub.pub({
             channel: "media",
             type: "warning",
-            text: error instanceof AudioEngineDownloadError
+            text: error instanceof Error && error.name === "AudioEngineDownloadError"
                 ? lang.notify.mediaEngineDownloadFailed
                 : lang.notify.mediaConversionFailed,
         });

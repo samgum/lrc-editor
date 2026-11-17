@@ -40,6 +40,21 @@ export function matchKeyBinding(ev: KeyboardEvent, bindings: KeyBinding[]): bool
 }
 
 export function getMatchedAction(ev: KeyboardEvent, keyBindings: KeyBindings): InputAction | null {
+    // First prefer exact modifier matches (so Shift+ArrowUp or Alt+F is not shadowed by plain ArrowUp / F)
+    const ctrlOrMeta = ev.ctrlKey || ev.metaKey;
+    for (const [action, bindings] of Object.entries(keyBindings)) {
+        const exactMatch = bindings.some((binding) => {
+            if (Boolean(binding.ctrlKey) !== ctrlOrMeta) return false;
+            if (Boolean(binding.shiftKey) !== ev.shiftKey) return false;
+            if (Boolean(binding.altKey) !== ev.altKey) return false;
+            if (binding.code && ev.code === binding.code) return true;
+            if (binding.key && ev.key === binding.key) return true;
+            return false;
+        });
+        if (exactMatch) {
+            return action as InputAction;
+        }
+    }
     for (const [action, bindings] of Object.entries(keyBindings)) {
         if (matchKeyBinding(ev, bindings)) {
             return action as InputAction;
@@ -115,12 +130,18 @@ export const formatKeyBinding = (binding: KeyBinding): string => {
 };
 
 const bindingConflictIdentity = (binding: KeyBinding): string =>
-    [binding.code || `key:${binding.key || ""}`, binding.ctrlKey ? "ctrl" : "plain"].join("|");
+    [
+        binding.code || `key:${binding.key || ""}`,
+        binding.ctrlKey ? "ctrl" : "plain",
+        binding.altKey ? "alt" : "noalt",
+        binding.shiftKey ? "shift" : "noshift",
+    ].join("|");
 
 const isKeyBinding = (value: unknown): value is KeyBinding => {
     if (typeof value !== "object" || value === null) {
         return false;
     }
     const binding = value as KeyBinding;
-    return typeof binding.code === "string" || typeof binding.key === "string";
+    return (typeof binding.code === "string" && binding.code.length > 0)
+        || (typeof binding.key === "string" && binding.key.length > 0);
 };

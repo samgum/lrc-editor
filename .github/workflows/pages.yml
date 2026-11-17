@@ -31,6 +31,9 @@ jobs:
                   run_install: |
                       - args: [--frozen-lockfile, --strict-peer-dependencies]
 
+            - name: Typecheck
+              run: pnpm typecheck
+
             - name: Check
               run: pnpm run "/check\:/"
 
@@ -38,7 +41,7 @@ jobs:
               run: pnpm test
 
             - name: Build
-              run: pnpm build
+              run: pnpm build && pnpm build:extension
 
             - name: Configure GitHub Pages
               uses: actions/configure-pages@v6

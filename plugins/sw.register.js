@@ -3,6 +3,9 @@ if ("serviceWorker" in navigator) {
     let reloading = false;
     navigator.serviceWorker.addEventListener("controllerchange", () => {
         if (!controlledAtStartup || reloading) return;
+        const audio = document.querySelector("audio");
+        if (audio && (!audio.paused || audio.src.startsWith("blob:"))) return;
+        if (document.querySelector(".ai-align-dialog")) return;
         reloading = true;
         location.reload();
     });

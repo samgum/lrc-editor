@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 from .evaluation import evaluate_reference_axes
@@ -130,6 +131,11 @@ def main() -> None:
     }
     if args.evaluate:
         summary["metrics"] = evaluate_reference_axes(result).to_dict()
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 
 

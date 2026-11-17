@@ -438,4 +438,42 @@ describe("advanced lyrics timing state", () => {
         expect(state.document?.lines[0].words[0].startMs).toBe(1000);
         expect(state.document?.lines[0].words.slice(1).every((word) => word.startMs === undefined)).toBe(true);
     });
+
+    it("adjusts selected word time cleanly, syncs line bounds on deleteTime, and preserves explicit gaps on adjust", () => {
+        let state = advancedLyricsReducer(initAdvancedLyricsState(""), {
+            type: AdvancedActionType.load,
+            payload: {
+                version: 1,
+                timingMode: "word",
+                sourceFormat: "enhanced-lrc",
+                metadata: {},
+                lines: [{
+                    startMs: 1000,
+                    endMs: 2800,
+                    words: [
+                        { text: "Hello ", startMs: 1000, endMs: 1500 },
+                        { text: "world", startMs: 2000, endMs: 2800 },
+                    ],
+                }],
+            },
+        });
+        state = advancedLyricsReducer(state, {
+            type: AdvancedActionType.select,
+            payload: { lineIndex: 0, wordIndex: 1 },
+        });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.adjustTime, payload: 200 });
+        expect(state.document?.lines[0].words[0].endMs).toBe(1500);
+        expect(state.document?.lines[0].words[1].startMs).toBe(2200);
+
+        state = advancedLyricsReducer(state, {
+            type: AdvancedActionType.select,
+            payload: { lineIndex: 0, wordIndex: 0 },
+        });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.adjustTime, payload: 600 });
+        expect(state.document?.lines[0].words[0]).toMatchObject({ startMs: 1600, endMs: 2100 });
+        expect(state.document?.lines[0].startMs).toBe(1600);
+
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.deleteTime, payload: undefined });
+        expect(state.document?.lines[0].startMs).toBe(2200);
+    });
 });

@@ -17,6 +17,7 @@ import {
     youtubeExtensionRequestType,
     type YouTubeMusicSource,
 } from "../shared/media-extension-protocol.js";
+import { randomId } from "./random-id.js";
 
 export class MediaExtensionError extends Error {
     constructor(
@@ -58,7 +59,7 @@ export const requestYouTubeAudio = (
     }
     const request: YouTubeExtensionRequest = {
         type: youtubeExtensionRequestType,
-        requestId: crypto.randomUUID(),
+        requestId: randomId(),
         videoId,
         ...(preferSong ? { preferSong: true } : {}),
     };
@@ -70,7 +71,7 @@ export const requestBilibiliAudio = (url: string, timeoutMs = 90_000): Promise<R
         return Promise.reject(new MediaExtensionError("failed", "Invalid Bilibili video URL"));
     }
     return requestExtensionAudio(
-        { type: bilibiliExtensionRequestType, requestId: crypto.randomUUID(), url },
+        { type: bilibiliExtensionRequestType, requestId: randomId(), url },
         "bilibili",
         timeoutMs,
     );
@@ -85,7 +86,7 @@ export const requestNeteaseAudio = (
     }
     const request: NeteaseExtensionRequest = {
         type: neteaseExtensionRequestType,
-        requestId: crypto.randomUUID(),
+        requestId: randomId(),
         ...input,
     };
     return requestExtension(request, timeoutMs).then((response) => {
@@ -117,7 +118,7 @@ export const requestQQMusicAudio = (
     }
     const request: QQMusicExtensionRequest = {
         type: qqMusicExtensionRequestType,
-        requestId: crypto.randomUUID(),
+        requestId: randomId(),
         ...input,
     };
     return requestExtension(request, timeoutMs).then((response) => {
@@ -234,6 +235,11 @@ const requestExtension = (
             resolve(event.data);
         };
 
+        if (location.origin === "null") {
+            window.clearTimeout(extensionTimeout);
+            reject(new MediaExtensionError("missing", "Media companion extension is unavailable on opaque origins"));
+            return;
+        }
         window.addEventListener("message", onMessage);
         window.postMessage(request, location.origin);
     });

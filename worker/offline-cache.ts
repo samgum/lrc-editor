@@ -9,7 +9,7 @@ export const isSafeOfflineAssetPath = (value: unknown): value is string =>
 export const isExpectedOfflineResponse = (url: URL, response: Response): boolean => {
     if (!response.ok) return false;
     const contentType = (response.headers.get("Content-Type") || "").toLowerCase();
-    if (url.pathname === "/" || url.pathname.endsWith("/index.html")) return contentType.includes("text/html");
+    if (url.pathname.endsWith("/") || url.pathname.endsWith("/index.html")) return contentType.includes("text/html");
     if (url.pathname.endsWith(".css")) return contentType.includes("text/css");
     if (url.pathname.endsWith(".js")) return contentType.includes("javascript");
     if (url.pathname.endsWith(".png")) return contentType.includes("image/png");

@@ -220,7 +220,7 @@
 
 .ai-align-dialog {
     position: fixed;
-    inset: auto 20px 86px auto;
+    inset: auto auto calc(86px + env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
     z-index: 900;
     width: min(390px, calc(100vw - 32px));
     margin: 0;
@@ -357,6 +357,7 @@
     height: 100%;
     min-height: 0;
     overflow-y: auto;
+    background: transparent;
     touch-action: pan-y;
 }
 
@@ -376,8 +377,8 @@
 }
 
 .editor-text-row.has-timing-issue {
-    background: #c642551a;
-    box-shadow: -4px 0 #c64255;
+    background: color-mix(in srgb, var(--error-color) 10%, transparent);
+    box-shadow: -4px 0 var(--error-color);
 }
 
 .editor-row-issue {
@@ -517,7 +518,8 @@
 
     .ai-align-dialog {
         right: 10px;
-        bottom: 120px;
-        width: calc(100vw - 20px);
+        bottom: calc(124px + env(safe-area-inset-bottom));
+        left: 10px;
+        width: auto;
     }
 }

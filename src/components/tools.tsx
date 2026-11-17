@@ -1,6 +1,6 @@
 import ROUTER from "#const/router.json" assert { type: "json" };
 import SSK from "#const/session_key.json" assert { type: "json" };
-import { parser, stringify } from "@lrc-maker/lrc-parser";
+import { parser } from "@lrc-maker/lrc-parser";
 import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Action, IState } from "../hooks/useLrc.js";
 import { ActionType } from "../hooks/useLrc.js";
@@ -16,6 +16,7 @@ import {
     toLineTimedDocument,
 } from "../utils/advanced-lyrics.js";
 import { lrcFileName } from "../utils/lrc-file-name.js";
+import { stringifyLrc } from "../utils/lrc-format.js";
 import {
     alignOverwriteTextToSource,
     cleanGeniusTracklist,
@@ -108,7 +109,7 @@ export const Tools: React.FC<{
     onConversionApplied: (document: AdvancedLyricsDocument) => void;
 }> = ({ state, dispatch, advancedDocument, onTextApplied, onConversionApplied }) => {
     const { lang, prefState, trimOptions } = useContext(appContext);
-    const serialized = useMemo(() => stringify(state, prefState), [prefState, state]);
+    const serialized = useMemo(() => stringifyLrc(state, prefState), [prefState, state]);
     const converterInitialSource = useMemo(
         () => advancedDocument ? toEnhancedLrc(advancedDocument, prefState.fixed) : serialized,
         [advancedDocument, prefState.fixed, serialized],
@@ -254,7 +255,7 @@ export const Tools: React.FC<{
     );
 
     const normalizedOverwriteSource = useMemo(
-        () => stringify(parsedOverwriteSource, prefState),
+        () => stringifyLrc(parsedOverwriteSource, prefState),
         [parsedOverwriteSource, prefState],
     );
 
@@ -266,7 +267,7 @@ export const Tools: React.FC<{
             }
         }
         if (maxTime === undefined) return "";
-        return stringify(
+        return stringifyLrc(
             { info: new Map(), lyric: [{ time: maxTime, text: "" }] },
             { fixed: prefState.fixed, spaceStart: prefState.spaceStart, spaceEnd: 0 },
         );
@@ -542,8 +543,7 @@ export const Tools: React.FC<{
         ? ".txt"
         : ".lrc";
 
-    const downloadResult = useCallback((event: React.MouseEvent<HTMLAnchorElement>) => {
-        event.preventDefault();
+    const downloadResult = useCallback(() => {
         if (transformed.error) return;
         const url = URL.createObjectURL(new Blob([output], { type: "text/plain;charset=UTF-8" }));
         const link = document.createElement("a");
@@ -874,7 +874,7 @@ export const Tools: React.FC<{
                                     label: pattern.label === "模糊匹配"
                                         ? lang.visual.flexibleMatch
                                         : pattern.label.replace("歌词", lang.visual.lyricEditor)
-                                            .replace("翻译", lang.tools.translation),
+                                            .replace("翻译", lang.tools.translationShort),
                                 }))}
                             />
                         </label>
@@ -1216,16 +1216,15 @@ export const Tools: React.FC<{
                     <CopySVG />
                     <span>{lang.tools.copy}</span>
                 </button>
-                <a
+                <button
                     className="button tools-action-secondary"
-                    href="#"
-                    download={lrcFileName(state.info, downloadExtension)}
+                    type="button"
                     onClick={downloadResult}
-                    aria-disabled={Boolean(transformed.error)}
+                    disabled={Boolean(transformed.error)}
                 >
                     <DownloadSVG />
                     <span>{lang.tools.download}</span>
-                </a>
+                </button>
             </footer>
         </section>
     );

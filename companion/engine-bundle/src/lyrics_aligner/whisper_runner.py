@@ -32,11 +32,13 @@ def main() -> None:
     payload["source_size"] = args.audio.stat().st_size
     payload["source_mtime_ns"] = args.audio.stat().st_mtime_ns
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(
+    partial = args.output.with_suffix(args.output.suffix + ".tmp")
+    partial.write_text(
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
         newline="\n",
     )
+    partial.replace(args.output)
     # CTranslate2 4.6 + this Windows CUDA runtime can abort while destroying
     # the model after a successful inference. This process owns no other state:
     # after the atomic result file is closed, let Windows reclaim the process

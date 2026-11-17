@@ -87,6 +87,9 @@ async function verifyWorker(prefix, input) {
     let listener;
     let closed = false;
     const context = createContext({
+        ArrayBuffer,
+        DataView,
+        Uint8Array,
         crypto: webcrypto,
         FileReaderSync: class {
             readAsArrayBuffer(file) {
@@ -130,6 +133,15 @@ async function verifyWorker(prefix, input) {
     assert.equal(transfers.length, 1, `${prefix}: decoded audio should be transferred, not copied`);
     assert.equal(transfers[0], message.payload.buffer);
     assert.ok(closed, `${prefix}: worker did not close after decoding`);
+    if (prefix === "ncmc-worker") {
+        messages.length = 0;
+        closed = false;
+        const badBuffer = new ArrayBuffer(12);
+        await listener({ data: { buffer: badBuffer } });
+        assert.equal(messages.length, 1, "ncmc-worker: expected a single error message on invalid input");
+        assert.equal(messages[0].message.type, "error");
+        assert.ok(closed, "ncmc-worker: worker did not close after invalid input");
+    }
     console.log(`${file}: JavaScript, app reference, offline cache and ${audio.length}-byte decoding passed`);
 }
 

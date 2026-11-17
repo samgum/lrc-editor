@@ -26,9 +26,16 @@ describe("offline cache validation", () => {
         )).toBe(true);
     });
 
-    it("accepts the cached navigation shell", () => {
+    it("accepts the cached navigation shell on root and subpath deployments", () => {
         expect(isExpectedOfflineResponse(
             new URL("https://lrc.sgmy.org/"),
+            new Response("html", {
+                status: 200,
+                headers: { "Content-Type": "text/html; charset=utf-8" },
+            }),
+        )).toBe(true);
+        expect(isExpectedOfflineResponse(
+            new URL("https://samgum.github.io/lrc-editor/"),
             new Response("html", {
                 status: 200,
                 headers: { "Content-Type": "text/html; charset=utf-8" },

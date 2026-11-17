@@ -1,5 +1,5 @@
 import STRINGS from "#const/strings.json" assert { type: "json" };
-import { convertTimeToTag, formatText } from "@lrc-maker/lrc-parser";
+import { formatText } from "@lrc-maker/lrc-parser";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useDismissibleDetails } from "../hooks/useDismissibleDetails.js";
 import { themeColor, ThemeMode } from "../hooks/usePref.js";
@@ -12,10 +12,11 @@ import {
 } from "../utils/huhu-api.js";
 import { clearHuhuApiKey, hasHuhuApiKey, readHuhuApiKey, saveHuhuApiKey } from "../utils/huhu-secret-store.js";
 import { clearLocalAiCache, stopLocalAiService } from "../utils/local-ai-alignment.js";
+import { formatTimeTag } from "../utils/lrc-format.js";
 import { unregister } from "../utils/sw.unregister.js";
 import { consumePreferenceFocus } from "../utils/workspace-navigation.js";
 import { AboutDialog } from "./about.js";
-import { appContext, ChangBits } from "./app.context.js";
+import { appContext } from "./app.context.js";
 import { StyledSelect } from "./styled-select.js";
 import { toastPubSub } from "./toast.js";
 
@@ -64,7 +65,7 @@ type HuhuSettingsStatus =
     | { kind: "cleared" | "cors" | "denied" | "failed" | "invalid-key" | "saved"; reason?: string };
 
 export const Preferences: React.FC = () => {
-    const { prefState, prefDispatch, lang } = useContext(appContext, ChangBits.lang | ChangBits.prefState);
+    const { prefState, prefDispatch, lang } = useContext(appContext);
     const serviceStopDialog = useRef<HTMLDialogElement>(null);
     const colorPopover = useRef<HTMLDetailsElement>(null);
     useDismissibleDetails(colorPopover);
@@ -449,15 +450,7 @@ export const Preferences: React.FC = () => {
         return formatText("   hello   世界～   ", prefState.spaceStart, prefState.spaceEnd);
     }, [prefState.spaceStart, prefState.spaceEnd]);
 
-    const userColorLabel = useRef<HTMLLabelElement>(null);
-    const userColorInput = useRef<HTMLInputElement>(null);
     const aboutDialog = useRef<HTMLDialogElement>(null);
-
-    useEffect(() => {
-        if (userColorInput.current!.type === "color") {
-            userColorLabel.current!.removeAttribute("for");
-        }
-    }, []);
 
     return (
         <div className="preferences">
@@ -484,29 +477,27 @@ export const Preferences: React.FC = () => {
                 <li>
                     <label className="list-item">
                         <span>{lang.preferences.builtInAudio}</span>
-                        <label className="toggle-switch">
+                        <span className="toggle-switch">
                             <input
                                 type="checkbox"
                                 checked={prefState.builtInAudio}
                                 onChange={onBuiltInAudioToggle}
-                                aria-label={lang.preferences.builtInAudio}
                             />
                             <span className="toggle-switch-label" />
-                        </label>
+                        </span>
                     </label>
                 </li>
                 <li>
                     <label className="list-item">
                         <span>{lang.preferences.allowBackgroundAudio}</span>
-                        <label className="toggle-switch">
+                        <span className="toggle-switch">
                             <input
                                 type="checkbox"
                                 checked={prefState.allowBackgroundAudio}
                                 onChange={onAllowBackgroundAudioToggle}
-                                aria-label={lang.preferences.allowBackgroundAudio}
                             />
                             <span className="toggle-switch-label" />
-                        </label>
+                        </span>
                     </label>
                 </li>
                 <li className="preferences-section-title">
@@ -515,71 +506,66 @@ export const Preferences: React.FC = () => {
                 <li>
                     <label className="list-item">
                         <span>{lang.preferences.spaceButton}</span>
-                        <label className="toggle-switch">
+                        <span className="toggle-switch">
                             <input
                                 type="checkbox"
                                 checked={prefState.screenButton}
                                 onChange={onScreenButtonToggle}
-                                aria-label={lang.preferences.spaceButton}
                             />
                             <span className="toggle-switch-label" />
-                        </label>
+                        </span>
                     </label>
                 </li>
                 <li>
                     <label className="list-item">
                         <span>{lang.preferences.showWaveform}</span>
-                        <label className="toggle-switch">
+                        <span className="toggle-switch">
                             <input
                                 type="checkbox"
                                 checked={prefState.showWaveform}
                                 onChange={onShowWaveformToggle}
-                                aria-label={lang.preferences.showWaveform}
                             />
                             <span className="toggle-switch-label" />
-                        </label>
+                        </span>
                     </label>
                 </li>
                 <li>
                     <label className="list-item">
                         <span>{lang.preferences.interactiveSeek}</span>
-                        <label className="toggle-switch">
+                        <span className="toggle-switch">
                             <input
                                 type="checkbox"
                                 checked={prefState.interactiveSeek}
                                 onChange={onInteractiveSeekToggle}
-                                aria-label={lang.preferences.interactiveSeek}
                             />
                             <span className="toggle-switch-label" />
-                        </label>
+                        </span>
                     </label>
                 </li>
                 <li>
                     <label className="list-item">
                         <span>{lang.preferences.lineWaveformAutoAdvance}</span>
-                        <label className="toggle-switch">
+                        <span className="toggle-switch">
                             <input
                                 type="checkbox"
                                 checked={prefState.lineWaveformAutoAdvance}
                                 onChange={onLineWaveformAutoAdvanceToggle}
-                                aria-label={lang.preferences.lineWaveformAutoAdvance}
                             />
                             <span className="toggle-switch-label" />
-                        </label>
+                        </span>
                     </label>
                 </li>
                 <li>
                     <label className="list-item">
                         <span>{lang.preferences.lineWaveformPlayAfterSet}</span>
-                        <label className="toggle-switch">
+                        <span className="toggle-switch">
                             <input
                                 type="checkbox"
                                 checked={prefState.lineWaveformPlayAfterSet}
                                 onChange={onLineWaveformPlayAfterSetToggle}
-                                aria-label={lang.preferences.lineWaveformPlayAfterSet}
                             />
                             <span className="toggle-switch-label" />
-                        </label>
+                        </span>
                     </label>
                 </li>
                 <li className="preferences-section-title">
@@ -588,57 +574,53 @@ export const Preferences: React.FC = () => {
                 <li>
                     <label className="list-item">
                         <span>{lang.advancedLyrics.setting}</span>
-                        <label className="toggle-switch">
+                        <span className="toggle-switch">
                             <input
                                 type="checkbox"
                                 checked={prefState.advancedLyricsEnabled}
                                 onChange={onAdvancedLyricsToggle}
-                                aria-label={lang.advancedLyrics.setting}
                             />
                             <span className="toggle-switch-label" />
-                        </label>
+                        </span>
                     </label>
                 </li>
                 <li>
                     <label className="list-item">
                         <span>{lang.preferences.aiAlignment}</span>
-                        <label className="toggle-switch">
+                        <span className="toggle-switch">
                             <input
                                 type="checkbox"
                                 checked={prefState.aiAlignmentEnabled}
                                 onChange={onAiAlignmentToggle}
-                                aria-label={lang.preferences.aiAlignment}
                             />
                             <span className="toggle-switch-label" />
-                        </label>
+                        </span>
                     </label>
                 </li>
                 <li>
                     <label className="list-item">
                         <span>{lang.preferences.aiGpuAcceleration}</span>
-                        <label className="toggle-switch">
+                        <span className="toggle-switch">
                             <input
                                 type="checkbox"
                                 checked={prefState.aiGpuAcceleration}
                                 onChange={onAiGpuAccelerationToggle}
-                                aria-label={lang.preferences.aiGpuAcceleration}
                             />
                             <span className="toggle-switch-label" />
-                        </label>
+                        </span>
                     </label>
                 </li>
                 <li>
                     <label className="list-item">
                         <span>{lang.preferences.keepAiTaskCache}</span>
-                        <label className="toggle-switch">
+                        <span className="toggle-switch">
                             <input
                                 type="checkbox"
                                 checked={prefState.keepAiTaskCache}
                                 onChange={onKeepAiTaskCacheToggle}
-                                aria-label={lang.preferences.keepAiTaskCache}
                             />
                             <span className="toggle-switch-label" />
-                        </label>
+                        </span>
                     </label>
                 </li>
                 <li className="ripple">
@@ -774,9 +756,7 @@ export const Preferences: React.FC = () => {
                                 {ColorPickerWall}
                                 <label
                                     className="color-picker ripple user-color-label hash"
-                                    htmlFor="user-color-input-text"
                                     style={currentThemeColorStyle}
-                                    ref={userColorLabel}
                                 >
                                     {"#"}
                                     <input
@@ -785,7 +765,6 @@ export const Preferences: React.FC = () => {
                                         aria-label={lang.visual.customColor}
                                         value={prefState.themeColor}
                                         onChange={onColorPick}
-                                        ref={userColorInput}
                                     />
                                 </label>
                                 <input
@@ -812,7 +791,7 @@ export const Preferences: React.FC = () => {
                     <section className="list-item">
                         <span>{lang.preferences.lrcFormat}</span>
                         <span>
-                            <time className="format-example-time">{convertTimeToTag(83.456, prefState.fixed)}</time>
+                            <time className="format-example-time">{formatTimeTag(83.456, prefState.fixed)}</time>
                             <span className="format-example-text">{formattedText}</span>
                         </span>
                     </section>
@@ -901,9 +880,16 @@ export const Preferences: React.FC = () => {
                     </button>
                 </li>
             </ul>
-            <dialog className="about-dialog service-stop-dialog" ref={aiCacheDialog}>
+            <dialog
+                className="about-dialog service-stop-dialog"
+                ref={aiCacheDialog}
+                aria-labelledby="ai-cache-dialog-title"
+                onCancel={(event) => {
+                    if (aiCacheClearing) event.preventDefault();
+                }}
+            >
                 <article>
-                    <h2>{lang.preferences.aiClearCacheTitle}</h2>
+                    <h2 id="ai-cache-dialog-title">{lang.preferences.aiClearCacheTitle}</h2>
                     <p>{lang.preferences.aiClearCacheConfirm}</p>
                     <form onSubmit={onClearAiCache}>
                         <button
@@ -920,9 +906,16 @@ export const Preferences: React.FC = () => {
                     </form>
                 </article>
             </dialog>
-            <dialog className="about-dialog service-stop-dialog" ref={serviceStopDialog}>
+            <dialog
+                className="about-dialog service-stop-dialog"
+                ref={serviceStopDialog}
+                aria-labelledby="service-stop-dialog-title"
+                onCancel={(event) => {
+                    if (serviceStopping) event.preventDefault();
+                }}
+            >
                 <article>
-                    <h2>{lang.preferences.aiStopServiceTitle}</h2>
+                    <h2 id="service-stop-dialog-title">{lang.preferences.aiStopServiceTitle}</h2>
                     <p>{lang.preferences.aiStopServiceConfirm}</p>
                     <form onSubmit={onStopAiService}>
                         <button

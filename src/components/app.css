@@ -42,6 +42,12 @@
         "Source Han Sans JP", "Noto Sans CJK JP", sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
 }
 
+[lang]:lang(ko) {
+    font-family:
+        "Segoe UI Variable Text", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans CJK KR", "Noto Sans KR",
+        sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
 select, input, textarea {
     color: inherit;
 }
@@ -200,7 +206,7 @@ a > * {
     display: block;
     width: 100%;
     height: 100%;
-    background-image: radial-gradient(circle, #000000 10%, transparent 10%);
+    background-image: radial-gradient(circle, currentColor 10%, transparent 10%);
     background-repeat: no-repeat;
     background-position: 50%;
     transform: scale3d(10, 10, 1);

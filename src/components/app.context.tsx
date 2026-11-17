@@ -6,6 +6,7 @@ import { createContext, useEffect, useMemo } from "react";
 import { KeyBindingsContext } from "../hooks/useKeyBindings.js";
 import { useLang } from "../hooks/useLang.js";
 import { type Action as PrefAction, type State as PrefState, usePref } from "../hooks/usePref.js";
+import enUS from "../languages/en-US.json" assert { type: "json" };
 import { toastPubSub } from "./toast.js";
 
 interface IAppContext {
@@ -15,60 +16,8 @@ interface IAppContext {
     trimOptions: Required<TrimOptios>;
 }
 
-const enum Bits {
-    lang,
-    // lrcFormat,
-    builtInAudio,
-    // screenButton,
-    // themeColor,
-    prefState,
-}
-
-export const enum ChangBits {
-    lang = 1 << Bits.lang,
-    // lrcFormat = 1 << Bits.lrcFormat,
-    builtInAudio = 1 << Bits.builtInAudio,
-    // screenButton = 1 << Bits.screenButton,
-    // themeColor = 1 << Bits.themeColor,
-    prefState = 1 << Bits.prefState,
-}
-
-export const appContext = createContext<IAppContext>(undefined, (prev, next) => {
-    let bits = 0;
-
-    if (prev.lang !== next.lang) {
-        bits |= ChangBits.lang;
-    }
-
-    // const changed = (prop: keyof IAppContext["prefState"]) => {
-    //     return prev.prefState[prop] !== next.prefState[prop];
-    // };
-
-    // if (changed("spaceStart") || changed("spaceEnd") || changed("fixed")) {
-    //     bits |= ChangBits.lrcFormat;
-    // }
-
-    // if (changed("builtInAudio")) {
-    //     bits |= ChangBits.builtInAudio;
-    // }
-    // if (changed("screenButton")) {
-    //     bits |= ChangBits.screenButton;
-    // }
-
-    // if (changed("themeColor")) {
-    //     bits |= ChangBits.themeColor;
-    // }
-
-    if (prev.prefState.builtInAudio !== next.prefState.builtInAudio) {
-        bits |= ChangBits.builtInAudio;
-    }
-
-    if (prev.prefState !== next.prefState) {
-        bits |= ChangBits.prefState;
-    }
-
-    return bits;
-});
+export const langContext = createContext<Language>(enUS);
+export const appContext = createContext<IAppContext>(undefined as unknown as IAppContext);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [prefState, prefDispatch] = usePref(() => localStorage.getItem(LSK.preferences) || STRINGS.emptyString);
@@ -85,9 +34,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, [prefState.lang, setLang]);
 
     useEffect(() => {
-        document.title = BRAND.fullname;
+        document.title = location.hostname === "lrc.sgmy.org" ? BRAND.fullname : BRAND.name;
         document.documentElement.lang = prefState.lang;
-    }, [lang, prefState, prefState.lang]);
+    }, [prefState.lang]);
 
     const value = useMemo(() => {
         return {
@@ -102,8 +51,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, [lang, prefDispatch, prefState]);
 
     return (
-        <appContext.Provider value={value}>
-            <KeyBindingsContext.Provider value={prefState.keyBindings}>{children}</KeyBindingsContext.Provider>
-        </appContext.Provider>
+        <langContext.Provider value={lang}>
+            <appContext.Provider value={value}>
+                <KeyBindingsContext.Provider value={prefState.keyBindings}>{children}</KeyBindingsContext.Provider>
+            </appContext.Provider>
+        </langContext.Provider>
     );
 };

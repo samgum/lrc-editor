@@ -22,7 +22,7 @@ function Read-AiAlignerLocation {
     if (-not (Test-Path -LiteralPath $LocationFile)) {
         return $null
     }
-    $candidate = (Get-Content -LiteralPath $LocationFile -Raw).Trim()
+    $candidate = [System.IO.File]::ReadAllText($LocationFile, [System.Text.Encoding]::UTF8).Trim([char]0xFEFF).Trim()
     if (Test-AiAlignerInstallation -Candidate $candidate) {
         return [System.IO.Path]::GetFullPath($candidate).TrimEnd([System.IO.Path]::DirectorySeparatorChar)
     }

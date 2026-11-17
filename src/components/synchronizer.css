@@ -178,7 +178,6 @@
     display: grid;
     gap: 9px;
     padding: 13px;
-    overflow: hidden;
     color: #f6f3f5;
     background: #17191f;
     border: 1px solid rgba(var(--theme-rgb), 0.48);
@@ -1816,8 +1815,8 @@
 }
 
 .word-stage-delete:hover:not(:disabled), .word-stage-delete:focus-visible {
-    color: #b72f47;
-    border-color: #c64255;
+    color: var(--error-color);
+    border-color: var(--error-color);
 }
 
 .word-stage-draft-actions {
@@ -1915,22 +1914,32 @@
 .space-button {
     touch-action: none;
     position: fixed;
-    right: 24px;
-    bottom: 72px;
+    right: max(24px, env(safe-area-inset-right));
+    bottom: calc(72px + env(safe-area-inset-bottom));
     z-index: 50;
+    display: grid;
+    place-items: center;
     width: 82px;
     height: 82px;
+    padding: 6px;
     color: var(--theme-contrast-color);
     background: var(--theme-color);
     border: 0;
     border-radius: 50%;
     box-shadow: 0 12px 30px #00000033;
     font-size: 0;
+    text-align: center;
 }
 
-.space-button::after {
+.space-button:not([data-shortcut]) {
     font-size: 0.72rem;
-    content: "SPACE";
+    font-weight: 700;
+}
+
+.space-button[data-shortcut]::after {
+    font-size: 0.72rem;
+    font-weight: 700;
+    content: attr(data-shortcut);
 }
 
 @media (width <= 820px) {
@@ -1999,22 +2008,6 @@
     .word-waveform-panel .word-waveform-current strong {
         font-size: 1.3rem;
         text-align: center;
-    }
-
-    .word-waveform-view-controls {
-        display: contents;
-    }
-
-    .word-waveform-view-switch {
-        grid-column: 1;
-        grid-row: 2;
-        justify-self: start;
-    }
-
-    .word-waveform-view-controls > button {
-        grid-column: 2;
-        grid-row: 2;
-        justify-self: end;
     }
 
     .word-waveform-view-controls > span, .word-waveform-hint {
@@ -2307,8 +2300,8 @@
     }
 
     .space-button {
-        right: 16px;
-        bottom: 120px;
+        right: max(16px, env(safe-area-inset-right));
+        bottom: calc(120px + env(safe-area-inset-bottom));
         width: 72px;
         height: 72px;
     }

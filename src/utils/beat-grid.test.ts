@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
     addTempoTap,
@@ -13,22 +13,17 @@ import {
 
 describe("optional beat grid", () => {
     it("covers the new controls in all nine interface languages", () => {
+        const langDir = new URL("../languages/", import.meta.url);
+        const localeFiles = readdirSync(langDir).filter((file) => file.endsWith(".json")).sort();
         const english =
             JSON.parse(readFileSync(new URL("../languages/en-US.json", import.meta.url), "utf8")).advancedLyrics;
-        const chinese =
-            JSON.parse(readFileSync(new URL("../languages/zh-CN.json", import.meta.url), "utf8")).advancedLyrics;
-        const other = JSON.parse(readFileSync(new URL("../const/feature_translations.json", import.meta.url), "utf8"));
         const keys = Object.keys(english).filter((key) =>
             key.startsWith("beat")
             || ["waveformHeight", "waveformBrightness", "spectrumCaptureHint", "lineSpectrumCaptureHint"].includes(key)
         );
-        const languages = [
-            english,
-            chinese,
-            ...Object.values(other).map((language) =>
-                (language as { advancedLyrics: Record<string, string> }).advancedLyrics
-            ),
-        ];
+        const languages = localeFiles.map((file) =>
+            JSON.parse(readFileSync(new URL(file, langDir), "utf8")).advancedLyrics as Record<string, string>
+        );
         expect(languages).toHaveLength(9);
         for (const language of languages) {
             for (const key of keys) expect(language[key]).toBeTypeOf("string");

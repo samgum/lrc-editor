@@ -1,7 +1,7 @@
 {
     "extensionName": { "message": "LRC Editor Media Bridge" },
     "extensionDescription": {
-        "message": "Resolve localmente YouTube, Bilibili e links compartilhados do NetEase para o LRC Editor."
+        "message": "Resolve localmente áudio do YouTube, Bilibili, NetEase e faixas públicas do QQ Music para o LRC Editor."
     },
     "supportedSources": { "message": "Fontes compatíveis" },
     "neteaseShareLinks": { "message": "Links compartilhados do NetEase" },

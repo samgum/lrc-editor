@@ -116,7 +116,7 @@ const AES_ECB_DECRYPT = async (keyData: Uint8Array, data: Uint8Array): Promise<U
         cipher.set(clip, 0);
         cipher.set(new Uint8Array(encryptedPadding).slice(0, 16), 16);
 
-        const result = await crypto.subtle.decrypt({ name: "AES-CBC", iv: new ArrayBuffer(16) }, cryptoKey, cipher);
+        const result = await crypto.subtle.decrypt(AES, cryptoKey, cipher);
         decrypted.set(new Uint8Array(result), curser);
     }
 
@@ -124,70 +124,109 @@ const AES_ECB_DECRYPT = async (keyData: Uint8Array, data: Uint8Array): Promise<U
 };
 
 ncmcWorker.addEventListener("message", async (ev) => {
-    const file: File = ev.data;
-    const filebuffer = new FileReaderSync().readAsArrayBuffer(file);
-    const dataview = new DataView(filebuffer);
+    try {
+        if (!crypto?.subtle) {
+            ncmcWorker.postMessage<IMessage>({ type: "error", payload: "Web Crypto API is unavailable" });
+            return;
+        }
+        const file: File = ev.data;
+        const filebuffer = new FileReaderSync().readAsArrayBuffer(file);
+        const dataview = new DataView(filebuffer);
 
-    if (dataview.getUint32(0, true) !== 0x4e455443 || dataview.getUint32(4, true) !== 0x4d414446) {
-        ncmcWorker.postMessage<IMessage>({ type: "error", payload: "not ncm file" });
+        if (
+            filebuffer.byteLength < 14
+            || dataview.getUint32(0, true) !== 0x4e455443
+            || dataview.getUint32(4, true) !== 0x4d414446
+        ) {
+            ncmcWorker.postMessage<IMessage>({ type: "error", payload: "not ncm file" });
+            return;
+        }
+
+        let offset = 10;
+
+        const keyDate = (
+            await ((): Promise<Uint8Array> => {
+                const keyLen = dataview.getUint32(offset, true);
+                offset += 4;
+                if (keyLen < 32 || keyLen % 16 !== 0 || offset + keyLen > filebuffer.byteLength) {
+                    throw new RangeError("corrupted ncm key block");
+                }
+                const data = new Uint8Array(filebuffer, offset, keyLen);
+                const xored = new Uint8Array(keyLen);
+                for (let index = 0; index < keyLen; index++) {
+                    xored[index] = data[index] ^ 0x64;
+                }
+                offset += keyLen;
+
+                return AES_ECB_DECRYPT(CORE_KEY, xored);
+            })()
+        ).slice(17);
+
+        if (keyDate.length === 0) {
+            throw new RangeError("empty ncm stream key");
+        }
+
+        const keyBox = ((): Uint8Array => {
+            const box = new Uint8Array(256);
+            for (let i = 0; i < 256; i++) {
+                box[i] = i;
+            }
+
+            const keyDataLen = keyDate.length;
+
+            let j = 0;
+
+            for (let i = 0; i < 256; i++) {
+                j = (box[i] + j + keyDate[i % keyDataLen]) & 0xff;
+                const tmp = box[i];
+                box[i] = box[j];
+                box[j] = tmp;
+            }
+
+            const schedule = new Uint8Array(256);
+            for (let k = 0; k < 256; k++) {
+                const i = (k + 1) & 0xff;
+                const si = box[i];
+                const sj = box[(i + si) & 0xff];
+                schedule[k] = box[(si + sj) & 0xff];
+            }
+            return schedule;
+        })();
+
+        if (offset + 4 > filebuffer.byteLength) {
+            throw new RangeError("corrupted ncm metadata block");
+        }
+        const metaLen = dataview.getUint32(offset, true);
+        offset += metaLen + 4;
+        if (offset + 9 > filebuffer.byteLength) {
+            throw new RangeError("corrupted ncm cover block");
+        }
+        const coverLen = dataview.getUint32(offset + 5, true);
+        offset += coverLen + 13;
+        if (offset > filebuffer.byteLength) {
+            throw new RangeError("corrupted ncm audio offset");
+        }
+
+        // workaround for Firefox which async function causes performance problems
+        // https://bugzilla.mozilla.org/show_bug.cgi?id=1521435
+        const decryptedData = ((): Uint8Array => {
+            const data = new Uint8Array(filebuffer, offset);
+            const dataLength = data.length;
+
+            for (let cur = 0; cur < dataLength; ++cur) {
+                data[cur] ^= keyBox[cur & 0xff];
+            }
+
+            return data;
+        })();
+
+        ncmcWorker.postMessage<IMessage>({ type: "success", payload: decryptedData }, [decryptedData.buffer]);
+    } catch (error) {
+        ncmcWorker.postMessage<IMessage>({
+            type: "error",
+            payload: error instanceof Error ? error.message : "ncm decode failed",
+        });
+    } finally {
         ncmcWorker.close();
     }
-
-    let offset = 10;
-
-    const keyDate = (
-        await ((): Promise<Uint8Array> => {
-            const keyLen = dataview.getUint32(offset, true);
-            offset += 4;
-            const data = new Uint8Array(filebuffer, offset, keyLen).map((uint8) => uint8 ^ 0x64);
-            offset += keyLen;
-
-            return AES_ECB_DECRYPT(CORE_KEY, data);
-        })()
-    ).slice(17);
-
-    const keyBox = ((): Uint8Array => {
-        const box = new Uint8Array(Array(256).keys());
-
-        const keyDataLen = keyDate.length;
-
-        let j = 0;
-
-        for (let i = 0; i < 256; i++) {
-            j = (box[i] + j + keyDate[i % keyDataLen]) & 0xff;
-            [box[i], box[j]] = [box[j], box[i]];
-        }
-
-        return box.map((_, i, arr) => {
-            i = (i + 1) & 0xff;
-            const si = arr[i];
-            const sj = arr[(i + si) & 0xff];
-            return arr[(si + sj) & 0xff];
-        });
-    })();
-
-    {
-        offset += dataview.getUint32(offset, true) + 4;
-        offset += dataview.getUint32(offset + 5, true) + 13;
-    }
-
-    // workaround for Firefox which async function causes performance problems
-    // https://bugzilla.mozilla.org/show_bug.cgi?id=1521435
-    const decryptedData = ((): Uint8Array => {
-        const data = new Uint8Array(filebuffer, offset);
-        const dataLength = data.length;
-
-        // console.time("decryptedFile");
-
-        for (let cur = 0; cur < dataLength; ++cur) {
-            data[cur] ^= keyBox[cur & 0xff];
-        }
-
-        // console.timeEnd("decryptedFile");
-
-        return data;
-    })();
-
-    ncmcWorker.postMessage<IMessage>({ type: "success", payload: decryptedData }, [decryptedData.buffer]);
-    ncmcWorker.close();
 });

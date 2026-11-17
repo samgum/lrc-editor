@@ -24,11 +24,17 @@ const alignerRequestTypes = new Set([
 const mobileExtension = import.meta.env.mobileExtension === true;
 
 window.addEventListener("message", (event: MessageEvent<unknown>) => {
-    if (event.source !== window || event.origin !== location.origin || !isRequest(event.data)) {
+    if (
+        event.source !== window
+        || event.origin !== location.origin
+        || !isAuthorizedEditorDocument()
+        || !isRequest(event.data)
+    ) {
         return;
     }
     const request = event.data;
-    const expectedResponseType = isLocalAlignerRequest(request) ? alignerResponseType : responseType;
+    const alignerRequest = isLocalAlignerRequest(request);
+    const expectedResponseType = alignerRequest ? alignerResponseType : responseType;
     window.postMessage(
         {
             type: ackType,
@@ -39,6 +45,18 @@ window.addEventListener("message", (event: MessageEvent<unknown>) => {
         },
         location.origin,
     );
+    if (mobileExtension && alignerRequest) {
+        window.postMessage(
+            {
+                type: alignerResponseType,
+                requestId: request.requestId,
+                ok: false,
+                error: "MOBILE_UNSUPPORTED",
+            },
+            location.origin,
+        );
+        return;
+    }
 
     void chrome.runtime.sendMessage(request).then(
         (response: unknown) => {
@@ -83,6 +101,14 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
     sendResponse({ ok: true });
     return false;
 });
+
+const isAuthorizedEditorDocument = (): boolean => {
+    const host = location.hostname;
+    if (host !== "localhost" && host !== "127.0.0.1") {
+        return true;
+    }
+    return document.querySelector("meta[name=\"application-name\"]")?.getAttribute("content") === "LRC Editor";
+};
 
 const postFailure = (requestId: string, type: string): void => {
     window.postMessage(

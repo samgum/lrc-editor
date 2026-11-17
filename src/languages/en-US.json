@@ -441,6 +441,7 @@
         "splitTranslation": "Split translation",
         "overwrite": "Lyrics overwrite",
         "translation": "Replacement / translation lyrics",
+        "translationShort": "Translation",
         "sections": "Remove section labels",
         "tracklist": "Clean tracklist",
         "replaceText": "Replace text",

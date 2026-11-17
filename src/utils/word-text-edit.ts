@@ -40,7 +40,7 @@ const exactTokens = (text: string): { start: number; end: number }[] => {
 export const editWordTimedLine = (line: AdvancedLyricLine, text: string, edit?: TextEditRange): AdvancedLyricLine => {
     const before = lineText(line);
     if (text === before) return line;
-    if (!text.trim()) return { ...line, words: [{ text }] };
+    if (!text.trim()) return { ...line, endMs: undefined, words: [{ text }] };
     const oldAtoms = atoms(before);
     const newAtoms = atoms(text);
     const mapping = new Int32Array(before.length).fill(-1);
@@ -172,8 +172,10 @@ export const editWordTimedLine = (line: AdvancedLyricLine, text: string, edit?: 
         words.push(emptyTimed[emptyIndex].word);
         sources.push(emptyTimed[emptyIndex].source);
     }
+    const firstTimedStart = words.find((word) => word.startMs !== undefined)?.startMs;
     return {
         ...line,
+        startMs: sources[0] === 0 ? line.startMs : (firstTimedStart ?? line.startMs),
         endMs: sources.at(-1) === line.words.length - 1 ? line.endMs : words.at(-1)?.endMs,
         words,
     };

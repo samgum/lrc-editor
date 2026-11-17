@@ -1,4 +1,5 @@
 :root {
+    color-scheme: light dark;
     --white: #eeeeee;
     --black: #111111;
 
@@ -69,7 +70,8 @@
     }
 }
 
-[data-theme="light"] {
+[data-theme="light"], :root:has(> head > meta[name="color-scheme"][content="light"]) {
+    color-scheme: light;
     --error-color: #b4233c;
     --success-color: #13795b;
     --warning-color: #9a5b13;
@@ -87,7 +89,8 @@
     --theme-foreground-rgb: var(--theme-foreground-light-rgb);
 }
 
-[data-theme="dark"] {
+[data-theme="dark"], :root:has(> head > meta[name="color-scheme"][content="dark"]) {
+    color-scheme: dark;
     --error-color: #ff9eb0;
     --success-color: #5cd6ad;
     --warning-color: #f5b963;

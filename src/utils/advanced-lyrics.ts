@@ -71,17 +71,25 @@ export const parseFlexibleTimestamp = (value: string): number | undefined => {
     let trimmed = value.trim();
     if (trimmed.startsWith("[") || trimmed.startsWith("<")) trimmed = trimmed.slice(1);
     if (trimmed.endsWith("]") || trimmed.endsWith(">")) trimmed = trimmed.slice(0, -1);
+    trimmed = trimmed.trim();
     if (!trimmed) return undefined;
     const parts = trimmed.split(":");
     let seconds: number;
     if (parts.length === 1) {
-        seconds = Number.parseFloat(parts[0]);
+        if (!/^\d+(?:[.,]\d+)?$/u.test(parts[0])) return undefined;
+        seconds = Number(parts[0].replace(",", "."));
     } else if (parts.length === 2) {
-        seconds = Number.parseInt(parts[0], 10) * 60 + Number.parseFloat(parts[1].replace(",", "."));
+        if (!/^\d+$/u.test(parts[0]) || !/^\d+(?:[.,]\d+)?$/u.test(parts[1])) return undefined;
+        seconds = Number(parts[0]) * 60 + Number(parts[1].replace(",", "."));
     } else if (parts.length === 3) {
-        seconds = Number.parseInt(parts[0], 10) * 3600
-            + Number.parseInt(parts[1], 10) * 60
-            + Number.parseFloat(parts[2].replace(",", "."));
+        if (
+            !/^\d+$/u.test(parts[0]) || !/^\d+$/u.test(parts[1]) || !/^\d+(?:[.,]\d+)?$/u.test(parts[2])
+        ) {
+            return undefined;
+        }
+        seconds = Number(parts[0]) * 3600
+            + Number(parts[1]) * 60
+            + Number(parts[2].replace(",", "."));
     } else {
         return undefined;
     }
@@ -125,14 +133,23 @@ export const parseEnhancedLrc = (source: string): AdvancedLyricsDocument => {
 
         const contentStart = timeMatches.at(-1)!.index! + timeMatches.at(-1)![0].length;
         const content = rawLine.slice(contentStart);
-        const parsedWords = parseEnhancedWords(content, parseLrcTimestamp(timeMatches[0][1], timeMatches[0][2]));
+        const firstStartMs = parseLrcTimestamp(timeMatches[0][1], timeMatches[0][2]);
+        const parsedWords = parseEnhancedWords(content, firstStartMs);
         if (parsedWords.wordTimed) timingMode = "word";
 
         for (const match of timeMatches) {
+            const startMs = parseLrcTimestamp(match[1], match[2]);
+            const deltaMs = startMs - firstStartMs;
             lines.push({
-                startMs: parseLrcTimestamp(match[1], match[2]),
-                endMs: parsedWords.endMs,
-                words: parsedWords.words,
+                startMs,
+                endMs: parsedWords.endMs === undefined ? undefined : Math.max(0, parsedWords.endMs + deltaMs),
+                words: deltaMs === 0
+                    ? parsedWords.words.map((word) => ({ ...word }))
+                    : parsedWords.words.map((word) => ({
+                        ...word,
+                        startMs: word.startMs === undefined ? undefined : Math.max(0, word.startMs + deltaMs),
+                        endMs: word.endMs === undefined ? undefined : Math.max(0, word.endMs + deltaMs),
+                    })),
             });
         }
     }
@@ -232,7 +249,7 @@ export const decodeKrc = (input: Uint8Array): string => {
         return new TextDecoder("utf-8", { fatal: true }).decode(unzlibSync(compressed));
     } catch (error) {
         const failure = new Error("The KRC file is damaged or uses an unsupported compression variant");
-        (failure as Error & { cause?: unknown }).cause = error;
+        Object.defineProperty(failure, "cause", { value: error, configurable: true, writable: true });
         throw failure;
     }
 };
@@ -253,7 +270,8 @@ export const parseTtml = (source: string, parseXml: XmlParser = browserXmlParser
     const root = document.documentElement;
     if (localName(root) !== "tt") throw new Error("The XML file is not TTML");
 
-    const frameRate = Number.parseFloat(attributeByLocalName(root, "frameRate") || "30") || 30;
+    const parsedFrameRate = Number.parseFloat(attributeByLocalName(root, "frameRate") || "30");
+    const frameRate = Number.isFinite(parsedFrameRate) && parsedFrameRate > 0 ? parsedFrameRate : 30;
     const metadata = readTtmlMetadata(document);
     const lines: AdvancedLyricLine[] = [];
     let foundWordTiming = false;
@@ -316,7 +334,7 @@ export const parseTtml = (source: string, parseXml: XmlParser = browserXmlParser
 
 export const parseSrt = (source: string): AdvancedLyricsDocument => {
     const lines: AdvancedLyricLine[] = [];
-    const blocks = normalizeLineEndings(source).trim().split(/\n{2,}/u);
+    const blocks = normalizeLineEndings(source).trim().split(/\n(?:\s*\n)+/u);
     const timing = /^(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})\s*-->\s*(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})(?:\s+.*)?$/u;
 
     for (const block of blocks) {
@@ -516,15 +534,22 @@ export const toTtml = (document: AdvancedLyricsDocument): string => {
     return `<?xml version="1.0" encoding="UTF-8"?>\n<tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata" xmlns:itunes="http://music.apple.com/lyric-ttml-internal" itunes:timing="${timing}">\n  <head>\n    <metadata>\n${metadata}\n    </metadata>\n  </head>\n  <body>\n    <div>\n${body}\n    </div>\n  </body>\n</tt>\n`;
 };
 
+const lastTimedWordEnd = (words: readonly TimedWord[]): number | undefined => {
+    for (let index = words.length - 1; index >= 0; index -= 1) {
+        if (words[index].endMs !== undefined) return words[index].endMs;
+    }
+    return undefined;
+};
+
 export const toAssKaraoke = (document: AdvancedLyricsDocument): string => {
     for (const [lineIndex, line] of document.lines.entries()) {
-        if (!lineText(line)) continue;
+        if (!lineText(line).trim()) continue;
         const nextLineStart = document.lines.slice(lineIndex + 1)
             .find((candidate) => candidate.startMs !== undefined)?.startMs;
-        const lastWordEnd = [...line.words].reverse().find((word) => word.endMs !== undefined)?.endMs;
+        const lastWordEnd = lastTimedWordEnd(line.words);
         if (
             line.startMs === undefined
-            || line.words.some((word) => word.text && word.startMs === undefined)
+            || line.words.some((word) => Boolean(word.text.trim()) && word.startMs === undefined)
             || (line.endMs ?? lastWordEnd ?? nextLineStart) === undefined
         ) {
             throw new Error("ASS karaoke export requires complete word timing");
@@ -533,7 +558,7 @@ export const toAssKaraoke = (document: AdvancedLyricsDocument): string => {
     const resolvedLines = resolveLineRanges(document.lines);
     const events: string[] = [];
     for (const [lineIndex, line] of document.lines.entries()) {
-        if (!lineText(line)) continue;
+        if (!lineText(line).trim()) continue;
         const range = resolvedLines[lineIndex];
         const words = resolveWordRanges(line, range.startMs, range.endMs);
         let cursorCentiseconds = 0;
@@ -603,7 +628,7 @@ export const serializeLyrics = (
 };
 
 export const tokenizeLyricText = (text: string): readonly TimedWord[] => {
-    if (!text) return [{ text: "" }];
+    if (!text.trim()) return [{ text: "" }];
     const lexicalPieces = text.match(
         /[\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]+|[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]|[\p{L}\p{N}\p{M}]+(?:['’ʼ-][\p{L}\p{N}\p{M}]+)*|[^\p{L}\p{N}\p{M}\s]|\s+/gu,
     ) || [text];
@@ -841,7 +866,7 @@ const parseTtmlTime = (value: string, frameRate: number): number | undefined => 
     const trimmed = value.trim();
     if (!trimmed) return undefined;
     const iso = /^PT(?:(\d+(?:\.\d+)?)H)?(?:(\d+(?:\.\d+)?)M)?(?:(\d+(?:\.\d+)?)S)?$/iu.exec(trimmed);
-    if (iso) {
+    if (iso && (iso[1] !== undefined || iso[2] !== undefined || iso[3] !== undefined)) {
         return Math.round((Number(iso[1] || 0) * 3600 + Number(iso[2] || 0) * 60 + Number(iso[3] || 0)) * 1000);
     }
     const unit = /^(\d+(?:\.\d+)?)(ms|s|m|h|f)$/iu.exec(trimmed);
@@ -857,9 +882,11 @@ const parseTtmlTime = (value: string, frameRate: number): number | undefined => 
     }
     const parts = trimmed.split(":");
     if (parts.length === 4) {
-        return Math.round(
+        if (!parts.every((part) => /^\d+(?:\.\d+)?$/u.test(part))) return undefined;
+        const result = Math.round(
             (Number(parts[0]) * 3600 + Number(parts[1]) * 60 + Number(parts[2]) + Number(parts[3]) / frameRate) * 1000,
         );
+        return Number.isFinite(result) && result >= 0 ? result : undefined;
     }
     return parseFlexibleTimestamp(trimmed);
 };
@@ -951,7 +978,7 @@ const resolveLineRanges = (lines: readonly AdvancedLyricLine[]): ResolvedRange[]
     return lines.map((line, index) => {
         const startMs = Math.max(0, Math.round(line.startMs ?? previousEnd));
         const nextStart = lines.slice(index + 1).find((candidate) => candidate.startMs !== undefined)?.startMs;
-        const wordEnd = [...line.words].reverse().find((word) => word.endMs !== undefined)?.endMs;
+        const wordEnd = lastTimedWordEnd(line.words);
         const endMs = Math.max(startMs + 1, Math.round(line.endMs ?? wordEnd ?? nextStart ?? startMs + 2000));
         previousEnd = endMs;
         return { startMs, endMs };

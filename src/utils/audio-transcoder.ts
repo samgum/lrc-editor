@@ -1,6 +1,7 @@
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import ffmpegWorkerURL from "@ffmpeg/ffmpeg/worker?worker&url";
 import { loadAudioEngineWasmUrl } from "./audio-engine-assets.js";
+import { randomId } from "./random-id.js";
 
 const maximumInputBytes = 512 * 1024 * 1024;
 
@@ -13,7 +14,7 @@ export const transcodeAudioForBrowser = async (
     }
 
     const ffmpeg = await createFFmpeg();
-    const id = crypto.randomUUID();
+    const id = randomId();
     const extension = /\.([A-Za-z0-9]{1,8})$/.exec(file.name)?.[1].toLowerCase() || "bin";
     const inputName = `input-${id}.${extension}`;
     const outputName = `output-${id}.m4a`;

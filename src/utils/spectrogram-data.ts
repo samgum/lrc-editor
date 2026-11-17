@@ -45,55 +45,69 @@ export const calculateSpectrogram = (channels: readonly Float32Array[], sampleRa
         for (let bit = 0; bit < 10; bit++) result = result * 2 + (index >>> bit & 1);
         return result;
     });
+    const twiddleReal = new Float64Array(fftSize);
+    const twiddleImag = new Float64Array(fftSize);
+    for (let size = 2; size <= fftSize; size *= 2) {
+        const half = size / 2;
+        for (let index = 0; index < half; index++) {
+            const angle = -2 * Math.PI * index / size;
+            twiddleReal[half + index] = Math.cos(angle);
+            twiddleImag[half + index] = Math.sin(angle);
+        }
+    }
+    const scaleNorm = 1 / (fftSize / 2);
     for (let column = 0; column < columns; column++) {
         power.fill(0);
         const start = column * hop - fftSize / 2;
+        const firstValid = Math.max(0, -start);
         for (const channel of channels) {
-            for (let index = 0; index < fftSize; index++) {
-                real[reverse[index]] = (channel[start + index] || 0) * window[index];
+            const lastValid = Math.min(fftSize, channel.length - start);
+            real.fill(0);
+            for (let index = firstValid; index < lastValid; index++) {
+                real[reverse[index]] = channel[start + index] * window[index];
             }
             imaginary.fill(0);
             for (let size = 2; size <= fftSize; size *= 2) {
                 const half = size / 2;
-                const cosine = Math.cos(-2 * Math.PI / size);
-                const sine = Math.sin(-2 * Math.PI / size);
                 for (let block = 0; block < fftSize; block += size) {
-                    let unitReal = 1;
-                    let unitImaginary = 0;
                     for (let index = 0; index < half; index++) {
                         const left = block + index;
                         const right = left + half;
+                        const unitReal = twiddleReal[half + index];
+                        const unitImaginary = twiddleImag[half + index];
                         const nextReal = unitReal * real[right] - unitImaginary * imaginary[right];
                         const nextImaginary = unitReal * imaginary[right] + unitImaginary * real[right];
                         real[right] = real[left] - nextReal;
                         imaginary[right] = imaginary[left] - nextImaginary;
                         real[left] += nextReal;
                         imaginary[left] += nextImaginary;
-                        const rotatedReal = unitReal * cosine - unitImaginary * sine;
-                        unitImaginary = unitReal * sine + unitImaginary * cosine;
-                        unitReal = rotatedReal;
                     }
                 }
             }
-            for (let bin = 0; bin < bins; bin++) power[bin] += real[bin] ** 2 + imaginary[bin] ** 2;
+            for (let bin = 0; bin < bins; bin++) {
+                power[bin] += real[bin] * real[bin] + imaginary[bin] * imaginary[bin];
+            }
         }
+        const columnOffset = column * bins;
         for (let bin = 0; bin < bins; bin++) {
-            const magnitude = Math.sqrt(power[bin] / channels.length) / (fftSize / 2);
+            const magnitude = Math.sqrt(power[bin] / channels.length) * scaleNorm;
             const decibels = 20 * Math.log10(Math.max(1e-12, magnitude));
-            values[column * bins + bin] = Math.max(0, Math.min(255, Math.round((decibels + 90) / 90 * 255)));
+            values[columnOffset + bin] = Math.max(0, Math.min(255, Math.round((decibels + 90) / 90 * 255)));
         }
     }
     return { values, columns, bins, hop, fftSize, sampleRate };
 };
 
 export const spectrumFrequencyAt = (fractionFromTop: number, maximum: number): number => {
+    const safeMax = Math.max(80, maximum);
     const low = Math.log1p(40 / 700);
-    const high = Math.log1p(maximum / 700);
+    const high = Math.log1p(safeMax / 700);
     return 700 * Math.expm1(high - Math.max(0, Math.min(1, fractionFromTop)) * (high - low));
 };
 
 export const spectrumFractionAt = (frequency: number, maximum: number): number => {
+    const safeMax = Math.max(80, maximum);
     const low = Math.log1p(40 / 700);
-    const high = Math.log1p(maximum / 700);
+    const high = Math.log1p(safeMax / 700);
     return (high - Math.log1p(frequency / 700)) / (high - low);
 };

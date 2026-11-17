@@ -23,8 +23,3 @@ declare global {
         const langMap: readonly [code: string, display: string][];
     }
 }
-
-declare module "react" {
-    function useContext<T>(context: Context<T>, observedBits?: number | boolean): T;
-    function createContext<T>(defaultValue?: T, calculateChangedBits?: (prev: T, next: T) => number): Context<T>;
-}
