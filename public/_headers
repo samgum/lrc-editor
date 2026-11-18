@@ -12,6 +12,10 @@
   Cache-Control: no-cache
   X-Frame-Options: DENY
 
+/youtube-token
+  Cache-Control: no-cache
+  Content-Security-Policy: frame-ancestors 'self' chrome-extension: moz-extension:
+
 /youtube-token.html
   Cache-Control: no-cache
   Content-Security-Policy: frame-ancestors 'self' chrome-extension: moz-extension:
