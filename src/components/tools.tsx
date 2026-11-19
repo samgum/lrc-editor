@@ -41,6 +41,7 @@ import { appContext } from "./app.context.js";
 import { StyledSelect } from "./styled-select.js";
 import { CheckSVG, CopySVG, DownloadSVG, OpenFileSVG } from "./svg.js";
 import { toastPubSub } from "./toast.js";
+import "./tools.css";
 
 type Tool =
     | "overwrite"

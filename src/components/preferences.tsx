@@ -19,6 +19,8 @@ import { AboutDialog } from "./about.js";
 import { appContext } from "./app.context.js";
 import { StyledSelect } from "./styled-select.js";
 import { toastPubSub } from "./toast.js";
+import "toggle-switch-css/src/toggle-switch.css";
+import "./preferences.css";
 
 const numberInputProps = { type: "number", step: 1 } as const;
 

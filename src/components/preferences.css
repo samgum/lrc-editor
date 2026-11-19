@@ -320,29 +320,6 @@
     height: var(--knob-size);
 }
 
-@supports (-ms-ime-align: auto) {
-    .toggle-switch {
-        --switch-offset: 8px;
-        --switch-width: 60px;
-    }
-
-    .toggle-switch-label::after {
-        box-shadow: 0 0 8px #11111188;
-    }
-
-    :hover > .toggle-switch-label::after {
-        box-shadow: 0 0 8px #11111188, 0 0 0 14px rgba(var(--theme-rgb), 0.2);
-    }
-
-    .toggle-switch-label {
-        --knob-x: -16px;
-    }
-
-    :checked + .toggle-switch-label {
-        --knob-x: 16px;
-    }
-}
-
 .color-picker {
     position: relative;
     display: inline-flex;

@@ -1,5 +1,5 @@
-EDGE >= 16
-Firefox >= 60
-Chrome >= 61
-Safari >= 10
-ios_saf >= 10
+Chrome >= 109
+Edge >= 109
+Firefox >= 121
+Safari >= 16.4
+ios_saf >= 16.4

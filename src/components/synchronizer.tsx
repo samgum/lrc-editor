@@ -44,6 +44,8 @@ import { ProblemSVG } from "./svg.js";
 import { TimingWaveformPanel } from "./timing-waveform-panel.js";
 import type { WaveformHandle } from "./waveform.js";
 import { WordTimingStage } from "./word-timing-stage.js";
+import "./asidepanel.css";
+import "./synchronizer.css";
 
 const EMPTY_PLAYBACK_WORDS: readonly number[] = [];
 

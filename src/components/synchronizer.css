@@ -999,6 +999,11 @@
     border-bottom: 0;
 }
 
+.lyric-list > .line:nth-child(n+25) {
+    content-visibility: auto;
+    contain-intrinsic-size: auto none auto 56px;
+}
+
 .line > * {
     pointer-events: none;
 }

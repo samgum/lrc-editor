@@ -10,6 +10,7 @@ import {
 } from "../utils/keybindings.js";
 import { appContext } from "./app.context.js";
 import { toastPubSub } from "./toast.js";
+import "./keybindings.css";
 
 const actionLabelKey: Record<InputAction, keyof Language["keybindings"]["actions"]> = {
     [InputAction.Sync]: "sync",

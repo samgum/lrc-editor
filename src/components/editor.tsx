@@ -48,6 +48,8 @@ import { LyricsModeSwitch } from "./lyrics-mode-switch.js";
 import { StyledSelect } from "./styled-select.js";
 import { AiAlignSVG, CloudAiSVG, CopySVG, DownloadSVG, OpenFileSVG, SynchronizerSVG, UtilitySVG } from "./svg.js";
 import { toastPubSub } from "./toast.js";
+import "./editor.css";
+import "./advanced-lyrics.css";
 
 const disableCheck = {
     autoCapitalize: "none",

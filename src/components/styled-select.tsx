@@ -6,6 +6,7 @@ import {
     type SelectOption,
     selectPopupPlacement,
 } from "../utils/select-control.js";
+import "./styled-select.css";
 
 interface StyledSelectProps {
     value: string | number;
