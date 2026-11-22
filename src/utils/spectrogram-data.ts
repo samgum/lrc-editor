@@ -92,7 +92,7 @@ export const calculateSpectrogram = (channels: readonly Float32Array[], sampleRa
         for (let bin = 0; bin < bins; bin++) {
             const magnitude = Math.sqrt(power[bin] / channels.length) * scaleNorm;
             const decibels = 20 * Math.log10(Math.max(1e-12, magnitude));
-            values[columnOffset + bin] = Math.max(0, Math.min(255, Math.round((decibels + 75) / 72 * 255)));
+            values[columnOffset + bin] = Math.max(0, Math.min(255, Math.round((decibels + 66) / 52 * 255)));
         }
     }
     return { values, columns, bins, hop, fftSize, sampleRate };
@@ -100,14 +100,14 @@ export const calculateSpectrogram = (channels: readonly Float32Array[], sampleRa
 
 export const spectrumFrequencyAt = (fractionFromTop: number, maximum: number): number => {
     const safeMax = Math.max(80, maximum);
-    const low = Math.log1p(40 / 700);
-    const high = Math.log1p(safeMax / 700);
-    return 700 * Math.expm1(high - Math.max(0, Math.min(1, fractionFromTop)) * (high - low));
+    const low = Math.log1p(40 / 300);
+    const high = Math.log1p(safeMax / 300);
+    return 300 * Math.expm1(high - Math.max(0, Math.min(1, fractionFromTop)) * (high - low));
 };
 
 export const spectrumFractionAt = (frequency: number, maximum: number): number => {
     const safeMax = Math.max(80, maximum);
-    const low = Math.log1p(40 / 700);
-    const high = Math.log1p(safeMax / 700);
-    return (high - Math.log1p(frequency / 700)) / (high - low);
+    const low = Math.log1p(40 / 300);
+    const high = Math.log1p(safeMax / 300);
+    return (high - Math.log1p(frequency / 300)) / (high - low);
 };

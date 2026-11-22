@@ -127,7 +127,7 @@ const getSpectrogramAtlas = (
         [1.0, 255, 252, 240],
     ];
     for (let v = 0; v < 256; v++) {
-        const strength = (v / 255) ** 1.35;
+        const strength = v / 255;
         let stopIndex = 0;
         while (stopIndex < stops.length - 2 && strength > stops[stopIndex + 1][0]) {
             stopIndex += 1;
