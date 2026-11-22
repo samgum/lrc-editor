@@ -27,6 +27,8 @@ interface WordTimingStageProps {
     language: Language["advancedLyrics"];
     onSelectWord: (cursor: WordCursor) => void;
     onStamp: () => void;
+    onSyncStart: () => void;
+    onSyncEnd: () => void;
     onHoldStart: () => void;
     onHoldEnd: () => void;
     onHoldCancel: () => void;
@@ -61,6 +63,8 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
     language,
     onSelectWord,
     onStamp,
+    onSyncStart,
+    onSyncEnd,
     onHoldStart,
     onHoldEnd,
     onHoldCancel,
@@ -439,41 +443,70 @@ export const WordTimingStage: React.FC<WordTimingStageProps> = ({
                     <PlaySVG />
                     <span>{language.previewWord}</span>
                 </button>
-                <button
-                    type="button"
-                    className={`word-stage-capture${isHolding ? " holding" : ""}${
-                        captureMode === "waveform" ? " waveform-mode" : ""
-                    }`}
-                    disabled={!mediaReady || captureMode === "waveform"}
-                    onClick={() => captureMode === "tap" && onStamp()}
-                    onPointerDown={(event) => {
-                        if (captureMode !== "hold" || !mediaReady) return;
-                        if (event.pointerType === "mouse" && event.button !== 0) return;
-                        event.preventDefault();
-                        event.currentTarget.setPointerCapture(event.pointerId);
-                        onHoldStart();
-                    }}
-                    onPointerUp={(event) => {
-                        if (captureMode !== "hold") return;
-                        event.preventDefault();
-                        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-                            event.currentTarget.releasePointerCapture(event.pointerId);
-                        }
-                        onHoldEnd();
-                    }}
-                    onPointerCancel={() => captureMode === "hold" && onHoldCancel()}
-                >
-                    <span>
-                        {captureMode === "waveform"
-                            ? language.waveformCaptureButton
-                            : captureMode === "hold"
-                            ? (isHolding ? language.releaseWord : language.holdWord)
-                            : cursor.end
-                            ? language.captureWordEnd
-                            : language.captureWord}
-                    </span>
-                    {syncShortcutLabel && captureMode !== "waveform" && <kbd>{syncShortcutLabel}</kbd>}
-                </button>
+                {captureMode === "tap"
+                    ? (
+                        <div className="word-stage-rhythm" role="group" aria-label={language.captureMode}>
+                            <button
+                                type="button"
+                                className="word-stage-rhythm-edge"
+                                disabled={!mediaReady}
+                                onClick={onSyncStart}
+                            >
+                                <span>{language.syncStart}</span>
+                                <kbd>F</kbd>
+                            </button>
+                            <button
+                                type="button"
+                                className="word-stage-capture"
+                                disabled={!mediaReady}
+                                onClick={onStamp}
+                            >
+                                <span>{cursor.end ? language.captureWordEnd : language.syncContinuous}</span>
+                                {syncShortcutLabel && <kbd>{syncShortcutLabel}</kbd>}
+                            </button>
+                            <button
+                                type="button"
+                                className="word-stage-rhythm-edge"
+                                disabled={!mediaReady || word.startMs === undefined}
+                                onClick={onSyncEnd}
+                            >
+                                <span>{language.syncEnd}</span>
+                                <kbd>E</kbd>
+                            </button>
+                        </div>
+                    )
+                    : (
+                        <button
+                            type="button"
+                            className={`word-stage-capture${isHolding ? " holding" : ""}${
+                                captureMode === "waveform" ? " waveform-mode" : ""
+                            }`}
+                            disabled={!mediaReady || captureMode === "waveform"}
+                            onPointerDown={(event) => {
+                                if (captureMode !== "hold" || !mediaReady) return;
+                                if (event.pointerType === "mouse" && event.button !== 0) return;
+                                event.preventDefault();
+                                event.currentTarget.setPointerCapture(event.pointerId);
+                                onHoldStart();
+                            }}
+                            onPointerUp={(event) => {
+                                if (captureMode !== "hold") return;
+                                event.preventDefault();
+                                if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                                    event.currentTarget.releasePointerCapture(event.pointerId);
+                                }
+                                onHoldEnd();
+                            }}
+                            onPointerCancel={() => captureMode === "hold" && onHoldCancel()}
+                        >
+                            <span>
+                                {captureMode === "waveform"
+                                    ? language.waveformCaptureButton
+                                    : (isHolding ? language.releaseWord : language.holdWord)}
+                            </span>
+                            {syncShortcutLabel && captureMode !== "waveform" && <kbd>{syncShortcutLabel}</kbd>}
+                        </button>
+                    )}
                 <button
                     type="button"
                     className="word-stage-secondary"

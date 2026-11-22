@@ -4,6 +4,7 @@ import {
     AdvancedActionType,
     advancedLyricsReducer,
     initAdvancedLyricsState,
+    nextSyncWordCursor,
     nextWordCursor,
 } from "./useAdvancedLyrics.js";
 
@@ -474,5 +475,36 @@ describe("advanced lyrics timing state", () => {
 
         state = advancedLyricsReducer(state, { type: AdvancedActionType.deleteTime, payload: undefined });
         expect(state.document?.lines[0].startMs).toBe(2200);
+    });
+
+    it("supports start/end rhythm timing with explicit gaps and skips blank separator lines", () => {
+        let state = advancedLyricsReducer(initAdvancedLyricsState(""), {
+            type: AdvancedActionType.ensureWordMode,
+            payload: {
+                lines: [{ text: "Hold breath" }, { text: "" }, { text: "Next" }],
+                metadata: new Map(),
+            },
+        });
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.syncStart, payload: 1000 });
+        expect(state.cursor).toEqual({ lineIndex: 0, wordIndex: 0 });
+        expect(state.document?.lines[0].words[0].startMs).toBe(1000);
+
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.syncEnd, payload: 1400 });
+        expect(state.document?.lines[0].words[0]).toMatchObject({ startMs: 1000, endMs: 1400 });
+        expect(state.cursor).toEqual({ lineIndex: 0, wordIndex: 1 });
+        expect(state.document?.lines[0].words[1].startMs).toBeUndefined();
+
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.syncStart, payload: 2000 });
+        expect(state.document?.lines[0].words[0].endMs).toBe(1400);
+        expect(state.document?.lines[0].words[1].startMs).toBe(2000);
+
+        state = advancedLyricsReducer(state, { type: AdvancedActionType.syncEnd, payload: 2600 });
+        expect(state.document?.lines[0].words[1]).toMatchObject({ startMs: 2000, endMs: 2600 });
+        expect(state.document?.lines[0].endMs).toBe(2600);
+        expect(state.cursor).toEqual({ lineIndex: 2, wordIndex: 0 });
+        expect(nextSyncWordCursor(state.document!, { lineIndex: 2, wordIndex: 0 }, -1)).toEqual({
+            lineIndex: 0,
+            wordIndex: 1,
+        });
     });
 });

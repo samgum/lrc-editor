@@ -7,7 +7,7 @@ import {
     AdvancedActionType,
     type AdvancedLyricsAction,
     type AdvancedLyricsState,
-    nextWordCursor,
+    nextSyncWordCursor,
     type WordCursor,
 } from "../hooks/useAdvancedLyrics.js";
 import { useKeyBindings } from "../hooks/useKeyBindings.js";
@@ -346,7 +346,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
             if (!line) return;
             const next = !advancedState.cursor.end && advancedState.cursor.wordIndex === line.words.length - 1
                 ? advancedState.cursor
-                : nextWordCursor(advancedState.document, advancedState.cursor, 1);
+                : nextSyncWordCursor(advancedState.document, advancedState.cursor, 1);
             requestWordFollow("capture");
             advancedDispatch({ type: AdvancedActionType.stamp, payload: Math.max(0, Math.round(timeMs)) });
             if (next.lineIndex !== state.selectIndex) {
@@ -357,6 +357,31 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
         advancedDispatch,
         advancedState.cursor,
         advancedState.document,
+        dispatch,
+        requestWordFollow,
+        state.selectIndex,
+        timingMode,
+    ]);
+
+    const syncWordStart = useCallback(() => {
+        if (!audioRef.duration || timingMode !== "word" || !advancedState.document) return;
+        requestWordFollow("capture");
+        advancedDispatch({ type: AdvancedActionType.syncStart, payload: captureTimeMs() });
+    }, [advancedDispatch, advancedState.document, captureTimeMs, requestWordFollow, timingMode]);
+
+    const syncWordEnd = useCallback(() => {
+        if (!audioRef.duration || timingMode !== "word" || !advancedState.document) return;
+        const next = nextSyncWordCursor(advancedState.document, advancedState.cursor, 1);
+        requestWordFollow("capture");
+        advancedDispatch({ type: AdvancedActionType.syncEnd, payload: captureTimeMs() });
+        if (next.lineIndex !== state.selectIndex) {
+            dispatch({ type: ActionType.select, payload: () => next.lineIndex });
+        }
+    }, [
+        advancedDispatch,
+        advancedState.cursor,
+        advancedState.document,
+        captureTimeMs,
         dispatch,
         requestWordFollow,
         state.selectIndex,
@@ -429,7 +454,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
         if (!holdingWordRef.current || timingMode !== "word" || !advancedState.document) return;
         holdingWordRef.current = false;
         setIsHoldingWord(false);
-        const next = nextWordCursor(advancedState.document, advancedState.cursor, 1);
+        const next = nextSyncWordCursor(advancedState.document, advancedState.cursor, 1);
         requestWordFollow("capture");
         advancedDispatch({ type: AdvancedActionType.finishHold, payload: captureTimeMs() });
         if (next.lineIndex !== state.selectIndex) {
@@ -660,6 +685,27 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                 }
             }
 
+            if (
+                timingMode === "word" && prefState.wordCaptureMode === "tap" && !ctrlOrMeta && !ev.altKey
+                && !ev.shiftKey
+            ) {
+                if (ev.code === "KeyF") {
+                    ev.preventDefault();
+                    if (!ev.repeat) syncWordStart();
+                    return;
+                }
+                if (ev.code === "KeyG") {
+                    ev.preventDefault();
+                    if (!ev.repeat) sync();
+                    return;
+                }
+                if (ev.code === "KeyE") {
+                    ev.preventDefault();
+                    if (!ev.repeat) syncWordEnd();
+                    return;
+                }
+            }
+
             const action = getMatchedAction(ev, keyBindings);
 
             switch (action) {
@@ -704,13 +750,13 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                 case InputAction.PrevLine:
                     ev.preventDefault();
                     if (timingMode === "word" && advancedState.document) {
-                        selectWord(nextWordCursor(advancedState.document, advancedState.cursor, -1));
+                        selectWord(nextSyncWordCursor(advancedState.document, advancedState.cursor, -1));
                     } else selectLine((index) => index - 1);
                     break;
                 case InputAction.NextLine:
                     ev.preventDefault();
                     if (timingMode === "word" && advancedState.document) {
-                        selectWord(nextWordCursor(advancedState.document, advancedState.cursor, 1));
+                        selectWord(nextSyncWordCursor(advancedState.document, advancedState.cursor, 1));
                     } else selectLine((index) => index + 1);
                     break;
                 case InputAction.FirstLine:
@@ -781,6 +827,8 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
         selectLine,
         selectWord,
         sync,
+        syncWordEnd,
+        syncWordStart,
         startWordHold,
         finishWordHold,
         timingMode,
@@ -1187,6 +1235,13 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                     mediaReady={mediaReady}
                     syncShortcutLabel={syncShortcutLabel}
                     shortcuts={[
+                        ...(prefState.wordCaptureMode === "tap"
+                            ? [
+                                { key: "F", label: lang.advancedLyrics.syncStart },
+                                { key: "G", label: lang.advancedLyrics.syncContinuous },
+                                { key: "E", label: lang.advancedLyrics.syncEnd },
+                            ]
+                            : []),
                         {
                             key: keyBindings[InputAction.PrevLine][0]
                                 ? formatKeyBinding(keyBindings[InputAction.PrevLine][0])
@@ -1215,6 +1270,8 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                     language={lang.advancedLyrics}
                     onSelectWord={selectWord}
                     onStamp={sync}
+                    onSyncStart={syncWordStart}
+                    onSyncEnd={syncWordEnd}
                     onHoldStart={startWordHold}
                     onHoldEnd={finishWordHold}
                     onHoldCancel={cancelWordHold}
@@ -1252,10 +1309,10 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                         && selectWord(nextUntimedWordCursor(advancedState.document, advancedState.cursor))}
                     onPrevious={() =>
                         advancedState.document
-                        && selectWord(nextWordCursor(advancedState.document, advancedState.cursor, -1))}
+                        && selectWord(nextSyncWordCursor(advancedState.document, advancedState.cursor, -1))}
                     onNext={() =>
                         advancedState.document
-                        && selectWord(nextWordCursor(advancedState.document, advancedState.cursor, 1))}
+                        && selectWord(nextSyncWordCursor(advancedState.document, advancedState.cursor, 1))}
                     onPreviewWord={previewSelectedWord}
                     onPreviewLine={previewSelectedLine}
                     onDeleteTime={() => advancedDispatch({ type: AdvancedActionType.deleteTime, payload: undefined })}

@@ -31,6 +31,11 @@
             "url": "https://github.com/samgum/Aegisub"
         },
         {
+            "name": "amll-ttml-tool",
+            "author": "SteveXMH / amll-dev",
+            "url": "https://github.com/amll-dev/amll-ttml-tool"
+        },
+        {
             "name": "LRC Editor AI Aligner Engine",
             "author": "伤感咩吖",
             "url": "https://github.com/samgum/lrc-editor/tree/main/companion/engine-bundle"

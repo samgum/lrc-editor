@@ -30,6 +30,8 @@ export const enum AdvancedActionType {
     ensureWordMode,
     select,
     stamp,
+    syncStart,
+    syncEnd,
     startHold,
     finishHold,
     deleteTime,
@@ -59,6 +61,8 @@ export type AdvancedLyricsAction =
     }
     | { readonly type: AdvancedActionType.select; readonly payload: WordCursor }
     | { readonly type: AdvancedActionType.stamp; readonly payload: number }
+    | { readonly type: AdvancedActionType.syncStart; readonly payload: number }
+    | { readonly type: AdvancedActionType.syncEnd; readonly payload: number }
     | { readonly type: AdvancedActionType.startHold; readonly payload: number }
     | { readonly type: AdvancedActionType.finishHold; readonly payload: number }
     | { readonly type: AdvancedActionType.deleteTime; readonly payload: undefined }
@@ -149,6 +153,14 @@ export const advancedLyricsReducer = (
                     : state;
             }
             return updateTiming(state, Math.max(0, Math.round(action.payload)), true);
+        }
+        case AdvancedActionType.syncStart: {
+            if (!Number.isFinite(action.payload)) return state;
+            return syncStartTiming(state, Math.max(0, Math.round(action.payload)));
+        }
+        case AdvancedActionType.syncEnd: {
+            if (!Number.isFinite(action.payload)) return state;
+            return syncEndTiming(state, Math.max(0, Math.round(action.payload)));
         }
         case AdvancedActionType.startHold:
             return updateTiming(state, Math.max(0, Math.round(action.payload)), false);
@@ -295,6 +307,25 @@ export const advancedLyricsReducer = (
 export const useAdvancedLyrics = (serialized: string): [AdvancedLyricsState, React.Dispatch<AdvancedLyricsAction>] =>
     useReducer(advancedLyricsReducer, serialized, initAdvancedLyricsState);
 
+export const nextSyncWordCursor = (
+    document: AdvancedLyricsDocument,
+    cursor: WordCursor,
+    offset: -1 | 1,
+): WordCursor => {
+    let candidate = nextWordCursor(document, cursor, offset);
+    for (let steps = 0; steps < document.lines.length; steps += 1) {
+        const line = document.lines[candidate.lineIndex];
+        const word = line?.words[candidate.wordIndex];
+        if (!line || !word) break;
+        const isEmptyLine = line.words.every((item) => !item.text.trim());
+        if (!isEmptyLine) return candidate;
+        const next = nextWordCursor(document, candidate, offset);
+        if (next.lineIndex === candidate.lineIndex && next.wordIndex === candidate.wordIndex) break;
+        candidate = next;
+    }
+    return nextWordCursor(document, cursor, offset);
+};
+
 export const nextWordCursor = (
     document: AdvancedLyricsDocument,
     cursor: WordCursor,
@@ -403,9 +434,83 @@ const updateTiming = (
     const cursor = advance
         ? state.cursor.wordIndex === line.words.length - 1
             ? { ...state.cursor, end: true as const }
-            : nextWordCursor(nextDocument, state.cursor, 1)
+            : nextSyncWordCursor(nextDocument, state.cursor, 1)
         : state.cursor;
     return commit(state, nextDocument, cursor);
+};
+
+const syncStartTiming = (state: AdvancedLyricsState, requestedStartMs: number): AdvancedLyricsState => {
+    const document = state.document;
+    const line = document?.lines[state.cursor.lineIndex];
+    const word = line?.words[state.cursor.wordIndex];
+    if (!document || !line || !word) return state;
+
+    const previousStart = previousTimedWordStart(document, state.cursor);
+    const constrainedStartMs = Math.max(
+        0,
+        Math.round(requestedStartMs),
+        previousStart === undefined ? 0 : previousStart + minimumCapturedWordDurationMs,
+    );
+    const minimumFollowingStart = constrainedStartMs + minimumCapturedWordDurationMs;
+    const words = line.words.map((candidate, index) => {
+        if (index < state.cursor.wordIndex) {
+            if (
+                index === state.cursor.wordIndex - 1 && candidate.endMs !== undefined
+                && candidate.endMs > constrainedStartMs
+            ) {
+                return { ...candidate, endMs: constrainedStartMs };
+            }
+            return candidate;
+        }
+        if (index === state.cursor.wordIndex) {
+            const keepEnd = candidate.endMs !== undefined && candidate.endMs > constrainedStartMs;
+            return keepEnd
+                ? { ...candidate, startMs: constrainedStartMs }
+                : { text: candidate.text, startMs: constrainedStartMs };
+        }
+        if (
+            (candidate.startMs !== undefined && candidate.startMs < minimumFollowingStart)
+            || (candidate.startMs === undefined && candidate.endMs !== undefined
+                && candidate.endMs < minimumFollowingStart)
+        ) {
+            return { text: candidate.text };
+        }
+        return candidate;
+    });
+    const finalWordChanged = words.at(-1) !== line.words.at(-1);
+    const nextLineStart = words[0]?.startMs ?? line.startMs;
+    const nextLineEnd = finalWordChanged || (line.endMs !== undefined && line.endMs <= constrainedStartMs)
+        ? undefined
+        : line.endMs;
+    const nextDocument = replaceLine(document, state.cursor.lineIndex, {
+        ...line,
+        startMs: nextLineStart,
+        endMs: nextLineEnd,
+        words,
+    });
+    return commit(state, nextDocument, { lineIndex: state.cursor.lineIndex, wordIndex: state.cursor.wordIndex });
+};
+
+const syncEndTiming = (state: AdvancedLyricsState, requestedEndMs: number): AdvancedLyricsState => {
+    const document = state.document;
+    const line = document?.lines[state.cursor.lineIndex];
+    const word = line?.words[state.cursor.wordIndex];
+    if (!document || !line || !word || word.startMs === undefined) return state;
+
+    const followingStart = nextTimedWordStart(document, state.cursor);
+    const minimumEnd = word.startMs + minimumCapturedWordDurationMs;
+    const endMs = followingStart === undefined || followingStart < minimumEnd
+        ? Math.max(minimumEnd, Math.round(requestedEndMs))
+        : Math.min(followingStart, Math.max(minimumEnd, Math.round(requestedEndMs)));
+    let nextDocument = replaceWord(document, state.cursor, { ...word, endMs });
+    if (state.cursor.wordIndex === line.words.length - 1) {
+        nextDocument = replaceLine(nextDocument, state.cursor.lineIndex, {
+            ...nextDocument.lines[state.cursor.lineIndex],
+            endMs,
+        });
+    }
+    const nextCursor = nextSyncWordCursor(nextDocument, state.cursor, 1);
+    return commit(state, nextDocument, nextCursor);
 };
 
 const finishHoldTiming = (state: AdvancedLyricsState, requestedEndMs: number): AdvancedLyricsState => {
@@ -428,7 +533,7 @@ const finishHoldTiming = (state: AdvancedLyricsState, requestedEndMs: number): A
     return {
         ...state,
         document: nextDocument,
-        cursor: nextWordCursor(nextDocument, state.cursor, 1),
+        cursor: nextSyncWordCursor(nextDocument, state.cursor, 1),
         historyFuture: [],
     };
 };
