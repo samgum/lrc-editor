@@ -561,7 +561,11 @@
         "lineTtml": "Riadkový TTML",
         "plainText": "Obyčajný text",
         "lyricFileLoaded": "Súbor textu je pripravený na prevod.",
-        "formatConversionFailed": "Formát textu sa nepodarilo previesť. Skontrolujte súbor alebo vložený text."
+        "formatConversionFailed": "Formát textu sa nepodarilo previesť. Skontrolujte súbor alebo vložený text.",
+        "overwritePrecision": "Timestamp precision",
+        "overwritePrecisionDefault": "Default (%d digits)",
+        "overwritePrecision2": "2 digits (.00)",
+        "overwritePrecision3": "3 digits (.000)"
     },
     "about": {
         "title": "O LRC Editor",

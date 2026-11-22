@@ -129,6 +129,7 @@ export const Tools: React.FC<{
     const [overwriteMode, setOverwriteMode] = useState<OverwriteOutputMode>("replace");
     const [inlineTemplate, setInlineTemplate] = useState<string>(inlineBilingualTemplates[0].value);
     const [overwriteFallback, setOverwriteFallback] = useState<OverwriteFallbackMode>("empty");
+    const [overwriteFixed, setOverwriteFixed] = useState<"default" | 2 | 3>("default");
     const [editSourceMode, setEditSourceMode] = useState(false);
     const [timePaddingWidth, setTimePaddingWidth] = useState(0);
     const [replacement, setReplacement] = useState(() => sessionStorage.getItem(SSK.overwriteText) || "");
@@ -291,14 +292,30 @@ export const Tools: React.FC<{
         return () => observer?.disconnect();
     }, [editSourceMode, sampleTimeTag, tool]);
 
+    const effectiveOverwriteFixed: Fixed = overwriteFixed === "default" ? prefState.fixed : overwriteFixed;
+
     const overwriteResult = useMemo<InterleavedOverwriteResult | null>(() => {
         if (tool !== "overwrite") return null;
-        return interleaveOverwriteLyrics(parsedOverwriteSource, replacement, prefState, {
-            outputMode: overwriteMode,
-            inlineTemplate,
-            unmatchedFallback: overwriteFallback,
-        });
-    }, [inlineTemplate, overwriteFallback, overwriteMode, parsedOverwriteSource, prefState, replacement, tool]);
+        return interleaveOverwriteLyrics(
+            parsedOverwriteSource,
+            replacement,
+            { ...prefState, fixed: effectiveOverwriteFixed },
+            {
+                outputMode: overwriteMode,
+                inlineTemplate,
+                unmatchedFallback: overwriteFallback,
+            },
+        );
+    }, [
+        effectiveOverwriteFixed,
+        inlineTemplate,
+        overwriteFallback,
+        overwriteMode,
+        parsedOverwriteSource,
+        prefState,
+        replacement,
+        tool,
+    ]);
 
     const transformed = useMemo<{
         text: string;
@@ -693,6 +710,27 @@ export const Tools: React.FC<{
                                 />
                             </label>
                         )}
+
+                        <label>
+                            <span>{lang.tools.overwritePrecision}</span>
+                            <StyledSelect
+                                value={String(overwriteFixed)}
+                                onValueChange={(val) =>
+                                    setOverwriteFixed(val === "2" ? 2 : val === "3" ? 3 : "default")}
+                                label={lang.tools.overwritePrecision}
+                                options={[
+                                    {
+                                        value: "default",
+                                        label: lang.tools.overwritePrecisionDefault.replace(
+                                            "%d",
+                                            String(prefState.fixed),
+                                        ),
+                                    },
+                                    { value: "2", label: lang.tools.overwritePrecision2 },
+                                    { value: "3", label: lang.tools.overwritePrecision3 },
+                                ]}
+                            />
+                        </label>
 
                         <label className="tools-file-button">
                             <input

@@ -561,7 +561,11 @@
         "lineTtml": "Wierszowy TTML",
         "plainText": "Zwykły tekst",
         "lyricFileLoaded": "Plik tekstu jest gotowy do konwersji.",
-        "formatConversionFailed": "Nie można przekonwertować formatu. Sprawdź plik lub wklejony tekst."
+        "formatConversionFailed": "Nie można przekonwertować formatu. Sprawdź plik lub wklejony tekst.",
+        "overwritePrecision": "Timestamp precision",
+        "overwritePrecisionDefault": "Default (%d digits)",
+        "overwritePrecision2": "2 digits (.00)",
+        "overwritePrecision3": "3 digits (.000)"
     },
     "about": {
         "title": "O LRC Editor",

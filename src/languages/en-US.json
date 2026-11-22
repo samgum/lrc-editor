@@ -561,7 +561,11 @@
         "lineTtml": "Line TTML",
         "plainText": "Plain text",
         "lyricFileLoaded": "The lyric file is ready for conversion.",
-        "formatConversionFailed": "The lyric format could not be converted. Check the file or pasted text."
+        "formatConversionFailed": "The lyric format could not be converted. Check the file or pasted text.",
+        "overwritePrecision": "Timestamp precision",
+        "overwritePrecisionDefault": "Default (%d digits)",
+        "overwritePrecision2": "2 digits (.00)",
+        "overwritePrecision3": "3 digits (.000)"
     },
     "about": {
         "title": "About LRC Editor",

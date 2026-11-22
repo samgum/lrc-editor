@@ -561,7 +561,11 @@
         "lineTtml": "줄 단위 TTML",
         "plainText": "일반 텍스트",
         "lyricFileLoaded": "가사 파일을 변환할 준비가 되었습니다.",
-        "formatConversionFailed": "가사 형식을 변환할 수 없습니다. 파일이나 붙여넣은 내용을 확인하세요."
+        "formatConversionFailed": "가사 형식을 변환할 수 없습니다. 파일이나 붙여넣은 내용을 확인하세요.",
+        "overwritePrecision": "타임스탬프 정밀도",
+        "overwritePrecisionDefault": "기본값 (%d자리)",
+        "overwritePrecision2": "2자리 (.00)",
+        "overwritePrecision3": "3자리 (.000)"
     },
     "about": {
         "title": "LRC Editor 정보",

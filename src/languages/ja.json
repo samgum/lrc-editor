@@ -561,7 +561,11 @@
         "lineTtml": "行単位 TTML",
         "plainText": "プレーンテキスト",
         "lyricFileLoaded": "歌詞ファイルを変換用に読み込みました。",
-        "formatConversionFailed": "歌詞形式を変換できません。ファイルまたは貼り付けた内容を確認してください。"
+        "formatConversionFailed": "歌詞形式を変換できません。ファイルまたは貼り付けた内容を確認してください。",
+        "overwritePrecision": "タイムスタンプ精度",
+        "overwritePrecisionDefault": "デフォルト (%d 桁)",
+        "overwritePrecision2": "2桁 (.00)",
+        "overwritePrecision3": "3桁 (.000)"
     },
     "about": {
         "title": "LRC Editor について",

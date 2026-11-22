@@ -561,7 +561,11 @@
         "lineTtml": "逐行 TTML",
         "plainText": "純文字",
         "lyricFileLoaded": "歌詞檔案已載入，可以開始轉換。",
-        "formatConversionFailed": "無法轉換這個歌詞格式，請檢查檔案或貼上的內容。"
+        "formatConversionFailed": "無法轉換這個歌詞格式，請檢查檔案或貼上的內容。",
+        "overwritePrecision": "時間軸精度",
+        "overwritePrecisionDefault": "跟隨預設（%d 位）",
+        "overwritePrecision2": "兩位軸（.00）",
+        "overwritePrecision3": "三位軸（.000）"
     },
     "about": {
         "title": "關於 LRC Editor",

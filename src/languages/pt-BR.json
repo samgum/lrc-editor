@@ -561,7 +561,11 @@
         "lineTtml": "TTML por linha",
         "plainText": "Texto simples",
         "lyricFileLoaded": "O arquivo de letra está pronto para conversão.",
-        "formatConversionFailed": "Não foi possível converter o formato. Verifique o arquivo ou o texto colado."
+        "formatConversionFailed": "Não foi possível converter o formato. Verifique o arquivo ou o texto colado.",
+        "overwritePrecision": "Timestamp precision",
+        "overwritePrecisionDefault": "Default (%d digits)",
+        "overwritePrecision2": "2 digits (.00)",
+        "overwritePrecision3": "3 digits (.000)"
     },
     "about": {
         "title": "Sobre o LRC Editor",
