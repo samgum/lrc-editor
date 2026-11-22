@@ -55,6 +55,7 @@ export const computeWaveformColumns = (
     const safeAmplitude = Number.isFinite(amplitude) && amplitude > 0 ? amplitude : 1;
     const sampleCount = channel.length;
     const samplesPerPixel = sampleCount / pixelWidth;
+    const stride = Math.max(1, Math.floor(samplesPerPixel / 64));
     const columns: WaveformColumn[] = [];
 
     for (let x = 0; x < pixelWidth; x += 1) {
@@ -63,7 +64,7 @@ export const computeWaveformColumns = (
         let maxAbs = 0;
         let sumSq = 0;
         let count = 0;
-        for (let i = start; i < end; i += 1) {
+        for (let i = start; i < end; i += stride) {
             const abs = Math.abs(channel[i]);
             if (abs > maxAbs) maxAbs = abs;
             sumSq += abs * abs;

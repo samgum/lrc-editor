@@ -1,5 +1,5 @@
 import { useWavesurfer } from "@wavesurfer/react";
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { audioRef } from "../utils/audiomodule";
 import { clearOtherSpectrogramData } from "../utils/spectrogram-data.js";
 import {
@@ -110,6 +110,12 @@ export const Waveform = forwardRef<WaveformHandle, IWaveformProps>(({
     }
     const cachedPeaks = cachedPeaksRef.current.value;
     const cachedPcm = cachedPeaksRef.current.pcm;
+    // Must remain referentially stable because @wavesurfer/react recreates WaveSurfer whenever any option changes.
+    const renderWaveform = useCallback(
+        (peaks: Array<Float32Array | number[]>, ctx: CanvasRenderingContext2D) =>
+            renderDetailedWaveform(peaks, ctx, barHeightRef.current),
+        [],
+    );
     const { wavesurfer } = useWavesurfer({
         container: containerRef,
         url: source,
@@ -120,7 +126,7 @@ export const Waveform = forwardRef<WaveformHandle, IWaveformProps>(({
         normalize,
         barHeight: creationOptionsRef.current.barHeight,
         height: creationOptionsRef.current.height,
-        renderFunction: (peaks, ctx) => renderDetailedWaveform(peaks, ctx, barHeightRef.current),
+        renderFunction: renderWaveform,
         cursorWidth: 2,
         interact: !pointMode,
         dragToSeek: !pointMode,
