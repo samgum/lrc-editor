@@ -18,15 +18,16 @@ audio::-webkit-media-controls-enclosure {
 
 .lrc-audio {
     display: grid;
-    grid-template-columns: repeat(4, 42px) auto minmax(160px, 1fr) auto minmax(90px, 140px);
+    grid-template-columns: repeat(4, 44px) auto minmax(160px, 1fr) auto minmax(90px, 140px);
     align-items: center;
-    gap: 4px;
-    min-height: 56px;
-    padding: 6px max(10px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom))
-        max(10px, env(safe-area-inset-left));
+    gap: 6px;
+    min-height: 60px;
+    padding: 6px max(12px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom))
+        max(12px, env(safe-area-inset-left));
     color: var(--white);
     font-size: 14px;
     background-color: var(--semi-black-color);
+    border-top: 1px solid #ffffff1a;
     user-select: none;
 }
 
@@ -108,11 +109,11 @@ audio::-webkit-media-controls-enclosure {
 .lrc-audio > button {
     display: grid;
     place-items: center;
-    width: 40px;
-    height: 40px;
+    width: 42px;
+    height: 42px;
     padding: 0;
     color: #eeeeee;
-    border-radius: 4px;
+    border-radius: 8px;
 }
 
 .lrc-audio > button:hover, .lrc-audio > button:focus-visible {
@@ -121,6 +122,8 @@ audio::-webkit-media-controls-enclosure {
 }
 
 .lrc-audio > button:nth-child(3) {
+    width: 44px;
+    height: 44px;
     color: var(--theme-contrast-color);
     background: var(--theme-color);
 }

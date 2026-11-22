@@ -15,8 +15,8 @@
 
     /* text color */
     --font-color: #1d2026;
-    --text-secondary-color: #4d5460;
-    --text-muted-color: #68707d;
+    --text-secondary-color: #454c58;
+    --text-muted-color: #5b6370;
     --error-color: #b4233c;
     --success-color: #13795b;
     --warning-color: #9a5b13;
@@ -53,8 +53,8 @@
 @media (prefers-color-scheme: dark) {
     :root {
         --font-color: #f2f4f8;
-        --text-secondary-color: #c4c9d4;
-        --text-muted-color: #9aa1b0;
+        --text-secondary-color: #cad0db;
+        --text-muted-color: #a5adbc;
         --error-color: #ff9eb0;
         --success-color: #5cd6ad;
         --warning-color: #f5b963;
@@ -76,8 +76,8 @@
     --success-color: #13795b;
     --warning-color: #9a5b13;
     --font-color: #1d2026;
-    --text-secondary-color: #4d5460;
-    --text-muted-color: #68707d;
+    --text-secondary-color: #454c58;
+    --text-muted-color: #5b6370;
     --background-color: #f2f4f8;
     --surface-color: #ffffff;
     --surface-subtle-color: #f7f8fb;
@@ -95,8 +95,8 @@
     --success-color: #5cd6ad;
     --warning-color: #f5b963;
     --font-color: #f2f4f8;
-    --text-secondary-color: #c4c9d4;
-    --text-muted-color: #9aa1b0;
+    --text-secondary-color: #cad0db;
+    --text-muted-color: #a5adbc;
     --background-color: #0f1117;
     --surface-color: #181b23;
     --surface-subtle-color: #1f232d;

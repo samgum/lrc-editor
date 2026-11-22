@@ -20,7 +20,7 @@ body {
     display: flex;
     min-height: 100vh;
     min-height: 100svh;
-    padding: 76px 16px calc(72px + env(safe-area-inset-bottom));
+    padding: 78px 20px calc(80px + env(safe-area-inset-bottom));
 }
 
 .app-main > * {
