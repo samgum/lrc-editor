@@ -14,12 +14,7 @@ import {
     serializeLyrics,
     toEnhancedLrc,
 } from "../utils/advanced-lyrics.js";
-import {
-    AiAlignmentResultError,
-    createUntimedTranscript,
-    validateAlignedLyrics,
-    validateHuhuAlignedLyrics,
-} from "../utils/ai-alignment-result.js";
+import { createUntimedTranscript, validateAlignedLyrics } from "../utils/ai-alignment-result.js";
 import {
     type AiAlignmentSessionState,
     getAiAlignmentSessionSnapshot,
@@ -30,8 +25,6 @@ import {
 } from "../utils/ai-alignment-session.js";
 import { aiEngineDownloadUrl } from "../utils/ai-engine-download.js";
 import { getAlignmentMediaSource } from "../utils/alignment-media.js";
-import { HuhuApiError, isHuhuBrowserOriginAllowed, runHuhuAlignment } from "../utils/huhu-api.js";
-import { readHuhuApiKey } from "../utils/huhu-secret-store.js";
 import {
     LocalAiAlignmentError,
     type LocalAlignmentProgress,
@@ -41,12 +34,11 @@ import { lrcFileName } from "../utils/lrc-file-name.js";
 import { stringifyLrc } from "../utils/lrc-format.js";
 import { prependHash } from "../utils/router.js";
 import { parseWordEditorSource } from "../utils/word-source.js";
-import { requestPreferenceFocus } from "../utils/workspace-navigation.js";
 import { appContext } from "./app.context.js";
 import { LyricTextEditor } from "./lyric-text-editor.js";
 import { LyricsModeSwitch } from "./lyrics-mode-switch.js";
 import { StyledSelect } from "./styled-select.js";
-import { AiAlignSVG, CloudAiSVG, CopySVG, DownloadSVG, OpenFileSVG, SynchronizerSVG, UtilitySVG } from "./svg.js";
+import { AiAlignSVG, CopySVG, DownloadSVG, OpenFileSVG, SynchronizerSVG, UtilitySVG } from "./svg.js";
 import { toastPubSub } from "./toast.js";
 import "./editor.css";
 import "./advanced-lyrics.css";
@@ -321,26 +313,25 @@ export const Editor: React.FC<{
     }, [exportPayload, lang.advancedLyrics]);
 
     const statusText = useCallback((progress: AiAlignmentSessionState): string => {
-        const huhu = progress.provider === "huhu";
         switch (progress.phase) {
             case "connecting":
-                return huhu ? lang.editor.huhuConnecting : lang.editor.aiConnecting;
+                return lang.editor.aiConnecting;
             case "uploading":
-                return huhu ? lang.editor.huhuUploading : lang.editor.aiUploading;
+                return lang.editor.aiUploading;
             case "queued":
-                return huhu ? lang.editor.huhuQueued : lang.editor.aiQueued;
+                return lang.editor.aiQueued;
             case "running":
-                return huhu ? lang.editor.huhuRunning : lang.editor.aiRunning;
+                return lang.editor.aiRunning;
             case "downloading":
-                return huhu ? lang.editor.huhuDownloading : lang.editor.aiDownloading;
+                return lang.editor.aiDownloading;
             case "stopping":
-                return huhu ? lang.editor.huhuStopping : lang.editor.aiStopping;
+                return lang.editor.aiStopping;
             case "stopped":
-                return huhu ? lang.editor.huhuStopped : lang.editor.aiStopped;
+                return lang.editor.aiStopped;
             case "cleaning":
                 return lang.editor.aiCleaning;
             case "complete":
-                return huhu ? lang.editor.huhuComplete : lang.editor.aiComplete;
+                return lang.editor.aiComplete;
         }
     }, [lang.editor]);
 
@@ -353,21 +344,6 @@ export const Editor: React.FC<{
             if (error.code === "busy") return lang.editor.aiDuplicate;
         }
         return lang.editor.aiFailed;
-    }, [lang.editor]);
-
-    const huhuAlignmentErrorText = useCallback((error: unknown): string => {
-        if (error instanceof AiAlignmentResultError) {
-            return error.code === "AI_ALIGNMENT_TEXT_MISMATCH"
-                ? lang.editor.huhuResultTextMismatch
-                : lang.editor.huhuResultTimingInvalid;
-        }
-        if (error instanceof HuhuApiError) {
-            if (error.code === "cors") return lang.editor.huhuCorsBlocked;
-            if (error.code === "invalid-key") return lang.editor.huhuInvalidKey;
-            if (error.code === "denied") return lang.editor.huhuDenied;
-            if (error.code === "quota") return lang.editor.huhuQuotaExhausted;
-        }
-        return lang.editor.huhuFailed;
     }, [lang.editor]);
 
     const onAiAlign = useCallback(() => {
@@ -473,116 +449,6 @@ export const Editor: React.FC<{
         onAiAlign();
     }, [onAiAlign, prefDispatch, prefState.aiAlignmentEnabled]);
 
-    const onHuhuAlignClick = useCallback(() => {
-        if (!import.meta.env.DEV && !isHuhuBrowserOriginAllowed(location.origin)) {
-            toastPubSub.pub({ type: "warning", text: lang.editor.huhuCorsBlocked });
-            return;
-        }
-        if (aiSession.active) {
-            updateAiAlignmentSessionState((state) => state ? { ...state, visible: true } : state);
-            toastPubSub.pub({ type: "info", text: lang.editor.aiDuplicate });
-            return;
-        }
-        void (async () => {
-            let apiKey: string | null;
-            try {
-                apiKey = await readHuhuApiKey();
-            } catch {
-                toastPubSub.pub({ type: "warning", text: lang.editor.huhuKeyUnavailable });
-                return;
-            }
-            if (!apiKey) {
-                toastPubSub.pub({ type: "warning", text: lang.editor.huhuNoKey });
-                requestPreferenceFocus("huhu");
-                location.hash = ROUTER.preferences;
-                return;
-            }
-            const started = startAiAlignmentSession(async (signal): Promise<void> => {
-                const currentText = textarea.current ? textarea.current.value : text;
-                const transcript = createUntimedTranscript(currentText, trimOptions);
-                if (!transcript.split(/\r\n|\n|\r/).some((line) => line.trim())) {
-                    updateAiAlignmentSessionState(() => null);
-                    toastPubSub.pub({ type: "warning", text: lang.editor.aiNoLyrics });
-                    return;
-                }
-                updateAiAlignmentSessionState(() => ({
-                    phase: "connecting",
-                    progress: 0.01,
-                    provider: "huhu",
-                    visible: true,
-                }));
-                let media: { blob: Blob; name: string };
-                try {
-                    media = await getAlignmentMediaSource();
-                } catch {
-                    updateAiAlignmentSessionState(() => null);
-                    toastPubSub.pub({ type: "warning", text: lang.editor.aiNoMedia });
-                    return;
-                }
-                try {
-                    const lrc = await runHuhuAlignment({
-                        apiKey,
-                        audio: media.blob,
-                        audioName: media.name,
-                        transcript,
-                        language: prefState.huhuAlignmentLanguage,
-                        signal,
-                        onProgress: (progress) =>
-                            updateAiAlignmentSessionState((state) => ({
-                                ...progress,
-                                provider: "huhu",
-                                visible: state?.visible ?? true,
-                            })),
-                    });
-                    const lyric = validateHuhuAlignedLyrics(transcript, lrc, trimOptions, prefState.fixed);
-                    lrcDispatch({ type: LrcActionType.replaceLyrics, payload: lyric });
-                    onBasicLyricsReplaced(lyric);
-                    updateAiAlignmentSessionState(() => ({
-                        phase: "complete",
-                        progress: 1,
-                        provider: "huhu",
-                        visible: true,
-                    }));
-                    toastPubSub.pub({ type: "success", text: lang.editor.huhuComplete });
-                } catch (error) {
-                    if (error instanceof HuhuApiError && error.code === "cancelled") {
-                        updateAiAlignmentSessionState((state) => ({
-                            phase: "stopped",
-                            progress: state?.progress || 0,
-                            provider: "huhu",
-                            visible: true,
-                        }));
-                        toastPubSub.pub({ type: "info", text: lang.editor.huhuStopped });
-                        return;
-                    }
-                    const message = huhuAlignmentErrorText(error);
-                    updateAiAlignmentSessionState((state) => ({
-                        phase: state?.phase || "connecting",
-                        progress: state?.progress || 0,
-                        provider: "huhu",
-                        visible: true,
-                        error: message,
-                    }));
-                    toastPubSub.pub({ type: "warning", text: message });
-                }
-            });
-            if (!started) {
-                updateAiAlignmentSessionState((state) => state ? { ...state, visible: true } : state);
-                toastPubSub.pub({ type: "info", text: lang.editor.aiDuplicate });
-            }
-        })();
-    }, [
-        aiSession.active,
-        huhuAlignmentErrorText,
-        lang.editor,
-        lrcDispatch,
-        onBasicLyricsReplaced,
-        prefState.fixed,
-        prefState.huhuAlignmentLanguage,
-        text,
-        trimOptions,
-    ]);
-
     const aiStatus = aiState && !aiState.error ? statusText(aiState) : aiState?.error;
     const aiEngineDownload = useMemo(
         () => aiEngineDownloadUrl(BRAND.extensionRelease, import.meta.env.app!.version, navigator.platform),
@@ -637,17 +503,6 @@ export const Editor: React.FC<{
                         >
                             <AiAlignSVG />
                             <span>AI</span>
-                        </button>
-                        <button
-                            type="button"
-                            className="editor-tools-item ripple huhu-align-button"
-                            title={lang.editor.huhuAlign}
-                            aria-label={lang.editor.huhuAlign}
-                            onClick={onHuhuAlignClick}
-                        >
-                            <CloudAiSVG />
-                            <span>Huhu</span>
-                            <small>(Beta)</small>
                         </button>
                         <button
                             type="button"
@@ -823,7 +678,7 @@ export const Editor: React.FC<{
                     <article>
                         <header>
                             <h2 id="ai-align-title">
-                                {aiState.provider === "huhu" ? lang.editor.huhuTitle : lang.editor.aiTitle}
+                                {lang.editor.aiTitle}
                             </h2>
                             <button
                                 type="button"

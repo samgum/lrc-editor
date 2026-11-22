@@ -1,4 +1,4 @@
-import { type Fixed, type ILyric, parser, type TrimOptios } from "@lrc-maker/lrc-parser";
+import { type ILyric, parser, type TrimOptios } from "@lrc-maker/lrc-parser";
 
 const enhancedTimestamp = /<\d{1,3}:\d{1,2}(?:[.:]\d{1,3})?>/g;
 const leadingLineTimestamps = /^(?:\[\s*\d{1,3}:\d{1,2}(?:[.:]\d{1,3})?\s*\])+/g;
@@ -34,55 +34,6 @@ export const validateAlignedLyrics = (
     const aligned = parser(alignedLrc.replace(/(?:\r\n|\n|\r)+$/, ""), options).lyric;
     validateLyrics(transcript, aligned);
     return aligned;
-};
-
-export const validateHuhuAlignedLyrics = (
-    transcript: string,
-    alignedLrc: string,
-    options: TrimOptios,
-    precision: Fixed,
-): readonly ILyric[] => {
-    const aligned = parser(alignedLrc.replace(/(?:\r\n|\n|\r)+$/, ""), options).lyric;
-    const sungLines = aligned.filter((line) => line.text.trim() !== "");
-    validateLyrics(transcript, sungLines);
-
-    const scale = 10 ** precision;
-    const tick = (time: number): number => Math.round(Math.round(time * 1_000) / (1_000 / scale));
-    validateLyrics(transcript, sungLines.map((line) => ({ ...line, time: tick(line.time!) })));
-
-    const repaired: ILyric[] = [];
-    let previousTick = -1;
-    for (let index = 0; index < aligned.length;) {
-        const line = aligned[index];
-        if (line.text.trim() !== "") {
-            repaired.push(line);
-            previousTick = tick(line.time!);
-            index++;
-            continue;
-        }
-
-        let end = index;
-        while (end < aligned.length && aligned[end].text.trim() === "") end++;
-        const nextTick = end < aligned.length ? tick(aligned[end].time!) : Infinity;
-        if (nextTick - previousTick - 1 < end - index) {
-            throw new AiAlignmentResultError("AI_ALIGNMENT_DUPLICATE_TIME");
-        }
-        for (; index < end; index++) {
-            const blank = aligned[index];
-            const minimum = previousTick + 1;
-            const maximum = nextTick - (end - index);
-            const originalTick = blank.time === undefined ? NaN : tick(blank.time);
-            const target = Number.isFinite(originalTick) ? originalTick : minimum;
-            const adjustedTick = Math.max(minimum, Math.min(maximum, target));
-            repaired.push({
-                ...blank,
-                time: adjustedTick === originalTick ? blank.time : adjustedTick / scale,
-            });
-            previousTick = adjustedTick;
-        }
-    }
-    validateLyrics(transcript, repaired);
-    return repaired;
 };
 
 const validateLyrics = (transcript: string, aligned: readonly ILyric[]): void => {

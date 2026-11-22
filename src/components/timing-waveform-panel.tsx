@@ -469,9 +469,9 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
                             </span>
                             <input
                                 type="range"
-                                min={0.5}
+                                min={0.25}
                                 max={4}
-                                step={0.1}
+                                step={0.05}
                                 value={amplitude}
                                 onChange={(event) => updateAmplitude(Number(event.target.value))}
                             />

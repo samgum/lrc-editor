@@ -307,25 +307,6 @@ export const advancedLyricsReducer = (
 export const useAdvancedLyrics = (serialized: string): [AdvancedLyricsState, React.Dispatch<AdvancedLyricsAction>] =>
     useReducer(advancedLyricsReducer, serialized, initAdvancedLyricsState);
 
-export const nextSyncWordCursor = (
-    document: AdvancedLyricsDocument,
-    cursor: WordCursor,
-    offset: -1 | 1,
-): WordCursor => {
-    let candidate = nextWordCursor(document, cursor, offset);
-    for (let steps = 0; steps < document.lines.length; steps += 1) {
-        const line = document.lines[candidate.lineIndex];
-        const word = line?.words[candidate.wordIndex];
-        if (!line || !word) break;
-        const isEmptyLine = line.words.every((item) => !item.text.trim());
-        if (!isEmptyLine) return candidate;
-        const next = nextWordCursor(document, candidate, offset);
-        if (next.lineIndex === candidate.lineIndex && next.wordIndex === candidate.wordIndex) break;
-        candidate = next;
-    }
-    return nextWordCursor(document, cursor, offset);
-};
-
 export const nextWordCursor = (
     document: AdvancedLyricsDocument,
     cursor: WordCursor,
@@ -434,7 +415,7 @@ const updateTiming = (
     const cursor = advance
         ? state.cursor.wordIndex === line.words.length - 1
             ? { ...state.cursor, end: true as const }
-            : nextSyncWordCursor(nextDocument, state.cursor, 1)
+            : nextWordCursor(nextDocument, state.cursor, 1)
         : state.cursor;
     return commit(state, nextDocument, cursor);
 };
@@ -509,7 +490,7 @@ const syncEndTiming = (state: AdvancedLyricsState, requestedEndMs: number): Adva
             endMs,
         });
     }
-    const nextCursor = nextSyncWordCursor(nextDocument, state.cursor, 1);
+    const nextCursor = nextWordCursor(nextDocument, state.cursor, 1);
     return commit(state, nextDocument, nextCursor);
 };
 
@@ -533,7 +514,7 @@ const finishHoldTiming = (state: AdvancedLyricsState, requestedEndMs: number): A
     return {
         ...state,
         document: nextDocument,
-        cursor: nextSyncWordCursor(nextDocument, state.cursor, 1),
+        cursor: nextWordCursor(nextDocument, state.cursor, 1),
         historyFuture: [],
     };
 };

@@ -7,7 +7,7 @@ import {
     AdvancedActionType,
     type AdvancedLyricsAction,
     type AdvancedLyricsState,
-    nextSyncWordCursor,
+    nextWordCursor,
     type WordCursor,
 } from "../hooks/useAdvancedLyrics.js";
 import { useKeyBindings } from "../hooks/useKeyBindings.js";
@@ -163,11 +163,40 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
     const ul = useRef<HTMLUListElement>(null);
     const page = useRef<HTMLElement>(null);
     const [followLayoutRevision, setFollowLayoutRevision] = useState(0);
+    const lineFollowPausedRef = useRef(false);
+    const programmaticScrollUntilRef = useRef(0);
 
     const needScrollLine = {
         [SyncMode.select]: selectIndex,
         [SyncMode.highlight]: highlightIndex,
     }[syncMode];
+
+    const prevLineFollowKeyRef = useRef({
+        needScrollLine,
+        syncMode,
+        timingMode,
+        lineCaptureMode: prefState.lineCaptureMode,
+    });
+
+    useEffect(() => {
+        if (timingMode === "word") return;
+        const pauseFollow = (): void => {
+            lineFollowPausedRef.current = true;
+        };
+        const onScroll = (): void => {
+            if (performance.now() > programmaticScrollUntilRef.current) {
+                lineFollowPausedRef.current = true;
+            }
+        };
+        window.addEventListener("wheel", pauseFollow, { passive: true });
+        window.addEventListener("touchstart", pauseFollow, { passive: true });
+        window.addEventListener("scroll", onScroll, { passive: true, capture: true });
+        return () => {
+            window.removeEventListener("wheel", pauseFollow);
+            window.removeEventListener("touchstart", pauseFollow);
+            window.removeEventListener("scroll", onScroll, { capture: true });
+        };
+    }, [timingMode]);
 
     useEffect(() => {
         const updateLayout = (): void => setFollowLayoutRevision((revision) => revision + 1);
@@ -191,7 +220,24 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
 
     useEffect(() => {
         if (timingMode === "word") return;
+        const prev = prevLineFollowKeyRef.current;
+        const targetChanged = prev.needScrollLine !== needScrollLine
+            || prev.syncMode !== syncMode
+            || prev.timingMode !== timingMode
+            || prev.lineCaptureMode !== prefState.lineCaptureMode;
+        prevLineFollowKeyRef.current = {
+            needScrollLine,
+            syncMode,
+            timingMode,
+            lineCaptureMode: prefState.lineCaptureMode,
+        };
+        if (targetChanged) {
+            lineFollowPausedRef.current = false;
+        } else if (lineFollowPausedRef.current) {
+            return;
+        }
         const frameId = requestAnimationFrame(() => {
+            if (lineFollowPausedRef.current) return;
             const line = ul.current?.children[needScrollLine] as HTMLElement | undefined;
             if (line === undefined) {
                 return;
@@ -207,6 +253,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                 const visibleTop = queueRect.top + 8;
                 const visibleBottom = queueRect.bottom - 8;
                 if (lineRect.top < visibleTop || lineRect.bottom > visibleBottom) {
+                    programmaticScrollUntilRef.current = performance.now() + 200;
                     lineQueue.scrollTo({
                         top: lineQueue.scrollTop + lineRect.top - queueRect.top
                             - (lineQueue.clientHeight - lineRect.height) / 2,
@@ -233,6 +280,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                 safeBottom,
             });
             if (top === 0) return;
+            programmaticScrollUntilRef.current = performance.now() + 600;
             window.scrollBy({
                 top,
                 behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
@@ -346,7 +394,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
             if (!line) return;
             const next = !advancedState.cursor.end && advancedState.cursor.wordIndex === line.words.length - 1
                 ? advancedState.cursor
-                : nextSyncWordCursor(advancedState.document, advancedState.cursor, 1);
+                : nextWordCursor(advancedState.document, advancedState.cursor, 1);
             requestWordFollow("capture");
             advancedDispatch({ type: AdvancedActionType.stamp, payload: Math.max(0, Math.round(timeMs)) });
             if (next.lineIndex !== state.selectIndex) {
@@ -371,7 +419,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
 
     const syncWordEnd = useCallback(() => {
         if (!audioRef.duration || timingMode !== "word" || !advancedState.document) return;
-        const next = nextSyncWordCursor(advancedState.document, advancedState.cursor, 1);
+        const next = nextWordCursor(advancedState.document, advancedState.cursor, 1);
         requestWordFollow("capture");
         advancedDispatch({ type: AdvancedActionType.syncEnd, payload: captureTimeMs() });
         if (next.lineIndex !== state.selectIndex) {
@@ -454,7 +502,7 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
         if (!holdingWordRef.current || timingMode !== "word" || !advancedState.document) return;
         holdingWordRef.current = false;
         setIsHoldingWord(false);
-        const next = nextSyncWordCursor(advancedState.document, advancedState.cursor, 1);
+        const next = nextWordCursor(advancedState.document, advancedState.cursor, 1);
         requestWordFollow("capture");
         advancedDispatch({ type: AdvancedActionType.finishHold, payload: captureTimeMs() });
         if (next.lineIndex !== state.selectIndex) {
@@ -750,13 +798,13 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                 case InputAction.PrevLine:
                     ev.preventDefault();
                     if (timingMode === "word" && advancedState.document) {
-                        selectWord(nextSyncWordCursor(advancedState.document, advancedState.cursor, -1));
+                        selectWord(nextWordCursor(advancedState.document, advancedState.cursor, -1));
                     } else selectLine((index) => index - 1);
                     break;
                 case InputAction.NextLine:
                     ev.preventDefault();
                     if (timingMode === "word" && advancedState.document) {
-                        selectWord(nextSyncWordCursor(advancedState.document, advancedState.cursor, 1));
+                        selectWord(nextWordCursor(advancedState.document, advancedState.cursor, 1));
                     } else selectLine((index) => index + 1);
                     break;
                 case InputAction.FirstLine:
@@ -1309,10 +1357,10 @@ export const Synchronizer: React.FC<ISynchronizerProps> = ({
                         && selectWord(nextUntimedWordCursor(advancedState.document, advancedState.cursor))}
                     onPrevious={() =>
                         advancedState.document
-                        && selectWord(nextSyncWordCursor(advancedState.document, advancedState.cursor, -1))}
+                        && selectWord(nextWordCursor(advancedState.document, advancedState.cursor, -1))}
                     onNext={() =>
                         advancedState.document
-                        && selectWord(nextSyncWordCursor(advancedState.document, advancedState.cursor, 1))}
+                        && selectWord(nextWordCursor(advancedState.document, advancedState.cursor, 1))}
                     onPreviewWord={previewSelectedWord}
                     onPreviewLine={previewSelectedLine}
                     onDeleteTime={() => advancedDispatch({ type: AdvancedActionType.deleteTime, payload: undefined })}

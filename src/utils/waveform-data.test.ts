@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
     cacheTimingPcm,
     clearOtherTimingPcm,
+    computeWaveformColumns,
     readTimingPcm,
     timingPanelHeights,
     timingSampleRate,
@@ -60,5 +61,16 @@ describe("timing visualization data", () => {
     it("gives the entire display area to the selected view", () => {
         expect(timingPanelHeights(380, true)).toEqual({ wave: 1, spectrum: 364 });
         expect(timingPanelHeights(380, false)).toEqual({ wave: 364, spectrum: 0 });
+    });
+
+    it("preserves headroom and dynamic contrast in loud waveform columns", () => {
+        const loud = new Float32Array(200);
+        loud.fill(0.98, 0, 100);
+        loud.fill(0.75, 100, 200);
+        const columns = computeWaveformColumns([loud], 2, 1);
+        expect(columns).toHaveLength(2);
+        expect(columns[0].peak).toBeLessThan(0.9);
+        expect(columns[0].peak - columns[1].peak).toBeGreaterThan(0.2);
+        expect(columns[0].rms).toBeLessThanOrEqual(columns[0].peak);
     });
 });

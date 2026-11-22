@@ -4,25 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe("Huhu language preference", () => {
-    it.each([
-        ["{}", "auto"],
-        ["{\"huhuAlignmentLanguage\":\"auto\"}", "auto"],
-        ["{\"huhuAlignmentLanguage\":\"en\"}", "en"],
-        ["{\"huhuAlignmentLanguage\":\"ko\"}", "ko"],
-        ["{\"huhuAlignmentLanguage\":\"ko-en\"}", "ko-en"],
-        ["{\"huhuAlignmentLanguage\":\"invalid\"}", "auto"],
-    ])("initializes %s as %s", async (stored, expected) => {
-        vi.stubGlobal("i18n", { langCodeList: ["en-US"] });
-        vi.stubGlobal("navigator", { language: "en-US", languages: ["en-US"] });
-        const { usePref } = await import("./usePref.js");
-        const Preference = () => {
-            const [state] = usePref(() => stored);
-            return createElement("span", null, state.huhuAlignmentLanguage);
-        };
-        expect(renderToStaticMarkup(createElement(Preference))).toBe(`<span>${expected}</span>`);
-    });
-
+describe("usePref", () => {
     it("normalizes regional browser locales and sanitizes corrupted stored preferences", async () => {
         vi.stubGlobal("i18n", {
             langCodeList: ["en-US", "ja", "ko-KR", "pl-PL", "pt-BR", "sk-SK", "zh-CN", "zh-HK", "zh-TW"],

@@ -4,7 +4,6 @@ import {
     AdvancedActionType,
     advancedLyricsReducer,
     initAdvancedLyricsState,
-    nextSyncWordCursor,
     nextWordCursor,
 } from "./useAdvancedLyrics.js";
 
@@ -477,11 +476,11 @@ describe("advanced lyrics timing state", () => {
         expect(state.document?.lines[0].startMs).toBe(2200);
     });
 
-    it("supports start/end rhythm timing with explicit gaps and skips blank separator lines", () => {
+    it("supports start/end rhythm timing with explicit gaps", () => {
         let state = advancedLyricsReducer(initAdvancedLyricsState(""), {
             type: AdvancedActionType.ensureWordMode,
             payload: {
-                lines: [{ text: "Hold breath" }, { text: "" }, { text: "Next" }],
+                lines: [{ text: "Hold breath" }, { text: "Next" }],
                 metadata: new Map(),
             },
         });
@@ -501,10 +500,6 @@ describe("advanced lyrics timing state", () => {
         state = advancedLyricsReducer(state, { type: AdvancedActionType.syncEnd, payload: 2600 });
         expect(state.document?.lines[0].words[1]).toMatchObject({ startMs: 2000, endMs: 2600 });
         expect(state.document?.lines[0].endMs).toBe(2600);
-        expect(state.cursor).toEqual({ lineIndex: 2, wordIndex: 0 });
-        expect(nextSyncWordCursor(state.document!, { lineIndex: 2, wordIndex: 0 }, -1)).toEqual({
-            lineIndex: 0,
-            wordIndex: 1,
-        });
+        expect(state.cursor).toEqual({ lineIndex: 1, wordIndex: 0 });
     });
 });

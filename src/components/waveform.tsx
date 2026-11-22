@@ -6,6 +6,7 @@ import {
     cacheTimingPcm,
     clearOtherTimingPcm,
     readTimingPcm,
+    renderDetailedWaveform,
     timingSampleRate,
     waveformPixelsPerSecond,
 } from "../utils/waveform-data.js";
@@ -119,9 +120,12 @@ export const Waveform = forwardRef<WaveformHandle, IWaveformProps>(({
         normalize,
         barHeight: creationOptionsRef.current.barHeight,
         height: creationOptionsRef.current.height,
-        barWidth: 2,
-        barGap: 1,
-        barRadius: 2,
+        barWidth: pointMode ? undefined : 2,
+        barGap: pointMode ? undefined : 1,
+        barRadius: pointMode ? undefined : 2,
+        renderFunction: pointMode
+            ? (peaks, ctx) => renderDetailedWaveform(peaks, ctx, barHeightRef.current)
+            : undefined,
         cursorWidth: 2,
         interact: !pointMode,
         dragToSeek: !pointMode,
