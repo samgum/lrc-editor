@@ -122,7 +122,7 @@ export const Tools: React.FC<{
             sessionStorage.removeItem(SSK.initialTool);
             return requested;
         }
-        return "overwrite";
+        return prefState.toolOrder[0] ?? "overwrite";
     });
 
     // Overwrite state (歌词滚动姬-style interleaved overlay)
@@ -575,19 +575,23 @@ export const Tools: React.FC<{
         });
     }, []);
 
-    const toolButtons: Array<{ id: Tool; label: string }> = [
-        { id: "overwrite", label: lang.tools.overwrite },
-        { id: "timeline-fix", label: lang.tools.timelineFix },
-        { id: "time", label: lang.tools.changeOffset },
-        { id: "split", label: lang.tools.splitTranslation },
-        { id: "convert", label: lang.tools.formatConverter },
-        { id: "remove-tags", label: lang.tools.removeTags },
-        { id: "remove-empty", label: lang.tools.removeEmpty },
-        { id: "sections", label: lang.tools.sections },
-        { id: "tracklist", label: lang.tools.tracklist },
-        { id: "replace", label: lang.tools.replaceText },
-        { id: "case", label: lang.tools.caseConverter },
-    ];
+    const toolLabels: Record<Tool, string> = {
+        overwrite: lang.tools.overwrite,
+        "timeline-fix": lang.tools.timelineFix,
+        time: lang.tools.changeOffset,
+        split: lang.tools.splitTranslation,
+        convert: lang.tools.formatConverter,
+        "remove-tags": lang.tools.removeTags,
+        "remove-empty": lang.tools.removeEmpty,
+        sections: lang.tools.sections,
+        tracklist: lang.tools.tracklist,
+        replace: lang.tools.replaceText,
+        case: lang.tools.caseConverter,
+    };
+    const toolButtons: Array<{ id: Tool; label: string }> = prefState.toolOrder.map((id) => ({
+        id,
+        label: toolLabels[id],
+    }));
 
     const infoLineCount = parsedOverwriteSource.info.size;
     const targetLineCount = hasOverwriteSourceLyrics ? parsedOverwriteSource.lyric.length : 0;

@@ -30,4 +30,14 @@ describe("usePref", () => {
         };
         expect(renderToStaticMarkup(createElement(Corrupted))).toBe("<span>en-US:3:16:#f58ea8</span>");
     });
+
+    it("normalizes toolOrder and validates default export formats", async () => {
+        const { defaultToolOrder, normalizeToolOrder } = await import("./usePref.js");
+        expect(normalizeToolOrder(["replace", "unknown", "replace", "split"]).slice(0, 3)).toEqual([
+            "replace",
+            "split",
+            defaultToolOrder[0],
+        ]);
+        expect(normalizeToolOrder(["replace", "split"])).toHaveLength(defaultToolOrder.length);
+    });
 });

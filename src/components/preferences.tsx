@@ -2,7 +2,15 @@ import STRINGS from "#const/strings.json" assert { type: "json" };
 import { formatText } from "@lrc-maker/lrc-parser";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useDismissibleDetails } from "../hooks/useDismissibleDetails.js";
-import { themeColor, ThemeMode } from "../hooks/usePref.js";
+import {
+    defaultToolOrder,
+    type LineCaptureMode,
+    themeColor,
+    ThemeMode,
+    type ToolId,
+    type WordCaptureMode,
+} from "../hooks/usePref.js";
+import type { ExportLyricFormat, LineLyricExportFormat } from "../utils/advanced-lyrics.js";
 import { clearLocalAiCache, stopLocalAiService } from "../utils/local-ai-alignment.js";
 import { formatTimeTag } from "../utils/lrc-format.js";
 import { unregister } from "../utils/sw.unregister.js";
@@ -662,6 +670,157 @@ export const Preferences: React.FC = () => {
                             {...useNumberInput(prefState.fineTuneMs, onFineTuneChange)}
                         />
                     </label>
+                </li>
+                <li className="preferences-section-title">
+                    <h2>{lang.preferences.sections.defaults}</h2>
+                </li>
+                <li>
+                    <div className="list-item">
+                        <span>{lang.preferences.defaultLineExportFormat}</span>
+                        <StyledSelect
+                            value={prefState.defaultLineExportFormat}
+                            onValueChange={(value) =>
+                                prefDispatch({
+                                    type: "defaultLineExportFormat",
+                                    payload: value as LineLyricExportFormat,
+                                })}
+                            label={lang.preferences.defaultLineExportFormat}
+                            options={[
+                                { value: "lrc", label: lang.advancedLyrics.standardLrcDefault },
+                                { value: "srt", label: lang.advancedLyrics.lineSrt },
+                                { value: "ttml", label: lang.advancedLyrics.lineTtml },
+                                { value: "txt", label: lang.advancedLyrics.plainText },
+                            ]}
+                        />
+                    </div>
+                </li>
+                <li>
+                    <div className="list-item">
+                        <span>{lang.preferences.defaultWordExportFormat}</span>
+                        <StyledSelect
+                            value={prefState.defaultWordExportFormat}
+                            onValueChange={(value) =>
+                                prefDispatch({
+                                    type: "defaultWordExportFormat",
+                                    payload: value as ExportLyricFormat,
+                                })}
+                            label={lang.preferences.defaultWordExportFormat}
+                            options={[
+                                { value: "enhanced-lrc", label: lang.advancedLyrics.enhancedLrcDefault },
+                                { value: "lrc", label: lang.advancedLyrics.standardLrc },
+                                { value: "krc", label: "KRC" },
+                                { value: "ttml", label: lang.advancedLyrics.wordTtml },
+                                { value: "ass-kf", label: lang.advancedLyrics.assKf },
+                                { value: "srt", label: lang.advancedLyrics.lineSrt },
+                            ]}
+                        />
+                    </div>
+                </li>
+                <li>
+                    <div className="list-item">
+                        <span>{lang.preferences.defaultLineCaptureMode}</span>
+                        <StyledSelect
+                            value={prefState.lineCaptureMode}
+                            onValueChange={(value) =>
+                                prefDispatch({
+                                    type: "lineCaptureMode",
+                                    payload: value as LineCaptureMode,
+                                })}
+                            label={lang.preferences.defaultLineCaptureMode}
+                            options={[
+                                { value: "standard", label: lang.timing.standardCaptureMode },
+                                { value: "waveform", label: lang.timing.waveformCaptureMode },
+                            ]}
+                        />
+                    </div>
+                </li>
+                <li>
+                    <div className="list-item">
+                        <span>{lang.preferences.defaultWordCaptureMode}</span>
+                        <StyledSelect
+                            value={prefState.wordCaptureMode}
+                            onValueChange={(value) =>
+                                prefDispatch({
+                                    type: "wordCaptureMode",
+                                    payload: value as WordCaptureMode,
+                                })}
+                            label={lang.preferences.defaultWordCaptureMode}
+                            options={[
+                                { value: "tap", label: lang.advancedLyrics.tapMode },
+                                { value: "hold", label: lang.advancedLyrics.holdMode },
+                                { value: "waveform", label: lang.advancedLyrics.waveformMode },
+                            ]}
+                        />
+                    </div>
+                </li>
+                <li>
+                    <section className="list-item preferences-tool-order">
+                        <header>
+                            <div>
+                                <strong>{lang.preferences.toolOrder}</strong>
+                                <span>{lang.preferences.toolOrderHint}</span>
+                            </div>
+                            <button
+                                type="button"
+                                className="preferences-order-reset"
+                                onClick={() => prefDispatch({ type: "toolOrder", payload: [...defaultToolOrder] })}
+                            >
+                                {lang.preferences.resetOrder}
+                            </button>
+                        </header>
+                        <ul>
+                            {prefState.toolOrder.map((toolId, index) => {
+                                const toolNames: Record<ToolId, string> = {
+                                    overwrite: lang.tools.overwrite,
+                                    "timeline-fix": lang.tools.timelineFix,
+                                    time: lang.tools.changeOffset,
+                                    split: lang.tools.splitTranslation,
+                                    convert: lang.tools.formatConverter,
+                                    "remove-tags": lang.tools.removeTags,
+                                    "remove-empty": lang.tools.removeEmpty,
+                                    sections: lang.tools.sections,
+                                    tracklist: lang.tools.tracklist,
+                                    replace: lang.tools.replaceText,
+                                    case: lang.tools.caseConverter,
+                                };
+                                const moveTool = (targetIndex: number) => {
+                                    const next = prefState.toolOrder.slice();
+                                    const [item] = next.splice(index, 1);
+                                    next.splice(targetIndex, 0, item);
+                                    prefDispatch({ type: "toolOrder", payload: next });
+                                };
+                                return (
+                                    <li key={toolId}>
+                                        <span className="preferences-order-index">{index + 1}</span>
+                                        <strong>{toolNames[toolId]}</strong>
+                                        <div className="preferences-order-actions">
+                                            <button
+                                                type="button"
+                                                disabled={index === 0}
+                                                onClick={() => moveTool(0)}
+                                            >
+                                                {lang.preferences.pinTop}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                disabled={index === 0}
+                                                onClick={() => moveTool(index - 1)}
+                                            >
+                                                {lang.preferences.moveUp}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                disabled={index === prefState.toolOrder.length - 1}
+                                                onClick={() => moveTool(index + 1)}
+                                            >
+                                                {lang.preferences.moveDown}
+                                            </button>
+                                        </div>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </section>
                 </li>
                 <li className="preferences-section-title">
                     <h2>{lang.preferences.sections.storage}</h2>

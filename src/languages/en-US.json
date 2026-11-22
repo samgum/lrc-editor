@@ -178,14 +178,25 @@
             "advanced": "Advanced lyrics and AI",
             "appearance": "Appearance and lyric output",
             "precision": "Timing precision",
-            "storage": "Storage and about"
+            "storage": "Storage and about",
+            "defaults": "Defaults & tool order"
         },
         "themeMode": {
             "label": "Theme Mode",
             "auto": "auto",
             "light": "light",
             "dark": "dark"
-        }
+        },
+        "defaultLineExportFormat": "Default export format (Line mode)",
+        "defaultWordExportFormat": "Default export format (Word mode)",
+        "defaultLineCaptureMode": "Default line timing mode",
+        "defaultWordCaptureMode": "Default word timing mode",
+        "toolOrder": "LRC tools order",
+        "toolOrderHint": "Put your most used tools first; the first item opens by default.",
+        "moveUp": "Up",
+        "moveDown": "Down",
+        "pinTop": "Top",
+        "resetOrder": "Reset"
     },
     "advancedLyrics": {
         "setting": "Enable advanced lyric formats and word timing",

@@ -178,14 +178,25 @@
             "advanced": "Pokročilé texty a AI",
             "appearance": "Vzhľad a výstup textov",
             "precision": "Presnosť času",
-            "storage": "Úložisko a informácie"
+            "storage": "Úložisko a informácie",
+            "defaults": "Defaults & tool order"
         },
         "themeMode": {
             "label": "Motív",
             "auto": "automaticky",
             "light": "svetlý",
             "dark": "tmavý"
-        }
+        },
+        "defaultLineExportFormat": "Default export format (Line mode)",
+        "defaultWordExportFormat": "Default export format (Word mode)",
+        "defaultLineCaptureMode": "Default line timing mode",
+        "defaultWordCaptureMode": "Default word timing mode",
+        "toolOrder": "LRC tools order",
+        "toolOrderHint": "Put your most used tools first; the first item opens by default.",
+        "moveUp": "Up",
+        "moveDown": "Down",
+        "pinTop": "Top",
+        "resetOrder": "Reset"
     },
     "advancedLyrics": {
         "setting": "Povoliť pokročilé formáty a časovanie slov",

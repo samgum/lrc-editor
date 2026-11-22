@@ -382,3 +382,78 @@
     position: absolute;
     visibility: hidden;
 }
+
+.list-item.preferences-tool-order {
+    display: grid;
+    align-items: stretch;
+    gap: 10px;
+    width: 100%;
+    padding-top: 12px;
+    padding-bottom: 14px;
+}
+
+.preferences-tool-order > header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.preferences-tool-order > header > div {
+    display: grid;
+    gap: 3px;
+}
+
+.preferences-tool-order > header span {
+    color: var(--text-muted-color);
+    font-size: 0.76rem;
+}
+
+.preferences-order-reset,
+.preferences-order-actions > button {
+    min-height: 32px;
+    padding: 0 10px;
+    color: var(--text-secondary-color);
+    background: var(--surface-subtle-color);
+    border: 1px solid var(--border-subtle-color);
+    border-radius: 6px;
+    font-size: 0.76rem;
+}
+
+.preferences-order-reset:hover:not(:disabled),
+.preferences-order-actions > button:hover:not(:disabled) {
+    color: var(--theme-foreground-color);
+    border-color: var(--theme-color);
+}
+
+.preferences-tool-order > ul {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.preferences-tool-order > ul > li {
+    display: grid;
+    grid-template-columns: 1.8rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: var(--surface-subtle-color);
+    border: 1px solid var(--border-subtle-color);
+    border-radius: 8px;
+}
+
+.preferences-order-index {
+    color: var(--text-muted-color);
+    font-family: "Cascadia Mono", Consolas, monospace;
+    font-size: 0.78rem;
+    text-align: center;
+}
+
+.preferences-order-actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}

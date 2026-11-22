@@ -178,14 +178,25 @@
             "advanced": "進階歌詞與 AI",
             "appearance": "外觀與歌詞輸出",
             "precision": "時間精度",
-            "storage": "儲存與關於"
+            "storage": "儲存與關於",
+            "defaults": "預設選項與工具排序"
         },
         "themeMode": {
             "label": "主題模式",
             "auto": "跟隨系統",
             "light": "亮色模式",
             "dark": "暗色模式"
-        }
+        },
+        "defaultLineExportFormat": "逐行模式預設匯出格式",
+        "defaultWordExportFormat": "逐字模式預設匯出格式",
+        "defaultLineCaptureMode": "預設逐行打軸方式",
+        "defaultWordCaptureMode": "預設逐字打軸方式",
+        "toolOrder": "實用工具排序",
+        "toolOrderHint": "將最常用的工具排在前面，第一位會作為預設開啟頁。",
+        "moveUp": "上移",
+        "moveDown": "下移",
+        "pinTop": "置頂",
+        "resetOrder": "恢復預設"
     },
     "advancedLyrics": {
         "setting": "啟用進階歌詞格式與逐字打軸",

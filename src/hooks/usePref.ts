@@ -1,4 +1,5 @@
 import { useReducer } from "react";
+import type { ExportLyricFormat, LineLyricExportFormat } from "../utils/advanced-lyrics.js";
 import { defaultKeyBindings } from "../utils/default-keybindings.js";
 import { normalizeKeyBindings } from "../utils/keybindings.js";
 
@@ -24,6 +25,43 @@ export const enum ThemeMode {
 export type WordCaptureMode = "tap" | "hold" | "waveform";
 export type TimingWaveformView = "waveform" | "spectrogram";
 export type LineCaptureMode = "standard" | "waveform";
+
+export const defaultToolOrder = [
+    "overwrite",
+    "timeline-fix",
+    "time",
+    "split",
+    "convert",
+    "remove-tags",
+    "remove-empty",
+    "sections",
+    "tracklist",
+    "replace",
+    "case",
+] as const;
+
+export type ToolId = (typeof defaultToolOrder)[number];
+
+const validLineExportFormats = new Set<LineLyricExportFormat>(["lrc", "srt", "ttml", "txt"]);
+const validWordExportFormats = new Set<ExportLyricFormat>(["lrc", "enhanced-lrc", "krc", "ttml", "ass-kf", "srt"]);
+
+export const normalizeToolOrder = (raw: unknown): ToolId[] => {
+    const validSet = new Set<string>(defaultToolOrder);
+    const seen = new Set<ToolId>();
+    const result: ToolId[] = [];
+    if (Array.isArray(raw)) {
+        for (const item of raw) {
+            if (typeof item === "string" && validSet.has(item) && !seen.has(item as ToolId)) {
+                seen.add(item as ToolId);
+                result.push(item as ToolId);
+            }
+        }
+    }
+    for (const id of defaultToolOrder) {
+        if (!seen.has(id)) result.push(id);
+    }
+    return result;
+};
 
 const initState = {
     lang: "en-US",
@@ -54,6 +92,9 @@ const initState = {
     timingWaveformHeight: 42,
     wordTimingCompensationMs: 0,
     wordPreviewLeadMs: 750,
+    defaultLineExportFormat: "lrc" as LineLyricExportFormat,
+    defaultWordExportFormat: "enhanced-lrc" as ExportLyricFormat,
+    toolOrder: [...defaultToolOrder] as ToolId[],
     keyBindings: defaultKeyBindings,
 };
 
@@ -179,6 +220,13 @@ const init = (lazyInit: () => string): State => {
     state.timingWaveformAmplitude = Math.max(0.25, Math.min(4, Number(state.timingWaveformAmplitude) || 1));
     state.timingSpectrumBrightness = Math.max(0.5, Math.min(4, Number(state.timingSpectrumBrightness) || 1));
     state.timingWaveformHeight = Math.max(24, Math.min(70, Number(state.timingWaveformHeight) || 42));
+    if (!validLineExportFormats.has(state.defaultLineExportFormat)) {
+        state.defaultLineExportFormat = "lrc";
+    }
+    if (!validWordExportFormats.has(state.defaultWordExportFormat)) {
+        state.defaultWordExportFormat = "enhanced-lrc";
+    }
+    state.toolOrder = normalizeToolOrder(state.toolOrder);
     return state;
 };
 

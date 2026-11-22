@@ -189,7 +189,14 @@ export const Editor: React.FC<{
     const textarea = useRef<HTMLInputLikeElement>(null);
     const lyricFileInput = useRef<HTMLInputElement>(null);
     const wordTimingDialog = useRef<HTMLDialogElement>(null);
-    const [exportFormat, setExportFormat] = useState<ExportLyricFormat>(timingMode === "word" ? "enhanced-lrc" : "lrc");
+    const [exportFormat, setExportFormat] = useState<ExportLyricFormat>(() =>
+        timingMode === "word" ? prefState.defaultWordExportFormat : prefState.defaultLineExportFormat
+    );
+    useEffect(() => {
+        setExportFormat(
+            timingMode === "word" ? prefState.defaultWordExportFormat : prefState.defaultLineExportFormat,
+        );
+    }, [prefState.defaultLineExportFormat, prefState.defaultWordExportFormat, timingMode]);
     useEffect(() => {
         const dialog = wordTimingDialog.current;
         if (wordTimingOffer && dialog && !dialog.open) dialog.showModal();

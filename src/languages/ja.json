@@ -178,14 +178,25 @@
             "advanced": "高度な歌詞と AI",
             "appearance": "外観と歌詞出力",
             "precision": "時間精度",
-            "storage": "ストレージと情報"
+            "storage": "ストレージと情報",
+            "defaults": "デフォルト設定とツール順"
         },
         "themeMode": {
             "label": "テーマモード",
             "auto": "自動",
             "light": "ライト",
             "dark": "ダーク"
-        }
+        },
+        "defaultLineExportFormat": "行モードのデフォルト書き出し形式",
+        "defaultWordExportFormat": "ワードモードのデフォルト書き出し形式",
+        "defaultLineCaptureMode": "デフォルト行タイミング方式",
+        "defaultWordCaptureMode": "デフォルトワードタイミング方式",
+        "toolOrder": "LRCツールの並び順",
+        "toolOrderHint": "よく使うツールを先頭に移動できます。先頭のツールが最初に開きます。",
+        "moveUp": "上へ",
+        "moveDown": "下へ",
+        "pinTop": "先頭へ",
+        "resetOrder": "リセット"
     },
     "advancedLyrics": {
         "setting": "高度な歌詞形式と単語タイミングを有効にする",

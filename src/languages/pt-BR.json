@@ -178,14 +178,25 @@
             "advanced": "Letras avançadas e IA",
             "appearance": "Aparência e saída de letras",
             "precision": "Precisão de tempo",
-            "storage": "Armazenamento e informações"
+            "storage": "Armazenamento e informações",
+            "defaults": "Defaults & tool order"
         },
         "themeMode": {
             "label": "Modo de tema",
             "auto": "auto",
             "light": "claro",
             "dark": "escuro"
-        }
+        },
+        "defaultLineExportFormat": "Default export format (Line mode)",
+        "defaultWordExportFormat": "Default export format (Word mode)",
+        "defaultLineCaptureMode": "Default line timing mode",
+        "defaultWordCaptureMode": "Default word timing mode",
+        "toolOrder": "LRC tools order",
+        "toolOrderHint": "Put your most used tools first; the first item opens by default.",
+        "moveUp": "Up",
+        "moveDown": "Down",
+        "pinTop": "Top",
+        "resetOrder": "Reset"
     },
     "advancedLyrics": {
         "setting": "Ativar formatos avançados e sincronização por palavra",

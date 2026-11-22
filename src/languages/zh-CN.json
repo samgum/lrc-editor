@@ -178,14 +178,25 @@
             "advanced": "高级歌词与 AI",
             "appearance": "外观与歌词输出",
             "precision": "时间精度",
-            "storage": "存储与关于"
+            "storage": "存储与关于",
+            "defaults": "默认选项与工具排序"
         },
         "themeMode": {
             "label": "主题模式",
             "auto": "跟随系统",
             "light": "亮色模式",
             "dark": "暗色模式"
-        }
+        },
+        "defaultLineExportFormat": "逐行模式默认导出格式",
+        "defaultWordExportFormat": "逐字模式默认导出格式",
+        "defaultLineCaptureMode": "默认逐行打轴方式",
+        "defaultWordCaptureMode": "默认逐字打轴方式",
+        "toolOrder": "实用工具排序",
+        "toolOrderHint": "把最常用的工具排在前面，排第一的工具会作为默认打开页。",
+        "moveUp": "上移",
+        "moveDown": "下移",
+        "pinTop": "置顶",
+        "resetOrder": "恢复默认"
     },
     "advancedLyrics": {
         "setting": "启用高级歌词格式与逐字打轴",

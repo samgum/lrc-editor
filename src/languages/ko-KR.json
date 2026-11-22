@@ -178,14 +178,25 @@
             "advanced": "고급 가사 및 AI",
             "appearance": "모양 및 가사 출력",
             "precision": "시간 정밀도",
-            "storage": "저장소 및 정보"
+            "storage": "저장소 및 정보",
+            "defaults": "기본 설정 및 도구 순서"
         },
         "themeMode": {
             "label": "테마 모드",
             "auto": "자동",
             "light": "라이트",
             "dark": "다크"
-        }
+        },
+        "defaultLineExportFormat": "줄 모드 기본 내보내기 형식",
+        "defaultWordExportFormat": "단어 모드 기본 내보내기 형식",
+        "defaultLineCaptureMode": "기본 줄 타이밍 방식",
+        "defaultWordCaptureMode": "기본 단어 타이밍 방식",
+        "toolOrder": "LRC 도구 순서",
+        "toolOrderHint": "자주 쓰는 도구를 위로 올리세요. 첫 번째 도구가 기본으로 열립니다.",
+        "moveUp": "위로",
+        "moveDown": "아래로",
+        "pinTop": "맨 위로",
+        "resetOrder": "초기화"
     },
     "advancedLyrics": {
         "setting": "고급 가사 형식과 단어 타이밍 사용",
