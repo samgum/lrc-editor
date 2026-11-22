@@ -1150,15 +1150,16 @@
 }
 
 .selected-line-badge {
-    color: var(--theme-foreground-color);
-    background: color-mix(in srgb, var(--surface-color) 70%, var(--theme-color) 30%);
-    border: 1px solid rgba(var(--theme-rgb), 0.45);
+    color: var(--theme-contrast-color);
+    background: var(--theme-color);
+    border: 1px solid var(--theme-color);
+    box-shadow: 0 2px 8px rgba(var(--theme-rgb), 0.28);
 }
 
 .playing-line-badge {
-    color: var(--theme-contrast-color);
-    background: var(--theme-color);
-    box-shadow: 0 2px 8px rgba(var(--theme-rgb), 0.28);
+    color: var(--theme-foreground-color);
+    background: var(--surface-color);
+    border: 1px solid rgba(var(--theme-rgb), 0.55);
 }
 
 .playing-line-badge i {
@@ -1216,56 +1217,61 @@
 }
 
 .line.select {
-    z-index: 1;
+    z-index: 3;
     border-left-color: var(--theme-color);
-    background: linear-gradient(90deg, rgba(var(--theme-rgb), 0.2), rgba(var(--theme-rgb), 0.08) 70%);
+    background:
+        linear-gradient(90deg, rgba(var(--theme-rgb), 0.24), rgba(var(--theme-rgb), 0.10) 75%),
+        var(--surface-color);
     box-shadow:
-        inset 5px 0 0 var(--theme-color),
-        inset 0 0 0 1px rgba(var(--theme-rgb), 0.3),
-        0 4px 14px rgba(var(--theme-rgb), 0.12);
+        inset 6px 0 0 var(--theme-color),
+        inset 0 0 0 2px var(--theme-color),
+        0 6px 18px rgba(var(--theme-rgb), 0.18);
+}
+
+.line.select .line-text {
+    font-weight: 700;
+    color: var(--font-color);
 }
 
 .line.highlight {
-    z-index: 2;
-    border-left-color: var(--theme-color);
+    z-index: 1;
     background:
         linear-gradient(
             90deg,
-            rgba(var(--theme-rgb), 0.48),
-            rgba(var(--theme-rgb), 0.24) 58%,
-            rgba(var(--theme-rgb), 0.13)
+            rgba(var(--theme-rgb), 0.11),
+            rgba(var(--theme-rgb), 0.05) 65%,
+            transparent
         ),
         var(--surface-color);
-    box-shadow:
-        inset 7px 0 0 var(--theme-color),
-        inset 0 0 0 1px rgba(var(--theme-rgb), 0.54),
-        0 6px 20px rgba(var(--theme-rgb), 0.2);
-    animation: playback-line-glow 1.8s ease-in-out infinite alternate;
+    box-shadow: inset 3px 0 0 rgba(var(--theme-rgb), 0.45);
 }
 
 .line.select.highlight {
-    z-index: 3;
+    z-index: 4;
     background:
         linear-gradient(
             90deg,
-            rgba(var(--theme-rgb), 0.62),
-            rgba(var(--theme-rgb), 0.3) 62%,
-            rgba(var(--theme-rgb), 0.16)
+            rgba(var(--theme-rgb), 0.30),
+            rgba(var(--theme-rgb), 0.14) 70%
         ),
         var(--surface-color);
     box-shadow:
-        inset 8px 0 0 var(--theme-color),
-        inset 0 0 0 2px rgba(var(--theme-rgb), 0.72),
-        0 8px 24px rgba(var(--theme-rgb), 0.28);
+        inset 6px 0 0 var(--theme-color),
+        inset 0 0 0 2px var(--theme-color),
+        0 8px 22px rgba(var(--theme-rgb), 0.24);
 }
 
 .line.highlight .line-text {
+    font-weight: 600;
+}
+
+.line.select.highlight .line-text {
     font-weight: 760;
 }
 
 .line.highlight .line-index, .line.highlight .line-time {
     color: var(--theme-foreground-color);
-    font-weight: 700;
+    font-weight: 650;
 }
 
 .line.highlight .line-index {
@@ -1274,10 +1280,10 @@
     width: 1.65rem;
     height: 1.65rem;
     place-self: center;
-    color: var(--theme-contrast-color);
-    background: var(--theme-color);
+    color: var(--theme-foreground-color);
+    background: rgba(var(--theme-rgb), 0.16);
+    border: 1px solid rgba(var(--theme-rgb), 0.45);
     border-radius: 999px;
-    box-shadow: 0 2px 7px rgba(var(--theme-rgb), 0.3);
 }
 
 .error {
