@@ -383,6 +383,52 @@
             "decreaseRate": "Decrease playback speed",
             "togglePlay": "Play or pause",
             "showHelp": "Show help"
+        },
+        "actionDescriptions": {
+            "sync": "Record the current playback time for the selected line (or advance continuously in word timing tap mode).",
+            "deleteTime": "Remove the timestamp from the currently selected line or word.",
+            "resetOffset": "Set the selected line or word timestamp to the current audio playback position.",
+            "decreaseOffset": "Shift the selected timestamp earlier by the fine-tune step (hold Shift for 0.5×, Alt for 0.2×).",
+            "increaseOffset": "Shift the selected timestamp later by the fine-tune step (hold Shift for 0.5×, Alt for 0.2×).",
+            "prevLine": "Move selection to the previous line (or previous word in word timing mode).",
+            "nextLine": "Move selection to the next line (or next word in word timing mode).",
+            "firstLine": "Jump selection to the first line (or first word).",
+            "lastLine": "Jump selection to the last line (or last word).",
+            "pageUp": "Jump selection up by 10 lines.",
+            "pageDown": "Jump selection down by 10 lines.",
+            "seekBackward": "Rewind audio playback by 5 seconds.",
+            "seekForward": "Fast-forward audio playback by 5 seconds.",
+            "resetRate": "Reset audio playback speed back to 1.0×.",
+            "increaseRate": "Speed up audio playback.",
+            "decreaseRate": "Slow down audio playback.",
+            "togglePlay": "Play or pause the audio.",
+            "showHelp": "Open the shortcut help overlay."
+        },
+        "wordRhythmTitle": "Word timing rhythm keys (Tap mode)",
+        "wordRhythmHint": "Hover any item to see how it works during word-by-word timing.",
+        "wordRhythmActions": {
+            "syncStart": {
+                "label": "Start word",
+                "keys": [
+                    "F"
+                ],
+                "description": "Set the current word start time without advancing. Preserves any earlier gap before this word, ideal after a pause or for re-timing a word start."
+            },
+            "syncContinuous": {
+                "label": "Continuous",
+                "keys": [
+                    "Space",
+                    "G"
+                ],
+                "description": "Set the current word start time, close the previous word seamlessly, and advance to the next word. Best for continuous singing."
+            },
+            "syncEnd": {
+                "label": "End word",
+                "keys": [
+                    "E"
+                ],
+                "description": "Set the current word end time and advance to the next word without setting its start time, leaving an intentional breath or instrumental gap."
+            }
         }
     },
     "tools": {

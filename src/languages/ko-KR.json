@@ -383,6 +383,52 @@
             "decreaseRate": "재생 속도 감소",
             "togglePlay": "재생/일시정지 전환",
             "showHelp": "도움말 표시"
+        },
+        "actionDescriptions": {
+            "sync": "선택된 줄에 현재 재생 시간을 기록합니다(단어 타이밍 탭 모드에서는 연속으로 다음 단어로 이동합니다).",
+            "deleteTime": "선택된 줄이나 단어의 타임스탬프를 삭제합니다.",
+            "resetOffset": "선택된 타임스탬프를 현재 오디오 재생 시간으로 재설정합니다.",
+            "decreaseOffset": "선택된 타임스탬프를 미세 조정 단위만큼 앞당깁니다(Shift 0.5×, Alt 0.2×).",
+            "increaseOffset": "선택된 타임스탬프를 미세 조정 단위만큼 늦춥니다(Shift 0.5×, Alt 0.2×).",
+            "prevLine": "이전 줄로 이동합니다(단어 타이밍에서는 이전 단어로 이동).",
+            "nextLine": "다음 줄로 이동합니다(단어 타이밍에서는 다음 단어로 이동).",
+            "firstLine": "첫 번째 줄(또는 단어)로 이동합니다.",
+            "lastLine": "마지막 줄(또는 단어)로 이동합니다.",
+            "pageUp": "10줄 위로 이동합니다.",
+            "pageDown": "10줄 아래로 이동합니다.",
+            "seekBackward": "재생 위치를 5초 뒤로 이동합니다.",
+            "seekForward": "재생 위치를 5초 앞으로 이동합니다.",
+            "resetRate": "재생 속도를 1.0×로 초기화합니다.",
+            "increaseRate": "재생 속도를 높입니다.",
+            "decreaseRate": "재생 속도를 낮춥니다.",
+            "togglePlay": "오디오를 재생하거나 일시 정지합니다.",
+            "showHelp": "단축키 도움말을 표시합니다."
+        },
+        "wordRhythmTitle": "단어 타이밍 리듬 키 (탭 모드)",
+        "wordRhythmHint": "항목에 마우스를 올리면 자세한 설명이 표시됩니다.",
+        "wordRhythmActions": {
+            "syncStart": {
+                "label": "시작점",
+                "keys": [
+                    "F"
+                ],
+                "description": "다음 단어로 넘어가지 않고 현재 단어의 시작 시간만 기록합니다. 앞 단어와의 공백을 유지하거나 시작점을 다시 찍을 때 유용합니다."
+            },
+            "syncContinuous": {
+                "label": "연속 싱크",
+                "keys": [
+                    "Space",
+                    "G"
+                ],
+                "description": "현재 단어의 시작 시간을 기록하고 이전 단어를 자연스럽게 닫은 뒤 다음 단어로 이동합니다."
+            },
+            "syncEnd": {
+                "label": "종료점",
+                "keys": [
+                    "E"
+                ],
+                "description": "현재 단어의 종료 시간을 기록하고 다음 단어로 이동하되, 다음 단어의 시작 시간은 비워 두어 쉼표나 간주를 남깁니다."
+            }
         }
     },
     "tools": {

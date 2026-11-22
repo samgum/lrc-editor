@@ -190,15 +190,22 @@ export const KeyBindingsPage: React.FC = () => {
                 {inputActions.map((action) => {
                     const rowHasConflict = conflictActionSet.has(action);
                     const isRecordingRow = recording === action;
+                    const labelKey = actionLabelKey[action];
+                    const description = lang.keybindings.actionDescriptions[labelKey];
                     return (
                         <li
                             key={action}
                             className={`keybinding-row${rowHasConflict ? " is-conflict" : ""}${
                                 isRecordingRow ? " is-recording" : ""
                             }`}
+                            title={description}
                         >
                             <span className="keybinding-description">
-                                {lang.keybindings.actions[actionLabelKey[action]]}
+                                <span>{lang.keybindings.actions[labelKey]}</span>
+                                <span className="keybinding-help-dot" aria-hidden="true">?</span>
+                                <span className="keybinding-tooltip" role="tooltip">
+                                    {description}
+                                </span>
                             </span>
                             <div className="keybinding-values">
                                 {draft[action].length === 0 && (
@@ -236,6 +243,33 @@ export const KeyBindingsPage: React.FC = () => {
                     );
                 })}
             </ul>
+
+            <section className="keybindings-rhythm-section" aria-labelledby="keybindings-rhythm-title">
+                <header className="keybindings-rhythm-header">
+                    <h2 id="keybindings-rhythm-title">{lang.keybindings.wordRhythmTitle}</h2>
+                    <p>{lang.keybindings.wordRhythmHint}</p>
+                </header>
+                <ul className="keybindings-list">
+                    {Object.entries(lang.keybindings.wordRhythmActions).map(([key, item]) => (
+                        <li key={key} className="keybinding-row keybinding-row-readonly" title={item.description}>
+                            <span className="keybinding-description">
+                                <span>{item.label}</span>
+                                <span className="keybinding-help-dot" aria-hidden="true">?</span>
+                                <span className="keybinding-tooltip" role="tooltip">
+                                    {item.description}
+                                </span>
+                            </span>
+                            <div className="keybinding-values">
+                                {item.keys.map((kbd) => (
+                                    <span className="keybinding-chip" key={kbd}>
+                                        <kbd>{kbd}</kbd>
+                                    </span>
+                                ))}
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            </section>
         </section>
     );
 };

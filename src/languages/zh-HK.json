@@ -383,6 +383,52 @@
             "decreaseRate": "減少播放速度",
             "togglePlay": "切換播放/暫停",
             "showHelp": "顯示說明"
+        },
+        "actionDescriptions": {
+            "sync": "為目前選中的歌詞行記錄播放時間（在逐字打軸「點按起點」模式下會連續落點並前進到下一字詞）。",
+            "deleteTime": "清除目前選中行或字詞的時間戳。",
+            "resetOffset": "將目前選中行或字詞的時間戳重設為目前音訊播放時間。",
+            "decreaseOffset": "將目前時間戳提前一個微調步長（按住 Shift 為 0.5 倍，Alt 為 0.2 倍）。",
+            "increaseOffset": "將目前時間戳延後一個微調步長（按住 Shift 為 0.5 倍，Alt 為 0.2 倍）。",
+            "prevLine": "移動到上一行（在逐字打軸模式下移動到上一個字詞）。",
+            "nextLine": "移動到下一行（在逐字打軸模式下移動到下一個字詞）。",
+            "firstLine": "跳到第一行（或第一個字詞）。",
+            "lastLine": "跳到最後一行（或最後一個字詞）。",
+            "pageUp": "向上移動 10 行。",
+            "pageDown": "向下移動 10 行。",
+            "seekBackward": "音訊後退 5 秒。",
+            "seekForward": "音訊前進 5 秒。",
+            "resetRate": "將播放速度重設為 1.0×。",
+            "increaseRate": "提高播放速度。",
+            "decreaseRate": "降低播放速度。",
+            "togglePlay": "播放或暫停音訊。",
+            "showHelp": "顯示快捷鍵說明。"
+        },
+        "wordRhythmTitle": "逐字打軸節奏鍵（點按模式專用）",
+        "wordRhythmHint": "將滑鼠懸停在任意功能上即可查看詳細作用。",
+        "wordRhythmActions": {
+            "syncStart": {
+                "label": "起始軸",
+                "keys": [
+                    "F"
+                ],
+                "description": "僅記錄目前字詞的起點時間而不自動前進；若前一詞已有更早的結束時間，會保留中間的停頓空隙。"
+            },
+            "syncContinuous": {
+                "label": "連續軸",
+                "keys": [
+                    "Space",
+                    "G"
+                ],
+                "description": "記錄目前字詞起點並自動前進到下一詞，同時無縫銜接上一詞的結束時間，適合連貫演唱段落。"
+            },
+            "syncEnd": {
+                "label": "結束軸",
+                "keys": [
+                    "E"
+                ],
+                "description": "記錄目前字詞的結束時間並前進到下一詞，但不寫入下一詞的起點，方便在換氣或間奏處自然留白。"
+            }
         }
     },
     "tools": {

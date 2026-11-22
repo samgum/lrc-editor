@@ -383,6 +383,52 @@
             "decreaseRate": "降低播放速度",
             "togglePlay": "播放或暂停",
             "showHelp": "显示帮助"
+        },
+        "actionDescriptions": {
+            "sync": "为当前选中的歌词行记录当前播放时间（在逐字打轴「点按起点」模式下则连续落点并推进到下一字词）。",
+            "deleteTime": "清除当前选中行或当前字词的时间戳。",
+            "resetOffset": "将当前选中行或字词的时间戳直接重置为当前音频播放时间。",
+            "decreaseOffset": "将当前时间戳提前一个微调步长（按住 Shift 为 0.5 倍，Alt 为 0.2 倍）。",
+            "increaseOffset": "将当前时间戳延后一个微调步长（按住 Shift 为 0.5 倍，Alt 为 0.2 倍）。",
+            "prevLine": "将光标移动到上一行（在逐字打轴模式下移动到上一个字词）。",
+            "nextLine": "将光标移动到下一行（在逐字打轴模式下移动到下一个字词）。",
+            "firstLine": "跳转到第一行（或第一个字词）。",
+            "lastLine": "跳转到最后一行（或最后一个字词）。",
+            "pageUp": "向上快速跳转 10 行。",
+            "pageDown": "向下快速跳转 10 行。",
+            "seekBackward": "将音频播放进度后退 5 秒。",
+            "seekForward": "将音频播放进度前进 5 秒。",
+            "resetRate": "将音频播放倍速恢复为 1.0×。",
+            "increaseRate": "提高音频播放速度。",
+            "decreaseRate": "降低音频播放速度。",
+            "togglePlay": "播放或暂停音频。",
+            "showHelp": "打开快捷键说明弹窗。"
+        },
+        "wordRhythmTitle": "逐字打轴节奏键（点按模式专用）",
+        "wordRhythmHint": "将鼠标悬停在任意功能上，即可查看它的具体作用。",
+        "wordRhythmActions": {
+            "syncStart": {
+                "label": "起始轴",
+                "keys": [
+                    "F"
+                ],
+                "description": "仅记录当前字词的起点时间而不自动跳到下一词；如果上一词已有更早的结束时间，会保留中间的停顿空隙，适合换气后起唱或重打起点。"
+            },
+            "syncContinuous": {
+                "label": "连续轴",
+                "keys": [
+                    "Space",
+                    "G"
+                ],
+                "description": "记录当前字词起点并自动跳到下一词，同时把上一词的结束时间无缝衔接过来，适合连贯紧凑的演唱段落。"
+            },
+            "syncEnd": {
+                "label": "结束轴",
+                "keys": [
+                    "E"
+                ],
+                "description": "记录当前字词的结束时间并前进到下一词，但不会提前写入下一词的起点，方便在句中停顿、换气或间奏处自然留白。"
+            }
         }
     },
     "tools": {
