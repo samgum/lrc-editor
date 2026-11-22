@@ -56,6 +56,13 @@ export const calculateSpectrogram = (channels: readonly Float32Array[], sampleRa
         }
     }
     const scaleNorm = 1 / (fftSize / 2);
+    const binWeight = Float64Array.from({ length: bins }, (_, bin) => {
+        const freq = bin * sampleRate / fftSize;
+        if (freq < 180) return 0.3 + 0.7 * (freq / 180);
+        if (freq <= 3_500) return 1.45;
+        return 0.78;
+    });
+    const binDb = new Float64Array(bins);
     for (let column = 0; column < columns; column++) {
         power.fill(0);
         const start = column * hop - fftSize / 2;
@@ -88,11 +95,21 @@ export const calculateSpectrogram = (channels: readonly Float32Array[], sampleRa
                 power[bin] += real[bin] * real[bin] + imaginary[bin] * imaginary[bin];
             }
         }
+        for (let bin = 0; bin < bins; bin++) {
+            const magnitude = Math.sqrt(power[bin] / channels.length) * scaleNorm * binWeight[bin];
+            binDb[bin] = 20 * Math.log10(Math.max(1e-12, magnitude));
+        }
         const columnOffset = column * bins;
         for (let bin = 0; bin < bins; bin++) {
-            const magnitude = Math.sqrt(power[bin] / channels.length) * scaleNorm;
-            const decibels = 20 * Math.log10(Math.max(1e-12, magnitude));
-            values[columnOffset + bin] = Math.max(0, Math.min(255, Math.round((decibels + 66) / 52 * 255)));
+            // Subtract half of the local broadband floor so narrow vocal harmonics pop out over flat synths/noise.
+            const lo = Math.max(0, bin - 8);
+            const hi = Math.min(bins - 1, bin + 8);
+            let localSum = 0;
+            for (let k = lo; k <= hi; k++) localSum += binDb[k];
+            const localAvg = localSum / (hi - lo + 1);
+            const headroom = Math.max(0, -binDb[bin]);
+            const contrastDb = binDb[bin] + Math.min(headroom * 0.5, Math.max(0, binDb[bin] - localAvg) * 0.65);
+            values[columnOffset + bin] = Math.max(0, Math.min(255, Math.round((contrastDb + 62) / 62 * 255)));
         }
     }
     return { values, columns, bins, hop, fftSize, sampleRate };

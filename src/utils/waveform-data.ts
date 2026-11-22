@@ -57,23 +57,29 @@ export const computeWaveformColumns = (
     const samplesPerPixel = sampleCount / pixelWidth;
     const stride = Math.max(1, Math.floor(samplesPerPixel / 64));
     const columns: WaveformColumn[] = [];
+    let prevRaw = 0;
+    let prevHp = 0;
 
     for (let x = 0; x < pixelWidth; x += 1) {
         const start = Math.floor(x * samplesPerPixel);
         const end = Math.max(start + 1, Math.min(sampleCount, Math.floor((x + 1) * samplesPerPixel)));
         let maxAbs = 0;
-        let sumSq = 0;
+        let sumVocalSq = 0;
         let count = 0;
         for (let i = start; i < end; i += stride) {
-            const abs = Math.abs(channel[i]);
+            const sample = channel[i];
+            const abs = Math.abs(sample);
             if (abs > maxAbs) maxAbs = abs;
-            sumSq += abs * abs;
+            // High-pass filter (~275 Hz at 24 kHz) so the inner core highlights vocals/mids over sub-bass kicks.
+            const hp = 0.93 * (prevHp + sample - prevRaw);
+            prevRaw = sample;
+            prevHp = hp;
+            sumVocalSq += hp * hp;
             count += 1;
         }
-        const rms = count > 0 ? Math.sqrt(sumSq / count) : 0;
-        // Blend peak and RMS so loudness-war tracks still show phrase/beat contour instead of a flat wall.
-        const peak = Math.min(1, (maxAbs * 0.65 + rms * 0.55) * safeAmplitude * HEADROOM_SCALE);
-        const core = Math.min(peak, rms * 1.35 * safeAmplitude * HEADROOM_SCALE);
+        const vocalRms = count > 0 ? Math.sqrt(sumVocalSq / count) : 0;
+        const peak = Math.min(1, (maxAbs * 0.65 + vocalRms * 0.55) * safeAmplitude * HEADROOM_SCALE);
+        const core = Math.min(peak, vocalRms * 1.65 * safeAmplitude * HEADROOM_SCALE);
         columns.push({ peak, rms: core });
     }
     return columns;

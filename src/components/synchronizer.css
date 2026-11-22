@@ -665,17 +665,18 @@
 
 .word-waveform-hover-time {
     position: absolute;
-    bottom: 36px;
+    top: 4px;
+    bottom: auto;
     z-index: 10;
-    min-width: 108px;
-    padding: 4px 6px;
+    min-width: 96px;
+    padding: 2px 6px;
     color: #fff;
     text-align: center;
-    background: #101218e6;
-    border: 1px solid #ffffff35;
+    background: #101218d9;
+    border: 1px solid #ffffff30;
     border-radius: 4px;
-    box-shadow: 0 4px 12px #00000050;
-    font: 650 0.6rem "Cascadia Mono", Consolas, monospace;
+    box-shadow: 0 3px 10px #00000045;
+    font: 650 0.64rem "Cascadia Mono", Consolas, monospace;
     pointer-events: none;
     transform: translateX(-50%);
 }
