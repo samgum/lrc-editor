@@ -520,6 +520,7 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
                         {formatTime(tick.time)}
                     </span>
                 ))}
+                <output ref={hoverTooltipRef} className="word-waveform-hover-time" hidden />
             </div>
             <div
                 ref={canvasRef}
@@ -566,8 +567,6 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
                 <span ref={playheadRef} className="word-waveform-playhead" hidden>
                     <time ref={playheadTimeRef} />
                 </span>
-                <output ref={hoverTooltipRef} className="word-waveform-hover-time" hidden />
-                <span className="word-waveform-hint">{hint}</span>
             </div>
             {narrow && !compact && <div className="waveform-mobile-zoom">{zoomControl}</div>}
             <div className="word-waveform-feedback">
@@ -580,6 +579,7 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
                 </span>
                 {lineMode && linePlayAfterSet && <span>{language.waveformPlayAfterSetActive}</span>}
                 {lineMode && !linePlayAfterSet && <span>{language.waveformKeepPlaybackPosition}</span>}
+                <span className="word-waveform-hint">{hint}</span>
                 <output aria-live="polite">
                     {lastCaptureMs === null
                         ? ""
