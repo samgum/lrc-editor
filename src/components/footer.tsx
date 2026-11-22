@@ -51,12 +51,22 @@ export const Footer: React.FC = () => {
     useEffect(() => {
         const onVisibilityChange = (): void => {
             if (document.hidden) {
-                resumeAfterBackgroundRef.current = prefState.allowBackgroundAudio && !audioRef.paused;
+                resumeAfterBackgroundRef.current = prefState.allowBackgroundAudio
+                    && !audioRef.paused
+                    && !audioRef.current?.ended;
                 if (!prefState.allowBackgroundAudio && !audioRef.paused) audioRef.current?.pause();
                 return;
             }
-            if (resumeAfterBackgroundRef.current && audioRef.paused) {
-                void audioRef.current?.play().catch(() => undefined);
+            const audio = audioRef.current;
+            if (
+                resumeAfterBackgroundRef.current
+                && audio
+                && audio.paused
+                && !audio.ended
+                && audio.duration > 0
+                && audio.currentTime < audio.duration - 0.05
+            ) {
+                void audio.play().catch(() => undefined);
             }
             resumeAfterBackgroundRef.current = false;
         };
