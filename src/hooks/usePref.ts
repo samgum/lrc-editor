@@ -63,6 +63,39 @@ export const normalizeToolOrder = (raw: unknown): ToolId[] => {
     return result;
 };
 
+export const reorderToolOrder = (
+    order: readonly ToolId[],
+    fromIndex: number,
+    toIndex: number,
+): ToolId[] => {
+    if (
+        order.length === 0
+        || fromIndex < 0
+        || fromIndex >= order.length
+        || toIndex < 0
+        || toIndex >= order.length
+        || fromIndex === toIndex
+    ) {
+        return [...order];
+    }
+    const next = order.slice();
+    const [moved] = next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, moved);
+    return next;
+};
+
+export const targetDropIndex = (
+    rowBounds: readonly { readonly top: number; readonly height: number }[],
+    clientY: number,
+): number => {
+    if (rowBounds.length === 0) return 0;
+    for (let index = 0; index < rowBounds.length; index += 1) {
+        const midpoint = rowBounds[index].top + rowBounds[index].height / 2;
+        if (clientY < midpoint) return index;
+    }
+    return rowBounds.length - 1;
+};
+
 const initState = {
     lang: "en-US",
     spaceStart: 0,

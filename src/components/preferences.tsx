@@ -5,6 +5,8 @@ import { useDismissibleDetails } from "../hooks/useDismissibleDetails.js";
 import {
     defaultToolOrder,
     type LineCaptureMode,
+    reorderToolOrder,
+    targetDropIndex,
     themeColor,
     ThemeMode,
     type ToolId,
@@ -68,8 +70,57 @@ export const Preferences: React.FC = () => {
     const colorPopover = useRef<HTMLDetailsElement>(null);
     useDismissibleDetails(colorPopover);
     const aiCacheDialog = useRef<HTMLDialogElement>(null);
+    const toolOrderListRef = useRef<HTMLUListElement>(null);
     const [serviceStopping, setServiceStopping] = useState(false);
     const [aiCacheClearing, setAiCacheClearing] = useState(false);
+    const [dragTool, setDragTool] = useState<{ toolId: ToolId; fromIndex: number; toIndex: number } | null>(null);
+    const dragToolRef = useRef<{ toolId: ToolId; fromIndex: number; toIndex: number } | null>(null);
+    dragToolRef.current = dragTool;
+
+    useEffect(() => {
+        if (!dragTool) return;
+        const onPointerMove = (event: PointerEvent) => {
+            const current = dragToolRef.current;
+            const list = toolOrderListRef.current;
+            if (!current || !list) return;
+            const bounds = Array.from(list.children).map((node) => {
+                const rect = node.getBoundingClientRect();
+                return { top: rect.top, height: rect.height };
+            });
+            const nextTo = targetDropIndex(bounds, event.clientY);
+            if (nextTo !== current.toIndex) {
+                setDragTool({ ...current, toIndex: nextTo });
+            }
+        };
+        const finishDrag = (commit: boolean) => {
+            const current = dragToolRef.current;
+            dragToolRef.current = null;
+            setDragTool(null);
+            if (commit && current && current.fromIndex !== current.toIndex) {
+                prefDispatch({
+                    type: "toolOrder",
+                    payload: (state) => reorderToolOrder(state.toolOrder, current.fromIndex, current.toIndex),
+                });
+            }
+        };
+        const onPointerUp = () => finishDrag(true);
+        const onCancel = () => finishDrag(false);
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") finishDrag(false);
+        };
+        window.addEventListener("pointermove", onPointerMove);
+        window.addEventListener("pointerup", onPointerUp);
+        window.addEventListener("pointercancel", onCancel);
+        window.addEventListener("blur", onCancel);
+        window.addEventListener("keydown", onKeyDown);
+        return () => {
+            window.removeEventListener("pointermove", onPointerMove);
+            window.removeEventListener("pointerup", onPointerUp);
+            window.removeEventListener("pointercancel", onCancel);
+            window.removeEventListener("blur", onCancel);
+            window.removeEventListener("keydown", onKeyDown);
+        };
+    }, [dragTool !== null, prefDispatch]);
 
     const onColorPick = useCallback(
         (ev: React.ChangeEvent<HTMLInputElement>) => {
@@ -768,57 +819,73 @@ export const Preferences: React.FC = () => {
                                 {lang.preferences.resetOrder}
                             </button>
                         </header>
-                        <ul>
-                            {prefState.toolOrder.map((toolId, index) => {
-                                const toolNames: Record<ToolId, string> = {
-                                    overwrite: lang.tools.overwrite,
-                                    "timeline-fix": lang.tools.timelineFix,
-                                    time: lang.tools.changeOffset,
-                                    split: lang.tools.splitTranslation,
-                                    convert: lang.tools.formatConverter,
-                                    "remove-tags": lang.tools.removeTags,
-                                    "remove-empty": lang.tools.removeEmpty,
-                                    sections: lang.tools.sections,
-                                    tracklist: lang.tools.tracklist,
-                                    replace: lang.tools.replaceText,
-                                    case: lang.tools.caseConverter,
-                                };
-                                const moveTool = (targetIndex: number) => {
-                                    const next = prefState.toolOrder.slice();
-                                    const [item] = next.splice(index, 1);
-                                    next.splice(targetIndex, 0, item);
-                                    prefDispatch({ type: "toolOrder", payload: next });
-                                };
-                                return (
-                                    <li key={toolId}>
-                                        <span className="preferences-order-index">{index + 1}</span>
-                                        <strong>{toolNames[toolId]}</strong>
-                                        <div className="preferences-order-actions">
-                                            <button
-                                                type="button"
-                                                disabled={index === 0}
-                                                onClick={() => moveTool(0)}
-                                            >
-                                                {lang.preferences.pinTop}
-                                            </button>
-                                            <button
-                                                type="button"
-                                                disabled={index === 0}
-                                                onClick={() => moveTool(index - 1)}
-                                            >
-                                                {lang.preferences.moveUp}
-                                            </button>
-                                            <button
-                                                type="button"
-                                                disabled={index === prefState.toolOrder.length - 1}
-                                                onClick={() => moveTool(index + 1)}
-                                            >
-                                                {lang.preferences.moveDown}
-                                            </button>
-                                        </div>
-                                    </li>
-                                );
-                            })}
+                        <ul ref={toolOrderListRef} className={dragTool ? "is-dragging-list" : undefined}>
+                            {(dragTool
+                                ? reorderToolOrder(prefState.toolOrder, dragTool.fromIndex, dragTool.toIndex)
+                                : prefState.toolOrder).map((toolId, index) => {
+                                    const toolNames: Record<ToolId, string> = {
+                                        overwrite: lang.tools.overwrite,
+                                        "timeline-fix": lang.tools.timelineFix,
+                                        time: lang.tools.changeOffset,
+                                        split: lang.tools.splitTranslation,
+                                        convert: lang.tools.formatConverter,
+                                        "remove-tags": lang.tools.removeTags,
+                                        "remove-empty": lang.tools.removeEmpty,
+                                        sections: lang.tools.sections,
+                                        tracklist: lang.tools.tracklist,
+                                        replace: lang.tools.replaceText,
+                                        case: lang.tools.caseConverter,
+                                    };
+                                    const moveTool = (targetIndex: number) => {
+                                        prefDispatch({
+                                            type: "toolOrder",
+                                            payload: (state) => reorderToolOrder(state.toolOrder, index, targetIndex),
+                                        });
+                                    };
+                                    const isDragging = dragTool?.toolId === toolId;
+                                    const startDrag = (event: React.PointerEvent<HTMLElement>) => {
+                                        if (event.pointerType === "mouse" && event.button !== 0) return;
+                                        if ((event.target as HTMLElement).closest("button")) return;
+                                        event.preventDefault();
+                                        const fromIndex = prefState.toolOrder.indexOf(toolId);
+                                        if (fromIndex < 0) return;
+                                        setDragTool({ toolId, fromIndex, toIndex: fromIndex });
+                                    };
+                                    return (
+                                        <li
+                                            key={toolId}
+                                            className={isDragging ? "is-dragging" : undefined}
+                                            onPointerDown={startDrag}
+                                        >
+                                            <span className="preferences-order-handle" aria-hidden="true">⋮⋮</span>
+                                            <span className="preferences-order-index">{index + 1}</span>
+                                            <strong>{toolNames[toolId]}</strong>
+                                            <div className="preferences-order-actions">
+                                                <button
+                                                    type="button"
+                                                    disabled={index === 0}
+                                                    onClick={() => moveTool(0)}
+                                                >
+                                                    {lang.preferences.pinTop}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    disabled={index === 0}
+                                                    onClick={() => moveTool(index - 1)}
+                                                >
+                                                    {lang.preferences.moveUp}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    disabled={index === prefState.toolOrder.length - 1}
+                                                    onClick={() => moveTool(index + 1)}
+                                                >
+                                                    {lang.preferences.moveDown}
+                                                </button>
+                                            </div>
+                                        </li>
+                                    );
+                                })}
                         </ul>
                     </section>
                 </li>

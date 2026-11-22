@@ -32,12 +32,26 @@ describe("usePref", () => {
     });
 
     it("normalizes toolOrder and validates default export formats", async () => {
-        const { defaultToolOrder, normalizeToolOrder } = await import("./usePref.js");
+        const { defaultToolOrder, normalizeToolOrder, reorderToolOrder, targetDropIndex } = await import(
+            "./usePref.js"
+        );
         expect(normalizeToolOrder(["replace", "unknown", "replace", "split"]).slice(0, 3)).toEqual([
             "replace",
             "split",
             defaultToolOrder[0],
         ]);
         expect(normalizeToolOrder(["replace", "split"])).toHaveLength(defaultToolOrder.length);
+        expect(reorderToolOrder(["overwrite", "time", "split"], 0, 2)).toEqual(["time", "split", "overwrite"]);
+        expect(reorderToolOrder(["overwrite", "time", "split"], 2, 2)).toEqual(["overwrite", "time", "split"]);
+        expect(reorderToolOrder(["overwrite", "time", "split"], -1, 10)).toEqual(["overwrite", "time", "split"]);
+
+        const bounds = [
+            { top: 0, height: 40 },
+            { top: 44, height: 40 },
+            { top: 88, height: 40 },
+        ];
+        expect(targetDropIndex(bounds, 10)).toBe(0);
+        expect(targetDropIndex(bounds, 50)).toBe(1);
+        expect(targetDropIndex(bounds, 120)).toBe(2);
     });
 });

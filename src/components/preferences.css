@@ -434,15 +434,40 @@
     list-style: none;
 }
 
+.preferences-tool-order > ul.is-dragging-list {
+    user-select: none;
+}
+
 .preferences-tool-order > ul > li {
     display: grid;
-    grid-template-columns: 1.8rem minmax(0, 1fr) auto;
+    grid-template-columns: auto 1.8rem minmax(0, 1fr) auto;
     align-items: center;
     gap: 8px;
     padding: 6px 10px;
     background: var(--surface-subtle-color);
     border: 1px solid var(--border-subtle-color);
     border-radius: 8px;
+    cursor: grab;
+    touch-action: none;
+    transition:
+        background-color var(--transition-duration) var(--ease-standard),
+        border-color var(--transition-duration) var(--ease-standard),
+        box-shadow var(--transition-duration) var(--ease-standard);
+}
+
+.preferences-tool-order > ul > li.is-dragging {
+    background: color-mix(in srgb, var(--surface-color) 84%, var(--theme-color) 16%);
+    border-color: var(--theme-color);
+    box-shadow: 0 6px 18px rgba(var(--theme-rgb), 0.22);
+    cursor: grabbing;
+}
+
+.preferences-order-handle {
+    color: var(--text-muted-color);
+    font-family: "Cascadia Mono", Consolas, monospace;
+    font-size: 0.9rem;
+    letter-spacing: -2px;
+    user-select: none;
 }
 
 .preferences-order-index {
