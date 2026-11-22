@@ -92,7 +92,7 @@ export const calculateSpectrogram = (channels: readonly Float32Array[], sampleRa
         for (let bin = 0; bin < bins; bin++) {
             const magnitude = Math.sqrt(power[bin] / channels.length) * scaleNorm;
             const decibels = 20 * Math.log10(Math.max(1e-12, magnitude));
-            values[columnOffset + bin] = Math.max(0, Math.min(255, Math.round((decibels + 90) / 90 * 255)));
+            values[columnOffset + bin] = Math.max(0, Math.min(255, Math.round((decibels + 75) / 72 * 255)));
         }
     }
     return { values, columns, bins, hop, fftSize, sampleRate };

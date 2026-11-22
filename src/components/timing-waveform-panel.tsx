@@ -243,7 +243,7 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
     }, [onZoomChange]);
 
     const updateAmplitude = useCallback((nextAmplitude: number) => {
-        const clamped = Math.max(0.5, Math.min(4, nextAmplitude));
+        const clamped = Math.max(0.25, Math.min(4, nextAmplitude));
         onAmplitudeChange(clamped);
         waveformRef.current?.setAmplitude(clamped);
     }, [onAmplitudeChange]);
@@ -362,18 +362,33 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
         onCapture(timeSeconds);
     }, [onCapture]);
 
-    const captureAtPointer = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    const resolvePointerTime = useCallback((event: React.MouseEvent<HTMLDivElement>): number | null => {
         const canvas = canvasRef.current;
-        if (!canvas || !plotReady) return;
+        if (!canvas || !plotReady) return null;
         const bounds = canvas.getBoundingClientRect();
-        if (event.clientY - bounds.top >= canvas.clientHeight - 16) return;
+        if (event.clientY - bounds.top >= canvas.clientHeight - 16) return null;
         const offset = Math.max(0, Math.min(canvas.clientWidth, event.clientX - bounds.left - canvas.clientLeft));
         latestPointerOffsetRef.current = offset;
         pointerBypassRef.current = event.altKey;
         updatePointerPreview(offset, event.altKey);
         const time = waveformRef.current?.timeAtOffset(offset) || 0;
-        capture(snapToBeatGrid(time, grid, viewport.pixelsPerSecond, viewport.duration, event.altKey).time);
-    }, [capture, grid, plotReady, updatePointerPreview, viewport]);
+        return snapToBeatGrid(time, grid, viewport.pixelsPerSecond, viewport.duration, event.altKey).time;
+    }, [grid, plotReady, updatePointerPreview, viewport]);
+
+    const captureAtPointer = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+        if (event.button !== 0) return;
+        const time = resolvePointerTime(event);
+        if (time !== null) capture(time);
+    }, [capture, resolvePointerTime]);
+
+    const auditionAtPointer = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        const time = resolvePointerTime(event);
+        if (time === null || !audioRef.duration) return;
+        audioRef.currentTime = time;
+        currentTimePubSub.pub(time);
+        void audioRef.current?.play().catch(() => undefined);
+    }, [resolvePointerTime]);
 
     const lineMode = timingUnit === "line";
     const title = lineMode ? language.lineWaveformCaptureTitle : language.waveformCaptureTitle;
@@ -512,6 +527,7 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
                 style={{ "--preferred-plot-height": `${heightPercent}svh` } as React.CSSProperties}
                 aria-busy={!plotReady}
                 onClick={captureAtPointer}
+                onContextMenu={auditionAtPointer}
                 onPointerMove={onPointerMove}
                 onPointerLeave={onPointerLeave}
             >

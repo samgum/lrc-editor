@@ -114,24 +114,30 @@ const getSpectrogramAtlas = (
     ) {
         return cachedAtlas;
     }
-    const rgb =
-        /^#([\da-f]{2})([\da-f]{2})([\da-f]{2})$/iu.exec(themeColor)?.slice(1).map((part) => Number.parseInt(part, 16))
-        || [245, 142, 168];
     const paletteR = new Uint8Array(256);
     const paletteG = new Uint8Array(256);
     const paletteB = new Uint8Array(256);
-    const baseBg = [13, 15, 20];
+    const stops: readonly (readonly [number, number, number, number])[] = [
+        [0.0, 11, 13, 20],
+        [0.22, 28, 22, 74],
+        [0.45, 106, 27, 110],
+        [0.66, 214, 54, 72],
+        [0.84, 255, 148, 36],
+        [0.95, 255, 232, 117],
+        [1.0, 255, 252, 240],
+    ];
     for (let v = 0; v < 256; v++) {
-        const strength = v / 255;
-        const mix = (channel: number, idx: number): number =>
-            Math.round(
-                strength < 0.7
-                    ? baseBg[idx] + (channel - baseBg[idx]) * strength / 0.7
-                    : channel + (255 - channel) * (strength - 0.7) / 0.3,
-            );
-        paletteR[v] = mix(rgb[0], 0);
-        paletteG[v] = mix(rgb[1], 1);
-        paletteB[v] = mix(rgb[2], 2);
+        const strength = (v / 255) ** 1.35;
+        let stopIndex = 0;
+        while (stopIndex < stops.length - 2 && strength > stops[stopIndex + 1][0]) {
+            stopIndex += 1;
+        }
+        const [t0, r0, g0, b0] = stops[stopIndex];
+        const [t1, r1, g1, b1] = stops[stopIndex + 1];
+        const local = t1 > t0 ? Math.max(0, Math.min(1, (strength - t0) / (t1 - t0))) : 0;
+        paletteR[v] = Math.round(r0 + (r1 - r0) * local);
+        paletteG[v] = Math.round(g0 + (g1 - g0) * local);
+        paletteB[v] = Math.round(b0 + (b1 - b0) * local);
     }
     const binFloor = new Int32Array(pixelsHigh);
     const binNext = new Int32Array(pixelsHigh);
