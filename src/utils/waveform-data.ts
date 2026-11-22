@@ -42,7 +42,7 @@ export interface WaveformColumn {
     readonly rms: number;
 }
 
-const HEADROOM_SCALE = 0.86;
+const HEADROOM_SCALE = 0.82;
 
 export const computeWaveformColumns = (
     channels: readonly (Float32Array | number[])[],
@@ -70,8 +70,9 @@ export const computeWaveformColumns = (
             count += 1;
         }
         const rms = count > 0 ? Math.sqrt(sumSq / count) : 0;
-        const peak = Math.min(1, (maxAbs ** 1.35) * safeAmplitude * HEADROOM_SCALE);
-        const core = Math.min(peak, (rms ** 1.15) * safeAmplitude * HEADROOM_SCALE);
+        // Blend peak and RMS so loudness-war tracks still show phrase/beat contour instead of a flat wall.
+        const peak = Math.min(1, (maxAbs * 0.65 + rms * 0.55) * safeAmplitude * HEADROOM_SCALE);
+        const core = Math.min(peak, rms * 1.35 * safeAmplitude * HEADROOM_SCALE);
         columns.push({ peak, rms: core });
     }
     return columns;
@@ -88,13 +89,13 @@ export const renderDetailedWaveform = (
     const halfHeight = height / 2;
     const previousAlpha = ctx.globalAlpha;
 
-    ctx.globalAlpha = 0.34;
+    ctx.globalAlpha = 0.36;
     for (let x = 0; x < columns.length; x += 1) {
         const bar = Math.max(1, columns[x].peak * halfHeight);
         ctx.fillRect(x, halfHeight - bar, 1, bar * 2);
     }
 
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha = 0.9;
     for (let x = 0; x < columns.length; x += 1) {
         const core = columns[x].rms * halfHeight;
         if (core >= 0.5) {

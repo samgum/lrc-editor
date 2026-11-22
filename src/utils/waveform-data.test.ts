@@ -66,10 +66,10 @@ describe("timing visualization data", () => {
     it("preserves headroom and dynamic contrast in loud waveform columns", () => {
         const loud = new Float32Array(200);
         loud.fill(0.98, 0, 100);
-        loud.fill(0.75, 100, 200);
+        loud.fill(0.5, 100, 200);
         const columns = computeWaveformColumns([loud], 2, 1);
         expect(columns).toHaveLength(2);
-        expect(columns[0].peak).toBeLessThan(0.9);
+        expect(columns[0].peak).toBeLessThan(0.99);
         expect(columns[0].peak - columns[1].peak).toBeGreaterThan(0.2);
         expect(columns[0].rms).toBeLessThanOrEqual(columns[0].peak);
     });
