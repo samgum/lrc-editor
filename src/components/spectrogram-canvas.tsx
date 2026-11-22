@@ -16,9 +16,14 @@ export const SpectrogramCanvas: React.FC<{
     themeColor: string;
     onUnavailable: () => void;
     onReady?: () => void;
-}> = ({ source, audio, viewport, height, themeColor, onUnavailable, onReady }) => {
+    onBpmDetected?: (bpm: number) => void;
+}> = ({ source, audio, viewport, height, themeColor, onUnavailable, onReady, onBpmDetected }) => {
     const canvas = useRef<HTMLCanvasElement>(null);
     const [spectrum, setSpectrum] = useState(() => readSpectrogramData(source));
+
+    useEffect(() => {
+        if (spectrum?.estimatedBpm) onBpmDetected?.(spectrum.estimatedBpm);
+    }, [onBpmDetected, spectrum]);
 
     useEffect(() => {
         const saved = readSpectrogramData(source);
@@ -71,6 +76,10 @@ export const SpectrogramCanvas: React.FC<{
             worker.terminate();
         };
     }, [audio, onUnavailable, source]);
+
+    useEffect(() => {
+        if (spectrum?.estimatedBpm) onBpmDetected?.(spectrum.estimatedBpm);
+    }, [onBpmDetected, spectrum]);
 
     useEffect(() => {
         const target = canvas.current;
@@ -166,12 +175,19 @@ const getSpectrogramAtlas = (
         const img = tileCtx.createImageData(colCount, pixelsHigh);
         const out = img.data;
         for (let localCol = 0; localCol < colCount; localCol++) {
-            const colOffset = Math.min(data.columns - 1, colStart + localCol) * data.bins;
+            const absCol = Math.min(data.columns - 1, colStart + localCol);
+            const colOffset = absCol * data.bins;
+            const prevOffset = Math.max(0, absCol - 1) * data.bins;
+            const nextOffset = Math.min(data.columns - 1, absCol + 1) * data.bins;
             for (let y = 0; y < pixelsHigh; y++) {
                 const b0 = binFloor[y];
                 const b1 = binNext[y];
                 const m = binMix[y];
-                const val = Math.round(data.values[colOffset + b0] * (1 - m) + data.values[colOffset + b1] * m);
+                const curVal = data.values[colOffset + b0] * (1 - m) + data.values[colOffset + b1] * m;
+                const prevVal = data.values[prevOffset + b0] * (1 - m) + data.values[prevOffset + b1] * m;
+                const nextVal = data.values[nextOffset + b0] * (1 - m) + data.values[nextOffset + b1] * m;
+                // Bridge 1-frame dips so vocal pitch contours stay continuous rather than choppy.
+                const val = Math.min(255, Math.round(curVal * 0.65 + Math.max(prevVal, nextVal) * 0.35));
                 const idx = (y * colCount + localCol) * 4;
                 out[idx] = paletteR[val];
                 out[idx + 1] = paletteG[val];

@@ -66,4 +66,20 @@ describe("independent spectrogram analysis", () => {
             expect(layout.columns * layout.bins).toBeLessThanOrEqual(16 * 1024 * 1024);
         }
     });
+
+    it("estimates BPM from rhythmic pulses without failing on silence", () => {
+        const rate = 24_000;
+        const durationSec = 10;
+        const samples = new Float32Array(rate * durationSec);
+        // 120 BPM = 0.5s beat interval
+        for (let beat = 0; beat < durationSec * 2; beat++) {
+            const start = Math.round(beat * 0.5 * rate);
+            for (let i = 0; i < 600 && start + i < samples.length; i++) {
+                samples[start + i] = 0.8 * Math.sin(2 * Math.PI * 180 * i / rate) * (1 - i / 600);
+            }
+        }
+        const data = calculateSpectrogram([samples], rate);
+        expect(data.estimatedBpm).toBeGreaterThanOrEqual(118);
+        expect(data.estimatedBpm).toBeLessThanOrEqual(122);
+    });
 });

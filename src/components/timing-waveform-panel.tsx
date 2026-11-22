@@ -99,6 +99,7 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
     const zoomValueRef = useRef(zoom);
     const [displayZoom, setDisplayZoom] = useState(zoom);
     const [lastCaptureMs, setLastCaptureMs] = useState<number | null>(null);
+    const [detectedBpm, setDetectedBpm] = useState<number | undefined>(undefined);
     const [grid, setGrid] = useState(() => readBeatGrid(source));
     const [readyView, setReadyView] = useState<TimingWaveformView | null>(null);
     const plotReady = readyView === view;
@@ -412,8 +413,18 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
             <output>{Math.round(displayZoom)} px/s</output>
         </label>
     );
+    useEffect(() => {
+        setDetectedBpm(undefined);
+    }, [source]);
+
     const beatControls = (
-        <BeatGridControls grid={grid} selectedStart={wordStartMs} language={language} onChange={onGridChange} />
+        <BeatGridControls
+            grid={grid}
+            selectedStart={wordStartMs}
+            detectedBpm={detectedBpm}
+            language={language}
+            onChange={onGridChange}
+        />
     );
 
     return (
@@ -549,6 +560,7 @@ export const TimingWaveformPanel = forwardRef<WaveformHandle, TimingWaveformPane
                         ariaLabel={hint}
                         onSeek={() => undefined}
                         onReady={onPlotReady}
+                        onBpmDetected={setDetectedBpm}
                         onViewportChange={onViewportChange}
                         onUnavailable={onUnavailable}
                     />

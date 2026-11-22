@@ -5,6 +5,7 @@ export interface SpectrogramData {
     hop: number;
     fftSize: number;
     sampleRate: number;
+    estimatedBpm?: number;
 }
 
 const maximumFrequencyBytes = 16 * 1024 * 1024;
@@ -112,7 +113,65 @@ export const calculateSpectrogram = (channels: readonly Float32Array[], sampleRa
             values[columnOffset + bin] = Math.max(0, Math.min(255, Math.round((contrastDb + 62) / 62 * 255)));
         }
     }
-    return { values, columns, bins, hop, fftSize, sampleRate };
+    const data: SpectrogramData = { values, columns, bins, hop, fftSize, sampleRate };
+    data.estimatedBpm = estimateBpmFromSpectrogram(data);
+    return data;
+};
+
+export const estimateBpmFromSpectrogram = (
+    data: Pick<SpectrogramData, "values" | "columns" | "bins" | "hop" | "sampleRate">,
+): number | undefined => {
+    const frameRate = data.sampleRate / data.hop;
+    const duration = data.columns / frameRate;
+    if (!Number.isFinite(duration) || duration < 8 || data.columns < 64) return undefined;
+
+    const maxBin = Math.min(data.bins, 96);
+    const flux = new Float32Array(data.columns);
+    let totalFlux = 0;
+    for (let col = 1; col < data.columns; col++) {
+        const cur = col * data.bins;
+        const prev = (col - 1) * data.bins;
+        let sum = 0;
+        for (let bin = 2; bin < maxBin; bin += 2) {
+            const diff = data.values[cur + bin] - data.values[prev + bin];
+            if (diff > 0) sum += diff;
+        }
+        flux[col] = sum;
+        totalFlux += sum;
+    }
+    if (totalFlux <= 0) return undefined;
+
+    // Subtract local mean so sustained pads don't bias autocorrelation, then evaluate 65..175 BPM.
+    const onset = new Float32Array(data.columns);
+    const halfWin = Math.max(4, Math.round(frameRate * 0.25));
+    for (let col = 0; col < data.columns; col++) {
+        const lo = Math.max(0, col - halfWin);
+        const hi = Math.min(data.columns - 1, col + halfWin);
+        let sum = 0;
+        for (let k = lo; k <= hi; k++) sum += flux[k];
+        const mean = sum / (hi - lo + 1);
+        onset[col] = Math.max(0, flux[col] - mean);
+    }
+
+    const analysisCols = Math.min(data.columns, Math.round(frameRate * 90));
+    const stride = Math.max(1, Math.floor(analysisCols / 3000));
+    let bestBpm = 0;
+    let bestScore = 0;
+    for (let bpm = 65; bpm <= 175; bpm++) {
+        const lag = Math.round(frameRate * 60 / bpm);
+        if (lag <= 1 || lag >= analysisCols / 2) continue;
+        let score = 0;
+        for (let col = 0; col + lag < analysisCols; col += stride) {
+            score += onset[col] * onset[col + lag];
+        }
+        // Slight preference for typical pop/dance 85..155 BPM to avoid half-tempo picks.
+        const weight = bpm >= 85 && bpm <= 155 ? 1.08 : 1;
+        if (score * weight > bestScore) {
+            bestScore = score * weight;
+            bestBpm = bpm;
+        }
+    }
+    return bestBpm > 0 ? bestBpm : undefined;
 };
 
 export const spectrumFrequencyAt = (fractionFromTop: number, maximum: number): number => {

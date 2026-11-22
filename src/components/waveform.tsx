@@ -22,6 +22,7 @@ interface IWaveformProps {
     onSeek: (time: number) => void;
     onUnavailable: () => void;
     onReady?: () => void;
+    onBpmDetected?: (bpm: number) => void;
     onViewportChange?: (viewport: WaveformViewport) => void;
     className?: string;
     height?: number;
@@ -68,6 +69,7 @@ export const Waveform = forwardRef<WaveformHandle, IWaveformProps>(({
     onSeek,
     onUnavailable,
     onReady,
+    onBpmDetected,
     onViewportChange,
     className,
     height = 32,
@@ -350,6 +352,7 @@ export const Waveform = forwardRef<WaveformHandle, IWaveformProps>(({
                     themeColor={themeColor}
                     onUnavailable={onUnavailable}
                     onReady={onReady}
+                    onBpmDetected={onBpmDetected}
                 />
             )}
         </div>

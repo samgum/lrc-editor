@@ -7,9 +7,10 @@ import { StyledSelect } from "./styled-select.js";
 export const BeatGridControls: React.FC<{
     grid: BeatGrid;
     selectedStart?: number;
+    detectedBpm?: number;
     language: Language["advancedLyrics"];
     onChange: (next: BeatGrid) => void;
-}> = ({ grid, selectedStart, language, onChange }) => {
+}> = ({ grid, selectedStart, detectedBpm, language, onChange }) => {
     const taps = useRef<number[]>([]);
     const tapPlaying = useRef(false);
     const settings = useRef<HTMLDetailsElement>(null);
@@ -48,6 +49,14 @@ export const BeatGridControls: React.FC<{
                 >
                     {language.beatSnap}
                 </button>
+                {detectedBpm !== undefined && (
+                    <button
+                        type="button"
+                        onClick={() => update({ bpm: detectedBpm, enabled: true })}
+                    >
+                        ~{detectedBpm} BPM
+                    </button>
+                )}
                 {grid.enabled && grid.snap && <span className="word-beat-bypass">{language.beatBypass}</span>}
             </div>
             {grid.enabled && (
