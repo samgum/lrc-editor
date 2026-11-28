@@ -5,11 +5,12 @@ describe("AI alignment lyrics", () => {
     it("removes metadata, line timestamps, and enhanced word timestamps", () => {
         const source = [
             "[ar: Artist]",
-            "[00:01.234]<00:01.234>Hello <00:01.800>world",
+            "[00:01.234]<00:01.234>Hello <00:01.800>world<00:02.100>",
             "[00:02.500]",
-            "[00:03.000]下一行",
+            "  [00:03.000][00:03.500]下一行 [00:05.000]",
+            "尚未打轴的半成品行",
         ].join("\n");
-        expect(createUntimedTranscript(source, {})).toBe("Hello world\n\n下一行");
+        expect(createUntimedTranscript(source, {})).toBe("Hello world\n\n下一行\n尚未打轴的半成品行");
     });
 
     it("accepts a strict unique axis while preserving blank lines", () => {

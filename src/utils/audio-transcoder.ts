@@ -41,6 +41,78 @@ export const transcodeAudioForBrowser = async (
     }
 };
 
+export const transcodeAudioForCloudAi = async (
+    blob: Blob,
+    sourceName: string,
+    targetBitrateKbps = 64,
+    onProgress?: (progress: number) => void,
+): Promise<{ blob: Blob; name: string; format: "m4a" }> => {
+    if (blob.size > maximumInputBytes) {
+        throw new RangeError("The media file is too large for in-browser conversion");
+    }
+
+    const ffmpeg = await createFFmpeg();
+    const id = randomId();
+    const extension = /\.([A-Za-z0-9]{1,8})$/.exec(sourceName)?.[1].toLowerCase() || "bin";
+    const inputName = `ai-input-${id}.${extension}`;
+    const outputName = `ai-output-${id}.m4a`;
+    const progressListener = ({ progress }: { progress: number }): void =>
+        onProgress?.(Math.max(0, Math.min(1, progress)));
+
+    ffmpeg.on("progress", progressListener);
+    try {
+        await ffmpeg.writeFile(inputName, new Uint8Array(await blob.arrayBuffer()));
+        const exitCode = await ffmpeg.exec(
+            createCloudAiAacArguments(inputName, outputName, targetBitrateKbps),
+            90_000,
+        );
+        if (exitCode !== 0) {
+            throw new Error(`AI audio compression failed with exit code ${exitCode}`);
+        }
+        const data = await ffmpeg.readFile(outputName);
+        if (!(data instanceof Uint8Array)) {
+            throw new TypeError("AI audio compression returned unexpected data");
+        }
+        const stem = sourceName.replace(/\.[^.]*$/, "") || "audio";
+        return {
+            blob: new Blob([data as Uint8Array<ArrayBuffer>], { type: "audio/mp4" }),
+            name: `${stem}.m4a`,
+            format: "m4a",
+        };
+    } finally {
+        ffmpeg.off("progress", progressListener);
+        await disposeAudioTranscoder(ffmpeg, [inputName, outputName]);
+    }
+};
+
+export const createCloudAiAacArguments = (
+    inputName: string,
+    outputName: string,
+    bitrateKbps = 64,
+): string[] => {
+    const safeBitrate = Math.max(24, Math.min(128, Math.round(bitrateKbps)));
+    return [
+        "-i",
+        inputName,
+        "-map",
+        "0:a:0",
+        "-vn",
+        "-ac",
+        "1",
+        "-ar",
+        "24000",
+        "-map_metadata",
+        "-1",
+        "-c:a",
+        "aac",
+        "-b:a",
+        `${safeBitrate}k`,
+        "-movflags",
+        "+faststart",
+        outputName,
+    ];
+};
+
 export const createAacTranscodeArguments = (inputName: string, outputName: string): string[] => [
     "-i",
     inputName,

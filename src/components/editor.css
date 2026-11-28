@@ -278,6 +278,224 @@
     transform: translateY(-1px);
 }
 
+.ai-launch-dialog {
+    width: min(500px, calc(100vw - 2rem));
+    padding: 0;
+    color: var(--font-color);
+    background: var(--surface-color);
+    border: 1px solid var(--border-strong-color);
+    border-radius: 12px;
+    box-shadow: 0 22px 60px #00000038;
+}
+
+.ai-launch-dialog::backdrop {
+    background: #00000077;
+}
+
+.ai-launch-dialog article {
+    display: grid;
+    gap: 14px;
+    padding: 18px 20px;
+}
+
+.ai-launch-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.ai-launch-header h2 {
+    margin: 0;
+    font-size: 1.05rem;
+}
+
+.ai-launch-meta {
+    margin: 4px 0 0;
+    color: var(--text-muted-color);
+    font-size: 0.78rem;
+}
+
+.ai-launch-meta code {
+    font-family: "Cascadia Mono", Consolas, monospace;
+    font-size: 0.76rem;
+    color: var(--theme-foreground-color);
+}
+
+.ai-launch-settings-link {
+    flex: 0 0 auto;
+    padding: 5px 10px;
+    border: 1px solid var(--border-subtle-color);
+    border-radius: 6px;
+    color: var(--theme-foreground-color);
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.ai-launch-settings-link:hover {
+    border-color: var(--theme-color);
+    background: rgba(var(--theme-rgb), 0.08);
+}
+
+.ai-launch-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.ai-launch-chip {
+    display: grid;
+    gap: 3px;
+    padding: 8px 10px;
+    background: var(--surface-subtle-color);
+    border: 1px solid var(--border-subtle-color);
+    border-radius: 8px;
+    font-size: 0.76rem;
+}
+
+.ai-launch-chip > span {
+    color: var(--text-muted-color);
+}
+
+.ai-launch-chip > strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ai-launch-chip.is-ready {
+    border-color: rgba(var(--theme-rgb), 0.3);
+}
+
+.ai-launch-chip.is-missing {
+    border-color: color-mix(in srgb, var(--error-color) 40%, transparent);
+}
+
+.ai-launch-strip-note {
+    color: var(--theme-foreground-color);
+    font-size: 0.7rem;
+    line-height: 1.35;
+}
+
+.ai-launch-inline-action {
+    justify-self: start;
+    margin-top: 3px;
+    padding: 2px 8px;
+    border: 1px solid var(--theme-color);
+    border-radius: 5px;
+    color: var(--theme-foreground-color);
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.ai-launch-modes {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.ai-launch-modes legend {
+    margin-bottom: 6px;
+    color: var(--text-secondary-color);
+    font-size: 0.8rem;
+    font-weight: 650;
+}
+
+.ai-launch-modes label {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--surface-subtle-color);
+    border: 1px solid var(--border-subtle-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color var(--transition-duration) ease, background-color var(--transition-duration) ease;
+}
+
+.ai-launch-modes label.is-selected {
+    border-color: var(--theme-color);
+    background: rgba(var(--theme-rgb), 0.08);
+}
+
+.ai-launch-modes input[type="radio"] {
+    margin-top: 3px;
+    accent-color: var(--theme-color);
+}
+
+.ai-launch-modes label > div {
+    display: grid;
+    gap: 2px;
+}
+
+.ai-launch-modes label strong {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.86rem;
+}
+
+.ai-launch-modes label span {
+    color: var(--text-muted-color);
+    font-size: 0.76rem;
+    line-height: 1.4;
+}
+
+.ai-beta-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-style: normal;
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--theme-contrast-color);
+    background: var(--theme-color);
+}
+
+.ai-launch-warning {
+    margin: 0;
+    padding: 8px 11px;
+    border-radius: 8px;
+    color: var(--error-color);
+    background: color-mix(in srgb, var(--error-color) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--error-color) 28%, transparent);
+    font-size: 0.78rem;
+}
+
+.ai-launch-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.ai-launch-footer button {
+    min-height: 36px;
+    padding: 0 14px;
+    border-radius: 7px;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--text-secondary-color);
+    background: var(--surface-subtle-color);
+    border: 1px solid var(--border-subtle-color);
+}
+
+.ai-launch-footer button.is-primary {
+    color: var(--theme-contrast-color);
+    background: var(--theme-color);
+    border-color: var(--theme-color);
+}
+
+.ai-launch-footer button.is-primary:disabled {
+    opacity: 0.48;
+    cursor: not-allowed;
+}
+
 .app-textarea {
     flex: 1 1 auto;
     min-height: 22rem;

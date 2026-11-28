@@ -1,10 +1,15 @@
+import type { CloudAiProvider } from "./ai-key-vault.js";
+import type { CloudAiTaskMode } from "./cloud-ai-alignment.js";
 import type { LocalAlignmentProgress } from "./local-ai-alignment.js";
 
 export interface AiAlignmentSessionState extends LocalAlignmentProgress {
-    provider?: "local";
+    provider?: "local" | CloudAiProvider;
+    taskMode?: CloudAiTaskMode;
+    streamChars?: number;
     visible: boolean;
     error?: string;
     showInstall?: boolean;
+    showSettings?: boolean;
 }
 
 export interface AiAlignmentSessionSnapshot {

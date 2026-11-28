@@ -54,4 +54,33 @@ describe("usePref", () => {
         expect(targetDropIndex(bounds, 50)).toBe(1);
         expect(targetDropIndex(bounds, 120)).toBe(2);
     });
+
+    it("defaults Cloud AI preferences to Gemini Official with Gemini 4 Neon and sanitizes invalid values", async () => {
+        vi.stubGlobal("i18n", { langCodeList: ["en-US", "zh-CN"] });
+        vi.stubGlobal("navigator", { language: "zh-CN", languages: ["zh-CN"] });
+        const { usePref } = await import("./usePref.js");
+        const Defaults = () => {
+            const [state] = usePref(() => "{}");
+            return createElement(
+                "span",
+                null,
+                `${state.aiEngine}:${state.aiCloudProvider}:${state.aiGeminiModel}:${state.aiOpenRouterModel}`,
+            );
+        };
+        expect(renderToStaticMarkup(createElement(Defaults))).toBe(
+            "<span>cloud:gemini:gemini-4-neon:google/gemini-4-neon</span>",
+        );
+
+        const Sanitized = () => {
+            const [state] = usePref(() =>
+                JSON.stringify({
+                    aiEngine: "invalid",
+                    aiCloudProvider: "unsupported",
+                    aiGeminiModel: "   ",
+                })
+            );
+            return createElement("span", null, `${state.aiEngine}:${state.aiCloudProvider}:${state.aiGeminiModel}`);
+        };
+        expect(renderToStaticMarkup(createElement(Sanitized))).toBe("<span>cloud:gemini:gemini-4-neon</span>");
+    });
 });

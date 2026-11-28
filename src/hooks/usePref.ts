@@ -1,5 +1,7 @@
 import { useReducer } from "react";
 import type { ExportLyricFormat, LineLyricExportFormat } from "../utils/advanced-lyrics.js";
+import type { CloudAiProvider } from "../utils/ai-key-vault.js";
+import { type AiEngineMode, DEFAULT_GEMINI_MODEL, DEFAULT_OPENROUTER_MODEL } from "../utils/cloud-ai-alignment.js";
 import { defaultKeyBindings } from "../utils/default-keybindings.js";
 import { normalizeKeyBindings } from "../utils/keybindings.js";
 
@@ -110,6 +112,13 @@ const initState = {
     fineTuneMs: 100,
     interactiveSeek: false,
     allowBackgroundAudio: false,
+    aiEngine: "cloud" as AiEngineMode,
+    aiCloudProvider: "gemini" as CloudAiProvider,
+    aiGeminiModel: DEFAULT_GEMINI_MODEL,
+    aiOpenRouterModel: DEFAULT_OPENROUTER_MODEL,
+    aiCloudThinking: false,
+    aiLinePrompt: "",
+    aiWordPrompt: "",
     aiAlignmentEnabled: false,
     aiGpuAcceleration: true,
     keepAiTaskCache: false,
@@ -223,6 +232,21 @@ const init = (lazyInit: () => string): State => {
     state.screenButton = Boolean(state.screenButton);
     state.interactiveSeek = Boolean(state.interactiveSeek);
     state.allowBackgroundAudio = Boolean(state.allowBackgroundAudio);
+    if (state.aiEngine !== "cloud" && state.aiEngine !== "local") {
+        state.aiEngine = "cloud";
+    }
+    if (state.aiCloudProvider !== "gemini" && state.aiCloudProvider !== "openrouter") {
+        state.aiCloudProvider = "gemini";
+    }
+    state.aiGeminiModel = typeof state.aiGeminiModel === "string" && state.aiGeminiModel.trim()
+        ? state.aiGeminiModel.trim().slice(0, 120)
+        : DEFAULT_GEMINI_MODEL;
+    state.aiOpenRouterModel = typeof state.aiOpenRouterModel === "string" && state.aiOpenRouterModel.trim()
+        ? state.aiOpenRouterModel.trim().slice(0, 120)
+        : DEFAULT_OPENROUTER_MODEL;
+    state.aiCloudThinking = Boolean(state.aiCloudThinking);
+    state.aiLinePrompt = typeof state.aiLinePrompt === "string" ? state.aiLinePrompt.slice(0, 16_000) : "";
+    state.aiWordPrompt = typeof state.aiWordPrompt === "string" ? state.aiWordPrompt.slice(0, 16_000) : "";
     state.aiAlignmentEnabled = Boolean(state.aiAlignmentEnabled);
     state.aiGpuAcceleration = Boolean(state.aiGpuAcceleration);
     state.keepAiTaskCache = Boolean(state.keepAiTaskCache);

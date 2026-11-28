@@ -1,6 +1,6 @@
 import STRINGS from "#const/strings.json" assert { type: "json" };
 import { formatText } from "@lrc-maker/lrc-parser";
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useDismissibleDetails } from "../hooks/useDismissibleDetails.js";
 import {
     defaultToolOrder,
@@ -13,6 +13,25 @@ import {
     type WordCaptureMode,
 } from "../hooks/usePref.js";
 import type { ExportLyricFormat, LineLyricExportFormat } from "../utils/advanced-lyrics.js";
+import {
+    type CloudAiProvider,
+    deleteEncryptedApiKey,
+    getStoredApiKeySummary,
+    loadEncryptedApiKey,
+    saveEncryptedApiKey,
+    subscribeApiKeyVault,
+} from "../utils/ai-key-vault.js";
+import {
+    type AiEngineMode,
+    CloudAiAlignmentError,
+    DEFAULT_GEMINI_MODEL,
+    DEFAULT_LINE_ALIGN_PROMPT,
+    DEFAULT_OPENROUTER_MODEL,
+    DEFAULT_WORD_ALIGN_BETA_PROMPT,
+    GEMINI_MODEL_OPTIONS,
+    OPENROUTER_MODEL_OPTIONS,
+    testCloudAiConnection,
+} from "../utils/cloud-ai-alignment.js";
 import { clearLocalAiCache, stopLocalAiService } from "../utils/local-ai-alignment.js";
 import { formatTimeTag } from "../utils/lrc-format.js";
 import { unregister } from "../utils/sw.unregister.js";
@@ -73,6 +92,105 @@ export const Preferences: React.FC = () => {
     const toolOrderListRef = useRef<HTMLUListElement>(null);
     const [serviceStopping, setServiceStopping] = useState(false);
     const [aiCacheClearing, setAiCacheClearing] = useState(false);
+    const [apiKeyDraft, setApiKeyDraft] = useState("");
+    const [showApiKey, setShowApiKey] = useState(false);
+    const [apiKeyBusy, setApiKeyBusy] = useState(false);
+    const [testingConnection, setTestingConnection] = useState(false);
+    const [customModelMode, setCustomModelMode] = useState(false);
+    const keyVaultSummary = useSyncExternalStore(
+        subscribeApiKeyVault,
+        getStoredApiKeySummary,
+        getStoredApiKeySummary,
+    );
+    const activeProvider = prefState.aiCloudProvider;
+    const activeModelPresets = activeProvider === "gemini" ? GEMINI_MODEL_OPTIONS : OPENROUTER_MODEL_OPTIONS;
+    const activeModel = activeProvider === "gemini" ? prefState.aiGeminiModel : prefState.aiOpenRouterModel;
+    const isPresetModel = activeModelPresets.some((option) => option.id === activeModel);
+    const activeKeyStatus = keyVaultSummary[activeProvider];
+
+    useEffect(() => {
+        setApiKeyDraft("");
+        setShowApiKey(false);
+        setCustomModelMode(false);
+    }, [activeProvider]);
+
+    const onSaveApiKey = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (apiKeyBusy) return;
+        const trimmed = apiKeyDraft.trim();
+        if (!trimmed) return;
+        setApiKeyBusy(true);
+        try {
+            await saveEncryptedApiKey(activeProvider, trimmed);
+            setApiKeyDraft("");
+            setShowApiKey(false);
+            toastPubSub.pub({ type: "success", text: lang.preferences.aiApiKeySaved });
+        } catch {
+            toastPubSub.pub({ type: "warning", text: lang.preferences.aiApiKeySaveFailed });
+        } finally {
+            setApiKeyBusy(false);
+        }
+    }, [activeProvider, apiKeyBusy, apiKeyDraft, lang.preferences]);
+
+    const onClearApiKey = useCallback(async () => {
+        if (apiKeyBusy) return;
+        setApiKeyBusy(true);
+        try {
+            await deleteEncryptedApiKey(activeProvider);
+            setApiKeyDraft("");
+            toastPubSub.pub({ type: "info", text: lang.preferences.aiApiKeyCleared });
+        } finally {
+            setApiKeyBusy(false);
+        }
+    }, [activeProvider, apiKeyBusy, lang.preferences]);
+
+    const onTestApiConnection = useCallback(async () => {
+        if (testingConnection) return;
+        setTestingConnection(true);
+        try {
+            const candidateKey = apiKeyDraft.trim() || await loadEncryptedApiKey(activeProvider) || "";
+            if (!candidateKey) {
+                toastPubSub.pub({ type: "warning", text: lang.preferences.aiApiKeyMissing });
+                return;
+            }
+            await testCloudAiConnection(activeProvider, candidateKey, activeModel);
+            toastPubSub.pub({ type: "success", text: lang.preferences.aiConnectionOk });
+        } catch (error) {
+            const text = error instanceof CloudAiAlignmentError && error.code === "invalid-key"
+                ? lang.preferences.aiConnectionInvalidKey
+                : lang.preferences.aiConnectionFailed;
+            toastPubSub.pub({ type: "warning", text });
+        } finally {
+            setTestingConnection(false);
+        }
+    }, [activeModel, activeProvider, apiKeyDraft, lang.preferences, testingConnection]);
+
+    const onActiveModelChange = useCallback((value: string) => {
+        if (value === "__custom__") {
+            setCustomModelMode(true);
+            return;
+        }
+        setCustomModelMode(false);
+        prefDispatch({
+            type: activeProvider === "gemini" ? "aiGeminiModel" : "aiOpenRouterModel",
+            payload: value,
+        });
+    }, [activeProvider, prefDispatch]);
+
+    const onCustomModelInput = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+        prefDispatch({
+            type: activeProvider === "gemini" ? "aiGeminiModel" : "aiOpenRouterModel",
+            payload: event.target.value,
+        });
+    }, [activeProvider, prefDispatch]);
+
+    const onCustomModelBlur = useCallback((event: React.FocusEvent<HTMLInputElement>) => {
+        const trimmed = event.target.value.trim();
+        prefDispatch({
+            type: activeProvider === "gemini" ? "aiGeminiModel" : "aiOpenRouterModel",
+            payload: trimmed || (activeProvider === "gemini" ? DEFAULT_GEMINI_MODEL : DEFAULT_OPENROUTER_MODEL),
+        });
+    }, [activeProvider, prefDispatch]);
     const [dragTool, setDragTool] = useState<{ toolId: ToolId; fromIndex: number; toIndex: number } | null>(null);
     const dragToolRef = useRef<{ toolId: ToolId; fromIndex: number; toIndex: number } | null>(null);
     dragToolRef.current = dragTool;
@@ -515,62 +633,303 @@ export const Preferences: React.FC = () => {
                     </label>
                 </li>
                 <li>
-                    <label className="list-item">
-                        <span>{lang.preferences.aiAlignment}</span>
-                        <span className="toggle-switch">
-                            <input
-                                type="checkbox"
-                                checked={prefState.aiAlignmentEnabled}
-                                onChange={onAiAlignmentToggle}
-                            />
-                            <span className="toggle-switch-label" />
-                        </span>
-                    </label>
+                    <section className="list-item">
+                        <span>{lang.preferences.aiEngine}</span>
+                        <StyledSelect
+                            className="preference-select"
+                            value={prefState.aiEngine}
+                            onValueChange={(value) =>
+                                prefDispatch({ type: "aiEngine", payload: value as AiEngineMode })}
+                            label={lang.preferences.aiEngine}
+                            options={[
+                                { value: "cloud", label: lang.preferences.aiEngineCloud },
+                                { value: "local", label: lang.preferences.aiEngineLocal },
+                            ]}
+                        />
+                    </section>
                 </li>
-                <li>
-                    <label className="list-item">
-                        <span>{lang.preferences.aiGpuAcceleration}</span>
-                        <span className="toggle-switch">
-                            <input
-                                type="checkbox"
-                                checked={prefState.aiGpuAcceleration}
-                                onChange={onAiGpuAccelerationToggle}
-                            />
-                            <span className="toggle-switch-label" />
-                        </span>
-                    </label>
-                </li>
-                <li>
-                    <label className="list-item">
-                        <span>{lang.preferences.keepAiTaskCache}</span>
-                        <span className="toggle-switch">
-                            <input
-                                type="checkbox"
-                                checked={prefState.keepAiTaskCache}
-                                onChange={onKeepAiTaskCacheToggle}
-                            />
-                            <span className="toggle-switch-label" />
-                        </span>
-                    </label>
-                </li>
-                <li className="ripple">
-                    <button
-                        className="list-item preferences-button"
-                        type="button"
-                        onClick={() => aiCacheDialog.current?.showModal()}
-                    >
-                        {lang.preferences.aiClearCache}
-                    </button>
-                </li>
-                <li className="ripple">
-                    <button
-                        className="list-item preferences-button"
-                        type="button"
-                        onClick={() => serviceStopDialog.current?.showModal()}
-                    >
-                        {lang.preferences.aiStopService}
-                    </button>
-                </li>
+                {prefState.aiEngine === "cloud"
+                    ? (
+                        <>
+                            <li>
+                                <section className="list-item">
+                                    <span>{lang.preferences.aiProvider}</span>
+                                    <StyledSelect
+                                        className="preference-select"
+                                        value={prefState.aiCloudProvider}
+                                        onValueChange={(value) =>
+                                            prefDispatch({
+                                                type: "aiCloudProvider",
+                                                payload: value as CloudAiProvider,
+                                            })}
+                                        label={lang.preferences.aiProvider}
+                                        options={[
+                                            { value: "gemini", label: lang.preferences.aiProviderGemini },
+                                            { value: "openrouter", label: lang.preferences.aiProviderOpenRouter },
+                                        ]}
+                                    />
+                                </section>
+                            </li>
+                            <li>
+                                <section className="list-item preferences-ai-model-row">
+                                    <span>{lang.preferences.aiModel}</span>
+                                    <div className="preferences-ai-model-controls">
+                                        <StyledSelect
+                                            className="preference-select"
+                                            value={customModelMode || !isPresetModel ? "__custom__" : activeModel}
+                                            onValueChange={onActiveModelChange}
+                                            label={lang.preferences.aiModel}
+                                            options={[
+                                                ...activeModelPresets.map((option) => ({
+                                                    value: option.id,
+                                                    label: option.label,
+                                                })),
+                                                { value: "__custom__", label: lang.preferences.aiModelCustom },
+                                            ]}
+                                        />
+                                        {(customModelMode || !isPresetModel) && (
+                                            <input
+                                                type="text"
+                                                className="preferences-text-input"
+                                                aria-label={lang.preferences.aiModelCustom}
+                                                value={activeModel}
+                                                onChange={onCustomModelInput}
+                                                onBlur={onCustomModelBlur}
+                                                placeholder={activeProvider === "gemini"
+                                                    ? DEFAULT_GEMINI_MODEL
+                                                    : DEFAULT_OPENROUTER_MODEL}
+                                                autoCapitalize="none"
+                                                autoComplete="off"
+                                                autoCorrect="off"
+                                                spellCheck={false}
+                                            />
+                                        )}
+                                    </div>
+                                </section>
+                            </li>
+                            <li>
+                                <label className="list-item">
+                                    <span>{lang.preferences.aiThinking}</span>
+                                    <span className="toggle-switch">
+                                        <input
+                                            type="checkbox"
+                                            checked={prefState.aiCloudThinking}
+                                            onChange={() =>
+                                                prefDispatch({
+                                                    type: "aiCloudThinking",
+                                                    payload: (state) => !state.aiCloudThinking,
+                                                })}
+                                        />
+                                        <span className="toggle-switch-label" />
+                                    </span>
+                                </label>
+                            </li>
+                            <li>
+                                <section className="list-item preferences-ai-key-block">
+                                    <header className="preferences-ai-key-header">
+                                        <div>
+                                            <strong>{lang.preferences.aiApiKey}</strong>
+                                            <span>{lang.preferences.aiApiKeyHint}</span>
+                                        </div>
+                                        <span
+                                            className={`preferences-ai-key-badge${
+                                                activeKeyStatus.configured ? " is-saved" : ""
+                                            }`}
+                                        >
+                                            {activeKeyStatus.configured
+                                                ? lang.preferences.aiApiKeyConfigured
+                                                : lang.preferences.aiApiKeyUnconfigured}
+                                        </span>
+                                    </header>
+                                    <form className="preferences-ai-key-form" onSubmit={onSaveApiKey}>
+                                        <input
+                                            type={showApiKey ? "text" : "password"}
+                                            className="preferences-text-input preferences-api-key-input"
+                                            value={apiKeyDraft}
+                                            onChange={(event) => setApiKeyDraft(event.target.value)}
+                                            placeholder={activeKeyStatus.configured
+                                                ? lang.preferences.aiApiKeyReplacePlaceholder
+                                                : lang.preferences.aiApiKeyPlaceholder}
+                                            aria-label={lang.preferences.aiApiKey}
+                                            autoCapitalize="none"
+                                            autoComplete="new-password"
+                                            autoCorrect="off"
+                                            spellCheck={false}
+                                        />
+                                        <div className="preferences-ai-key-actions">
+                                            <button
+                                                type="button"
+                                                className="preferences-inline-btn"
+                                                onClick={() => setShowApiKey((prev) => !prev)}
+                                                disabled={!apiKeyDraft}
+                                            >
+                                                {showApiKey
+                                                    ? lang.preferences.aiApiKeyHide
+                                                    : lang.preferences.aiApiKeyShow}
+                                            </button>
+                                            <button
+                                                type="submit"
+                                                className="preferences-inline-btn is-primary"
+                                                disabled={apiKeyBusy || !apiKeyDraft.trim()}
+                                            >
+                                                {lang.preferences.aiApiKeySave}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="preferences-inline-btn"
+                                                disabled={testingConnection
+                                                    || (!apiKeyDraft.trim() && !activeKeyStatus.configured)}
+                                                onClick={() => void onTestApiConnection()}
+                                            >
+                                                {testingConnection
+                                                    ? lang.preferences.aiConnectionTesting
+                                                    : lang.preferences.aiConnectionTest}
+                                            </button>
+                                            {activeKeyStatus.configured && (
+                                                <button
+                                                    type="button"
+                                                    className="preferences-inline-btn is-danger"
+                                                    disabled={apiKeyBusy}
+                                                    onClick={() => void onClearApiKey()}
+                                                >
+                                                    {lang.preferences.aiApiKeyClear}
+                                                </button>
+                                            )}
+                                        </div>
+                                    </form>
+                                </section>
+                            </li>
+                            <li>
+                                <details className="list-item preferences-ai-prompts">
+                                    <summary>
+                                        <div>
+                                            <strong>{lang.preferences.aiPromptsTitle}</strong>
+                                            <span>{lang.preferences.aiPromptsHint}</span>
+                                        </div>
+                                    </summary>
+                                    <div className="preferences-ai-prompts-body">
+                                        <div className="preferences-prompt-field">
+                                            <header>
+                                                <label htmlFor="pref-ai-line-prompt">
+                                                    {lang.preferences.aiLinePromptLabel}
+                                                </label>
+                                                <button
+                                                    type="button"
+                                                    className="preferences-inline-btn"
+                                                    disabled={!prefState.aiLinePrompt}
+                                                    onClick={() => prefDispatch({ type: "aiLinePrompt", payload: "" })}
+                                                >
+                                                    {lang.preferences.aiPromptReset}
+                                                </button>
+                                            </header>
+                                            <textarea
+                                                id="pref-ai-line-prompt"
+                                                rows={8}
+                                                value={prefState.aiLinePrompt || DEFAULT_LINE_ALIGN_PROMPT}
+                                                onChange={(event) =>
+                                                    prefDispatch({
+                                                        type: "aiLinePrompt",
+                                                        payload: event.target.value === DEFAULT_LINE_ALIGN_PROMPT
+                                                            ? ""
+                                                            : event.target.value,
+                                                    })}
+                                                spellCheck={false}
+                                            />
+                                        </div>
+                                        <div className="preferences-prompt-field">
+                                            <header>
+                                                <label htmlFor="pref-ai-word-prompt">
+                                                    {lang.preferences.aiWordPromptLabel}
+                                                </label>
+                                                <button
+                                                    type="button"
+                                                    className="preferences-inline-btn"
+                                                    disabled={!prefState.aiWordPrompt}
+                                                    onClick={() => prefDispatch({ type: "aiWordPrompt", payload: "" })}
+                                                >
+                                                    {lang.preferences.aiPromptReset}
+                                                </button>
+                                            </header>
+                                            <textarea
+                                                id="pref-ai-word-prompt"
+                                                rows={8}
+                                                value={prefState.aiWordPrompt || DEFAULT_WORD_ALIGN_BETA_PROMPT}
+                                                onChange={(event) =>
+                                                    prefDispatch({
+                                                        type: "aiWordPrompt",
+                                                        payload: event.target.value === DEFAULT_WORD_ALIGN_BETA_PROMPT
+                                                            ? ""
+                                                            : event.target.value,
+                                                    })}
+                                                spellCheck={false}
+                                            />
+                                        </div>
+                                    </div>
+                                </details>
+                            </li>
+                        </>
+                    )
+                    : (
+                        <>
+                            <li>
+                                <label className="list-item">
+                                    <span>{lang.preferences.aiAlignment}</span>
+                                    <span className="toggle-switch">
+                                        <input
+                                            type="checkbox"
+                                            checked={prefState.aiAlignmentEnabled}
+                                            onChange={onAiAlignmentToggle}
+                                        />
+                                        <span className="toggle-switch-label" />
+                                    </span>
+                                </label>
+                            </li>
+                            <li>
+                                <label className="list-item">
+                                    <span>{lang.preferences.aiGpuAcceleration}</span>
+                                    <span className="toggle-switch">
+                                        <input
+                                            type="checkbox"
+                                            checked={prefState.aiGpuAcceleration}
+                                            onChange={onAiGpuAccelerationToggle}
+                                        />
+                                        <span className="toggle-switch-label" />
+                                    </span>
+                                </label>
+                            </li>
+                            <li>
+                                <label className="list-item">
+                                    <span>{lang.preferences.keepAiTaskCache}</span>
+                                    <span className="toggle-switch">
+                                        <input
+                                            type="checkbox"
+                                            checked={prefState.keepAiTaskCache}
+                                            onChange={onKeepAiTaskCacheToggle}
+                                        />
+                                        <span className="toggle-switch-label" />
+                                    </span>
+                                </label>
+                            </li>
+                            <li className="ripple">
+                                <button
+                                    className="list-item preferences-button"
+                                    type="button"
+                                    onClick={() => aiCacheDialog.current?.showModal()}
+                                >
+                                    {lang.preferences.aiClearCache}
+                                </button>
+                            </li>
+                            <li className="ripple">
+                                <button
+                                    className="list-item preferences-button"
+                                    type="button"
+                                    onClick={() => serviceStopDialog.current?.showModal()}
+                                >
+                                    {lang.preferences.aiStopService}
+                                </button>
+                            </li>
+                        </>
+                    )}
                 <li className="preferences-section-title">
                     <h2>{lang.preferences.sections.appearance}</h2>
                 </li>

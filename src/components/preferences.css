@@ -482,3 +482,221 @@
     flex-wrap: wrap;
     gap: 5px;
 }
+
+.preferences-ai-model-row {
+    gap: 10px;
+}
+
+.preferences-ai-model-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.preferences-text-input {
+    height: 36px;
+    padding: 0 10px;
+    color: var(--font-color);
+    background: var(--surface-subtle-color);
+    border: 1px solid var(--border-strong-color);
+    border-radius: 6px;
+    font-family: "Cascadia Mono", Consolas, Monaco, monospace;
+    font-size: 0.82rem;
+}
+
+.preferences-text-input:focus {
+    border-color: var(--theme-color);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(var(--theme-rgb), 0.14);
+}
+
+.list-item.preferences-ai-key-block {
+    display: grid;
+    align-items: stretch;
+    gap: 10px;
+    width: 100%;
+    padding: 12px 0 14px;
+}
+
+.preferences-ai-key-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+}
+
+.preferences-ai-key-header > div {
+    display: grid;
+    gap: 3px;
+}
+
+.preferences-ai-key-header > div > span {
+    color: var(--text-muted-color);
+    font-size: 0.76rem;
+}
+
+.preferences-ai-key-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 650;
+    color: var(--text-secondary-color);
+    background: var(--surface-subtle-color);
+    border: 1px solid var(--border-subtle-color);
+}
+
+.preferences-ai-key-badge.is-saved {
+    color: var(--theme-foreground-color);
+    background: rgba(var(--theme-rgb), 0.1);
+    border-color: rgba(var(--theme-rgb), 0.3);
+}
+
+.preferences-ai-key-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 0 !important;
+}
+
+.preferences-api-key-input {
+    flex: 1 1 220px;
+    min-width: 0;
+}
+
+.preferences-ai-key-actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.preferences-inline-btn {
+    min-height: 34px;
+    padding: 0 11px;
+    color: var(--text-secondary-color);
+    background: var(--surface-subtle-color);
+    border: 1px solid var(--border-subtle-color);
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    transition:
+        color var(--transition-duration) var(--ease-standard),
+        border-color var(--transition-duration) var(--ease-standard),
+        background-color var(--transition-duration) var(--ease-standard);
+}
+
+.preferences-inline-btn:hover:not(:disabled) {
+    color: var(--theme-foreground-color);
+    border-color: var(--theme-color);
+}
+
+.preferences-inline-btn.is-primary {
+    color: var(--theme-contrast-color);
+    background: var(--theme-color);
+    border-color: var(--theme-color);
+}
+
+.preferences-inline-btn.is-primary:hover:not(:disabled) {
+    color: var(--theme-contrast-color);
+    filter: brightness(1.06);
+}
+
+.preferences-inline-btn.is-danger:hover:not(:disabled) {
+    color: var(--error-color);
+    border-color: var(--error-color);
+}
+
+.list-item.preferences-ai-prompts {
+    display: block;
+    width: 100%;
+    padding: 10px 0 12px;
+}
+
+.preferences-ai-prompts > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    cursor: pointer;
+    list-style: none;
+}
+
+.preferences-ai-prompts > summary::-webkit-details-marker {
+    display: none;
+}
+
+.preferences-ai-prompts > summary > div {
+    display: grid;
+    gap: 3px;
+}
+
+.preferences-ai-prompts > summary span {
+    color: var(--text-muted-color);
+    font-size: 0.76rem;
+}
+
+.preferences-ai-prompts > summary::after {
+    flex: 0 0 auto;
+    width: 7px;
+    height: 7px;
+    margin-right: 4px;
+    border-right: 1.5px solid var(--theme-foreground-color);
+    border-bottom: 1.5px solid var(--theme-foreground-color);
+    transform: rotate(45deg);
+    transition: transform var(--transition-duration) ease;
+    content: "";
+}
+
+.preferences-ai-prompts[open] > summary::after {
+    transform: rotate(225deg);
+}
+
+.preferences-ai-prompts-body {
+    display: grid;
+    gap: 14px;
+    margin-top: 12px;
+    user-select: text;
+}
+
+.preferences-prompt-field {
+    display: grid;
+    gap: 6px;
+}
+
+.preferences-prompt-field > header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.preferences-prompt-field label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-secondary-color);
+}
+
+.preferences-prompt-field textarea {
+    width: 100%;
+    min-height: 140px;
+    padding: 10px 12px;
+    color: var(--font-color);
+    background: var(--surface-subtle-color);
+    border: 1px solid var(--border-strong-color);
+    border-radius: 6px;
+    font-family: "Cascadia Mono", Consolas, Monaco, monospace;
+    font-size: 0.78rem;
+    line-height: 1.55;
+    resize: vertical;
+}
+
+.preferences-prompt-field textarea:focus {
+    border-color: var(--theme-color);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(var(--theme-rgb), 0.14);
+}

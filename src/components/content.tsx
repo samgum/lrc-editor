@@ -320,6 +320,18 @@ export const Content: React.FC = () => {
         });
     }, [advancedDispatch]);
 
+    const applyAiWordTiming = useCallback((document: NonNullable<typeof advancedState.document>) => {
+        if (!latestStateRef.current.prefState.advancedLyricsEnabled) {
+            prefDispatch({ type: "advancedLyricsEnabled", payload: true });
+        }
+        lrcDispatch({
+            type: LrcActionType.replaceLyrics,
+            payload: documentToBasicLyrics(document),
+        });
+        advancedDispatch({ type: AdvancedActionType.load, payload: document });
+        setEditorTimingMode("word");
+    }, [advancedDispatch, lrcDispatch, prefDispatch]);
+
     useEffect(() => {
         sessionStorage.setItem(SSK.editorTimingMode, editorTimingMode);
     }, [editorTimingMode]);
@@ -528,6 +540,7 @@ export const Content: React.FC = () => {
                         onDraftChange={handleEditorDraftChange}
                         onMetadataChanged={reconcileMetadata}
                         onBasicLyricsReplaced={resetAdvancedWordTiming}
+                        onWordAlignmentApplied={applyAiWordTiming}
                         wordTimingOffer={wordTimingOffer}
                         onAcceptWordTiming={() => {
                             setWordTimingOffer(false);

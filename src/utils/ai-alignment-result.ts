@@ -1,7 +1,8 @@
 import { type ILyric, parser, type TrimOptios } from "@lrc-maker/lrc-parser";
 
-const enhancedTimestamp = /<\d{1,3}:\d{1,2}(?:[.:]\d{1,3})?>/g;
-const leadingLineTimestamps = /^(?:\[\s*\d{1,3}:\d{1,2}(?:[.:]\d{1,3})?\s*\])+/g;
+const enhancedTimestamp = /<\s*\d{1,3}:\d{1,2}(?::\d{1,2})?(?:[.:,]\d{1,3})?\s*>/g;
+const leadingLineTimestamps = /^\s*(?:\[\s*\d{1,3}:\d{1,2}(?::\d{1,2})?(?:[.:,]\d{1,3})?\s*\]\s*)+/g;
+const trailingLineTimestamps = /(?:\s*\[\s*\d{1,3}:\d{1,2}(?::\d{1,2})?(?:[.:,]\d{1,3})?\s*\])+$/g;
 
 export class AiAlignmentResultError extends Error {
     constructor(
@@ -19,7 +20,11 @@ export class AiAlignmentResultError extends Error {
 export const createUntimedTranscript = (lrc: string, options: TrimOptios): string => {
     const state = parser(lrc, options);
     const lines = state.lyric.map((line) =>
-        line.text.replace(leadingLineTimestamps, "").replace(enhancedTimestamp, "").trim()
+        line.text
+            .replace(leadingLineTimestamps, "")
+            .replace(enhancedTimestamp, "")
+            .replace(trailingLineTimestamps, "")
+            .trim()
     );
     while (lines[0] === "") lines.shift();
     while (lines.at(-1) === "") lines.pop();

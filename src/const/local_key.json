@@ -1,5 +1,6 @@
 {
     "lyric": "lrc-editor-lyric",
     "preferences": "lrc-editor-preferences",
-    "advancedLyrics": "lrc-editor-advanced-lyrics"
+    "advancedLyrics": "lrc-editor-advanced-lyrics",
+    "aiKeys": "lrc-editor-ai-keys"
 }

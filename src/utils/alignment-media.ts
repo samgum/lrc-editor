@@ -16,6 +16,14 @@ export const clearAlignmentMediaSource = (): void => {
     currentSource = undefined;
 };
 
+export const getAlignmentMediaInfo = (): { name: string; size?: number } | null => {
+    if (!currentSource) return null;
+    return {
+        name: currentSource.name,
+        size: currentSource.blob?.size,
+    };
+};
+
 export const getAlignmentMediaSource = async (): Promise<{ blob: Blob; name: string }> => {
     if (!currentSource) throw new Error("NO_MEDIA");
     if (currentSource.blob) return { blob: currentSource.blob, name: currentSource.name };
