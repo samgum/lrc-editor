@@ -1,6 +1,6 @@
 import ROUTER from "#const/router.json" assert { type: "json" };
 import SSK from "#const/session_key.json" assert { type: "json" };
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { prependHash } from "../utils/router.js";
 import { textTimingRows } from "../utils/text-timing-issues.js";
 import { ArrowLeftSVG, ArrowRightSVG, ProblemSVG, UtilitySVG } from "./svg.js";
@@ -13,12 +13,14 @@ export const LyricTextEditor: React.FC<{
     onDraftChange?: (value: string | null) => void;
     wordTiming?: boolean;
     language: Language;
-}> = ({ text, inputRef, onBlur, onCommitText, onDraftChange, wordTiming = false, language }) => {
-    const normalizedText = text.replace(/\r\n?/g, "\n");
+}> = memo(({ text, inputRef, onBlur, onCommitText, onDraftChange, wordTiming = false, language }) => {
+    const normalizedText = useMemo(() => text.replace(/\r\n?/g, "\n"), [text]);
     const [draft, setDraft] = useState(normalizedText);
     const [analysisText, setAnalysisText] = useState(normalizedText);
     const composingRef = useRef(false);
     const mirror = useRef<HTMLDivElement>(null);
+    const scrollRafRef = useRef(0);
+    const analysisTimerRef = useRef<number | undefined>(undefined);
     const committedRef = useRef(normalizedText);
     const draftRef = useRef(normalizedText);
     const onCommitRef = useRef(onCommitText);
@@ -27,9 +29,16 @@ export const LyricTextEditor: React.FC<{
     onDraftChangeRef.current = onDraftChange;
 
     const analyzedRows = useMemo(() => textTimingRows(analysisText, wordTiming), [analysisText, wordTiming]);
+    const issueIndexes = useMemo(
+        () => analyzedRows.flatMap((row, index) => (row.issue ? [index] : [])),
+        [analyzedRows],
+    );
+    const hasIssues = issueIndexes.length > 0;
+
     const rows = useMemo(() => {
+        if (!hasIssues) return [];
         if (draft === analysisText) return analyzedRows;
-        const rawLines = draft.replace(/\r\n?/g, "\n").split("\n");
+        const rawLines = draft.split("\n");
         let offset = 0;
         return rawLines.map((line, index) => {
             const start = offset;
@@ -42,17 +51,32 @@ export const LyricTextEditor: React.FC<{
                 issue: rawLines.length === analyzedRows.length ? analyzedRows[index]?.issue ?? null : null,
             };
         });
-    }, [analysisText, analyzedRows, draft]);
-    const issueIndexes = useMemo(() => rows.flatMap((row, index) => row.issue ? [index] : []), [rows]);
+    }, [analysisText, analyzedRows, draft, hasIssues]);
 
-    const syncScroll = useCallback(() => {
+    const syncMirrorPosition = useCallback(() => {
+        const input = inputRef.current;
+        if (!input || !mirror.current) return;
+        mirror.current.style.transform = `translate3d(${-input.scrollLeft}px, ${-input.scrollTop}px, 0)`;
+    }, [inputRef]);
+
+    const syncMirrorMetrics = useCallback(() => {
         const input = inputRef.current;
         if (!input || !mirror.current) return;
         mirror.current.style.width = `${input.clientWidth}px`;
-        mirror.current.style.transform = `translate(${-input.scrollLeft}px, ${-input.scrollTop}px)`;
+        mirror.current.style.transform = `translate3d(${-input.scrollLeft}px, ${-input.scrollTop}px, 0)`;
     }, [inputRef]);
 
+    const onScroll = useCallback(() => {
+        if (!mirror.current) return;
+        if (scrollRafRef.current) return;
+        scrollRafRef.current = requestAnimationFrame(() => {
+            scrollRafRef.current = 0;
+            syncMirrorPosition();
+        });
+    }, [syncMirrorPosition]);
+
     useLayoutEffect(() => {
+        window.clearTimeout(analysisTimerRef.current);
         if (inputRef.current && inputRef.current.value !== normalizedText) inputRef.current.value = normalizedText;
         composingRef.current = false;
         committedRef.current = normalizedText;
@@ -60,11 +84,13 @@ export const LyricTextEditor: React.FC<{
         onDraftChangeRef.current?.(null);
         setDraft(normalizedText);
         setAnalysisText(normalizedText);
-        syncScroll();
-    }, [inputRef, syncScroll, normalizedText]);
+        syncMirrorMetrics();
+    }, [inputRef, syncMirrorMetrics, normalizedText]);
 
     useEffect(() => {
         return () => {
+            window.clearTimeout(analysisTimerRef.current);
+            if (scrollRafRef.current) cancelAnimationFrame(scrollRafRef.current);
             if (draftRef.current !== committedRef.current) {
                 committedRef.current = draftRef.current;
                 onDraftChangeRef.current?.(null);
@@ -74,15 +100,14 @@ export const LyricTextEditor: React.FC<{
     }, []);
 
     useLayoutEffect(() => {
+        if (!hasIssues) return;
         const input = inputRef.current;
         if (!input) return;
-        const observer = new ResizeObserver(syncScroll);
+        const observer = new ResizeObserver(syncMirrorMetrics);
         observer.observe(input);
-        syncScroll();
+        syncMirrorMetrics();
         return () => observer.disconnect();
-    }, [inputRef, syncScroll]);
-
-    useLayoutEffect(syncScroll, [draft, syncScroll]);
+    }, [hasIssues, inputRef, syncMirrorMetrics]);
 
     const selectIssue = (index: number): void => {
         const input = inputRef.current;
@@ -92,7 +117,7 @@ export const LyricTextEditor: React.FC<{
         input.focus({ preventScroll: true });
         input.setSelectionRange(row.start, row.end);
         input.scrollTop = Math.max(0, line.offsetTop - input.clientHeight * 0.3);
-        syncScroll();
+        syncMirrorPosition();
     };
     const nextIssue = (direction: -1 | 1): void => {
         if (issueIndexes.length === 0) return;
@@ -114,7 +139,7 @@ export const LyricTextEditor: React.FC<{
 
     return (
         <section className="lyric-text-workspace">
-            {issueIndexes.length > 0 && (
+            {hasIssues && (
                 <div className="editor-issue-toolbar">
                     <span role="status" id="editor-timing-status">
                         {language.visual.timingIssues.replace("%d", String(issueIndexes.length))}
@@ -155,41 +180,45 @@ export const LyricTextEditor: React.FC<{
                 </div>
             )}
             <div className="lyric-text-editor">
-                <div className="lyric-text-mirror" ref={mirror}>
-                    {rows.map((row, index) => (
-                        <div className={`editor-text-row${row.issue ? " has-timing-issue" : ""}`} key={index}>
-                            <span aria-hidden="true">{row.text || "\u200b"}</span>
-                            {row.issue && (
-                                <button
-                                    type="button"
-                                    className="editor-row-issue"
-                                    tabIndex={-1}
-                                    title={language.visual.lineIssue.replace("%line", String(index + 1))
-                                        .replace("%issue", language.timing[row.issue])}
-                                    aria-label={language.visual.lineIssue.replace("%line", String(index + 1))
-                                        .replace("%issue", language.timing[row.issue])}
-                                    onPointerDown={(event) => event.preventDefault()}
-                                    onClick={() =>
-                                        selectIssue(index)}
-                                >
-                                    <ProblemSVG />
-                                </button>
-                            )}
-                        </div>
-                    ))}
-                </div>
+                {hasIssues && (
+                    <div className="lyric-text-mirror" ref={mirror}>
+                        {rows.map((row, index) => (
+                            <div className={`editor-text-row${row.issue ? " has-timing-issue" : ""}`} key={index}>
+                                <span aria-hidden="true">{row.text || "\u200b"}</span>
+                                {row.issue && (
+                                    <button
+                                        type="button"
+                                        className="editor-row-issue"
+                                        tabIndex={-1}
+                                        title={language.visual.lineIssue.replace("%line", String(index + 1))
+                                            .replace("%issue", language.timing[row.issue])}
+                                        aria-label={language.visual.lineIssue.replace("%line", String(index + 1))
+                                            .replace("%issue", language.timing[row.issue])}
+                                        onPointerDown={(event) => event.preventDefault()}
+                                        onClick={() =>
+                                            selectIssue(index)}
+                                    >
+                                        <ProblemSVG />
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
                 <textarea
                     ref={inputRef}
                     className="app-textarea"
                     defaultValue={text}
                     aria-label={language.visual.lyricEditor}
-                    aria-invalid={issueIndexes.length > 0 || undefined}
-                    aria-describedby={issueIndexes.length > 0 ? "editor-timing-status" : undefined}
+                    aria-invalid={hasIssues || undefined}
+                    aria-describedby={hasIssues ? "editor-timing-status" : undefined}
                     onBlur={(event) => {
+                        window.clearTimeout(analysisTimerRef.current);
                         composingRef.current = false;
                         const next = event.currentTarget.value.replace(/\r\n?/g, "\n");
                         committedRef.current = next;
                         draftRef.current = next;
+                        setDraft(next);
                         setAnalysisText(next);
                         onDraftChangeRef.current?.(null);
                         onBlur(event);
@@ -199,17 +228,24 @@ export const LyricTextEditor: React.FC<{
                     }}
                     onCompositionEnd={(event) => {
                         composingRef.current = false;
-                        setAnalysisText(event.currentTarget.value.replace(/\r\n?/g, "\n"));
+                        const next = event.currentTarget.value.replace(/\r\n?/g, "\n");
+                        draftRef.current = next;
+                        setDraft(next);
+                        setAnalysisText(next);
                     }}
-                    onScroll={syncScroll}
+                    onScroll={onScroll}
                     onChange={(event) => {
                         const next = event.currentTarget.value;
                         const normalizedNext = next.replace(/\r\n?/g, "\n");
                         draftRef.current = normalizedNext;
                         onDraftChangeRef.current?.(normalizedNext === committedRef.current ? null : next);
-                        setDraft(normalizedNext);
+                        if (hasIssues) setDraft(normalizedNext);
                         if (!composingRef.current) {
-                            setAnalysisText(normalizedNext);
+                            window.clearTimeout(analysisTimerRef.current);
+                            analysisTimerRef.current = window.setTimeout(() => {
+                                setDraft(draftRef.current);
+                                setAnalysisText(draftRef.current);
+                            }, 160);
                         }
                     }}
                     autoCapitalize="none"
@@ -220,4 +256,6 @@ export const LyricTextEditor: React.FC<{
             </div>
         </section>
     );
-};
+});
+
+LyricTextEditor.displayName = "LyricTextEditor";

@@ -152,6 +152,7 @@ export interface CloudAlignmentOptions {
     apiKey?: string;
     audio: Blob;
     audioName: string;
+    audioDurationMs?: number;
     transcript: string;
     mode: CloudAiTaskMode;
     precision: 2 | 3;
@@ -170,11 +171,19 @@ export interface CloudAlignmentOptions {
     ) => Promise<{ blob: Blob; name: string; format: "m4a" }>;
 }
 
+export interface CloudAlignmentValidation {
+    readonly valid: boolean;
+    readonly warnings: readonly string[];
+    readonly autoFixedCount: number;
+    readonly regressionCount: number;
+}
+
 export interface CloudAlignmentResult {
     mode: CloudAiTaskMode;
     lrc: string;
     lyrics: readonly ILyric[];
     advancedDocument?: AdvancedLyricsDocument;
+    validation: CloudAlignmentValidation;
     rawOutput: string;
 }
 
@@ -262,6 +271,7 @@ export const runCloudAiAlignment = async (options: CloudAlignmentOptions): Promi
             options.transcript,
             options.metadata,
             options.precision,
+            options.audioDurationMs,
         );
         options.onProgress?.({ phase: "complete", progress: 1, streamChars: rawOutput.length });
         return {
@@ -269,6 +279,7 @@ export const runCloudAiAlignment = async (options: CloudAlignmentOptions): Promi
             lrc: parsed.lrc,
             lyrics: parsed.lyrics,
             advancedDocument: parsed.document,
+            validation: parsed.validation,
             rawOutput,
         };
     }
@@ -278,12 +289,14 @@ export const runCloudAiAlignment = async (options: CloudAlignmentOptions): Promi
         options.mode === "line" ? options.transcript : "",
         options.precision,
         options.trimOptions,
+        options.audioDurationMs,
     );
     options.onProgress?.({ phase: "complete", progress: 1, streamChars: rawOutput.length });
     return {
         mode: options.mode,
         lrc: parsed.lrc,
         lyrics: parsed.lyrics,
+        validation: parsed.validation,
         rawOutput,
     };
 };
@@ -430,6 +443,7 @@ const invokeGeminiStream = async (args: GeminiStreamArgs): Promise<string> => {
         }
 
         let output = "";
+        let lastProgressAt = 0;
         await readSseJsonStream(response, signal, (chunk) => {
             const candidate = getFirstRecord(chunk.candidates);
             const finishReason = typeof candidate?.finishReason === "string" ? candidate.finishReason : "";
@@ -438,14 +452,22 @@ const invokeGeminiStream = async (args: GeminiStreamArgs): Promise<string> => {
             }
             const content = asRecord(candidate?.content);
             const parts = Array.isArray(content?.parts) ? content.parts : [];
+            let added = false;
             for (const part of parts) {
                 const record = asRecord(part);
                 if (!record || record.thought === true) continue;
                 if (typeof record.text === "string" && record.text.length > 0) {
                     output += record.text;
+                    added = true;
                     if (output.length > MAX_STREAM_CHARS) {
                         throw new CloudAiAlignmentError("truncated", "Model output exceeded maximum size");
                     }
+                }
+            }
+            if (added) {
+                const now = Date.now();
+                if (now - lastProgressAt >= 150) {
+                    lastProgressAt = now;
                     const estimatedProgress = Math.min(0.93, 0.28 + Math.log1p(output.length / 400) * 0.22);
                     onProgress?.({
                         phase: "running",
@@ -697,6 +719,7 @@ const invokeOpenRouterStream = async (args: OpenRouterStreamArgs): Promise<strin
     }
 
     let output = "";
+    let lastProgressAt = 0;
     await readSseJsonStream(response, signal, (chunk) => {
         if (chunk.error) {
             const errRecord = asRecord(chunk.error);
@@ -715,12 +738,16 @@ const invokeOpenRouterStream = async (args: OpenRouterStreamArgs): Promise<strin
             if (output.length > MAX_STREAM_CHARS) {
                 throw new CloudAiAlignmentError("truncated", "Model output exceeded maximum size");
             }
-            const estimatedProgress = Math.min(0.93, 0.28 + Math.log1p(output.length / 400) * 0.22);
-            onProgress?.({
-                phase: "running",
-                progress: estimatedProgress,
-                streamChars: output.length,
-            });
+            const now = Date.now();
+            if (now - lastProgressAt >= 150) {
+                lastProgressAt = now;
+                const estimatedProgress = Math.min(0.93, 0.28 + Math.log1p(output.length / 400) * 0.22);
+                onProgress?.({
+                    phase: "running",
+                    progress: estimatedProgress,
+                    streamChars: output.length,
+                });
+            }
         }
     });
 
@@ -793,12 +820,114 @@ export const parseModelTimestampCues = (rawOutput: string): ParsedCue[] => {
     return cues;
 };
 
+export const validateGeneratedLrc = (
+    lrc: string,
+    audioDurationMs?: number,
+): CloudAlignmentValidation => {
+    const lineTagPattern = /^\[(\d{1,3}:\d{2}(?::\d{2})?(?:[.,]\d{1,3})?)\]/;
+    const warnings: string[] = [];
+    const seen = new Map<number, number>();
+    let previous = -1;
+    let timestampCount = 0;
+    let regressionCount = 0;
+
+    const lines = lrc.replace(/\r\n?/g, "\n").split("\n");
+    for (let index = 0; index < lines.length; index += 1) {
+        const trimmed = lines[index].trim();
+        if (!trimmed) continue;
+        const match = lineTagPattern.exec(trimmed);
+        if (!match) {
+            warnings.push(`Line ${index + 1}: missing valid LRC timestamp`);
+            continue;
+        }
+        const timeMs = parseStrictTimeMs(match[1]);
+        if (timeMs === undefined) {
+            warnings.push(`Line ${index + 1}: invalid timestamp [${match[1]}]`);
+            continue;
+        }
+        timestampCount += 1;
+        if (timeMs < previous) {
+            regressionCount += 1;
+            warnings.push(`Line ${index + 1}: timestamp regressed`);
+        }
+        const firstLine = seen.get(timeMs);
+        if (firstLine !== undefined) {
+            warnings.push(`Line ${index + 1}: duplicate timestamp with line ${firstLine}`);
+        } else {
+            seen.set(timeMs, index + 1);
+        }
+        if (audioDurationMs && audioDurationMs > 0 && timeMs > audioDurationMs + 5_000) {
+            warnings.push(`Line ${index + 1}: timestamp exceeds media duration`);
+        }
+        previous = timeMs;
+    }
+
+    if (timestampCount === 0) {
+        warnings.push("No valid LRC timestamps found");
+    }
+
+    return {
+        valid: warnings.length === 0,
+        warnings,
+        autoFixedCount: 0,
+        regressionCount,
+    };
+};
+
+const assertRealTimeline = (
+    nonEmptyStartTimes: readonly number[],
+    audioDurationMs?: number,
+    allowRegressions = false,
+): void => {
+    if (nonEmptyStartTimes.length === 0) {
+        throw new CloudAiAlignmentError("invalid-output", "No valid lyric timestamps found in AI output");
+    }
+
+    if (nonEmptyStartTimes.length >= 4) {
+        let minMs = Infinity;
+        let maxMs = -Infinity;
+        let nonIncreasingCount = 0;
+        for (let idx = 0; idx < nonEmptyStartTimes.length; idx += 1) {
+            const current = nonEmptyStartTimes[idx];
+            if (current < minMs) minMs = current;
+            if (current > maxMs) maxMs = current;
+            if (idx > 0 && current <= nonEmptyStartTimes[idx - 1]) {
+                nonIncreasingCount += 1;
+            }
+        }
+        if (maxMs - minMs < 1_000) {
+            throw new CloudAiAlignmentError(
+                "invalid-output",
+                "AI timestamps did not progress across the song",
+            );
+        }
+        if (!allowRegressions && nonIncreasingCount > Math.floor(nonEmptyStartTimes.length * 0.5)) {
+            throw new CloudAiAlignmentError(
+                "invalid-output",
+                "AI timestamps were mostly duplicated or out of order",
+            );
+        }
+    }
+
+    if (audioDurationMs && audioDurationMs > 0) {
+        const limitMs = audioDurationMs + 5_000;
+        const overflowCount = nonEmptyStartTimes.filter((timeMs) => timeMs > limitMs).length;
+        if (overflowCount >= 3 || (nonEmptyStartTimes.length > 0 && overflowCount / nonEmptyStartTimes.length > 0.25)) {
+            throw new CloudAiAlignmentError(
+                "invalid-output",
+                "AI timestamps exceeded audio duration",
+            );
+        }
+    }
+};
+
 export const parseCloudLineAlignment = (
     rawOutput: string,
     originalTranscript: string,
     precision: 2 | 3,
     trimOptions: TrimOptios = {},
-): { lrc: string; lyrics: readonly ILyric[] } => {
+    audioDurationMs?: number,
+): { lrc: string; lyrics: readonly ILyric[]; validation: CloudAlignmentValidation } => {
     const cues = parseModelTimestampCues(rawOutput);
     if (cues.length === 0) {
         throw new CloudAiAlignmentError("invalid-output", "No valid timestamps found in AI output");
@@ -806,11 +935,23 @@ export const parseCloudLineAlignment = (
 
     const outputLines: string[] = [];
     const normalizedOriginal = originalTranscript.replace(/\r\n?/g, "\n").trim();
+    const minStepMs = precision === 2 ? 10 : 1;
+    let autoFixedCount = 0;
 
     if (!normalizedOriginal) {
-        let prevMs = -1;
+        const nonEmptyTimes = cues.filter((cue) => cue.text.trim().length > 0).map((cue) => cue.startMs);
+        assertRealTimeline(nonEmptyTimes.length > 0 ? nonEmptyTimes : cues.map((cue) => cue.startMs), audioDurationMs);
+        let prevMs = -minStepMs;
         for (const cue of cues) {
-            const startMs = Math.max(cue.startMs, prevMs + (prevMs >= 0 ? 10 : 0));
+            let startMs = cue.startMs;
+            if (audioDurationMs && audioDurationMs > 0 && startMs > audioDurationMs) {
+                startMs = Math.round(audioDurationMs);
+                autoFixedCount += 1;
+            }
+            if (startMs <= prevMs) {
+                startMs = prevMs + Math.max(minStepMs, 10);
+                autoFixedCount += 1;
+            }
             outputLines.push(`${formatLrcTimestamp(startMs, precision)}${cue.text}`);
             prevMs = startMs;
         }
@@ -826,6 +967,11 @@ export const parseCloudLineAlignment = (
                 `${nonEmptyCues.length}/${nonEmptyOriginalCount}`,
             );
         }
+
+        assertRealTimeline(
+            nonEmptyCues.map((cue) => cue.startMs),
+            audioDurationMs,
+        );
 
         // Preserve AI blank-line timestamps when exact line count matches, otherwise derive monotonic blank-line stamps cleanly.
         const exactCountMatch = cues.length === originalLines.length
@@ -854,16 +1000,20 @@ export const parseCloudLineAlignment = (
         }
 
         // Enforce strictly increasing timestamps respecting precision granularity.
-        const minStepMs = precision === 2 ? 10 : 1;
         let previousMs = -minStepMs;
         for (let idx = 0; idx < originalLines.length; idx += 1) {
             const nextOriginalNonEmptyMs = findNextNonEmptyTime(originalLines, resolvedTimes, idx + 1);
             let timeMs = resolvedTimes[idx];
+            if (audioDurationMs && audioDurationMs > 0 && timeMs > audioDurationMs) {
+                timeMs = Math.round(audioDurationMs);
+                autoFixedCount += 1;
+            }
             if (timeMs <= previousMs) {
                 timeMs = previousMs + Math.max(minStepMs, 10);
                 if (nextOriginalNonEmptyMs !== undefined && timeMs >= nextOriginalNonEmptyMs) {
                     timeMs = previousMs + minStepMs;
                 }
+                autoFixedCount += 1;
             }
             outputLines.push(`${formatLrcTimestamp(timeMs, precision)}${originalLines[idx].trim()}`);
             previousMs = timeMs;
@@ -871,11 +1021,23 @@ export const parseCloudLineAlignment = (
     }
 
     const lrc = outputLines.join("\n");
+    const baseValidation = validateGeneratedLrc(lrc, audioDurationMs);
+    if (!baseValidation.valid) {
+        throw new CloudAiAlignmentError("invalid-output", baseValidation.warnings[0] || "Invalid LRC timeline");
+    }
+
     const parsed = parser(lrc, trimOptions);
     if (parsed.lyric.length === 0) {
         throw new CloudAiAlignmentError("invalid-output", "Parsed LRC contained no lines");
     }
-    return { lrc, lyrics: parsed.lyric };
+    return {
+        lrc,
+        lyrics: parsed.lyric,
+        validation: {
+            ...baseValidation,
+            autoFixedCount,
+        },
+    };
 };
 
 export const parseCloudWordAlignment = (
@@ -883,7 +1045,13 @@ export const parseCloudWordAlignment = (
     originalTranscript: string,
     metadata: ReadonlyMap<string, string> | undefined,
     precision: 2 | 3,
-): { document: AdvancedLyricsDocument; lrc: string; lyrics: readonly ILyric[] } => {
+    audioDurationMs?: number,
+): {
+    document: AdvancedLyricsDocument;
+    lrc: string;
+    lyrics: readonly ILyric[];
+    validation: CloudAlignmentValidation;
+} => {
     const cleaned = stripModelCodeFences(rawOutput);
     const candidateLines = cleaned
         .split("\n")
@@ -912,13 +1080,19 @@ export const parseCloudWordAlignment = (
         );
     }
 
-    const minStepMs = precision === 2 ? 10 : 1;
+    const rawLineStarts = nonEmptyParsedLines
+        .map((line) => line.startMs ?? line.words.find((w) => w.startMs !== undefined)?.startMs)
+        .filter((value): value is number => value !== undefined && Number.isFinite(value));
+    assertRealTimeline(rawLineStarts, audioDurationMs, true);
+
     const normalizedLines: AdvancedLyricLine[] = [];
+    const warnings: string[] = [];
+    let regressionCount = 0;
     const exactMatch = origLines.length > 0
         && parsedDoc.lines.length === origLines.length
         && parsedDoc.lines.every((line, idx) => Boolean(lineText(line).trim()) === Boolean(origLines[idx].trim()));
 
-    let prevLineStartMs = -minStepMs;
+    let prevLineStartMs: number | undefined;
     let nonEmptyCursor = 0;
 
     const sourceList = origLines.length > 0 ? origLines : parsedDoc.lines.map((line) => lineText(line));
@@ -927,8 +1101,8 @@ export const parseCloudWordAlignment = (
         if (isBlank) {
             const rawBlankMs = exactMatch
                 ? parsedDoc.lines[idx].startMs
-                : (normalizedLines.at(-1)?.endMs ?? prevLineStartMs + 200);
-            const startMs = Math.max(rawBlankMs ?? prevLineStartMs + minStepMs, prevLineStartMs + minStepMs);
+                : (normalizedLines.at(-1)?.endMs ?? ((prevLineStartMs ?? 0) + 200));
+            const startMs = Math.max(0, rawBlankMs ?? ((prevLineStartMs ?? 0) + 10));
             normalizedLines.push({ startMs, words: [{ text: "" }] });
             prevLineStartMs = startMs;
             continue;
@@ -940,30 +1114,43 @@ export const parseCloudWordAlignment = (
             ? nonEmptyParsedLines[nonEmptyCursor++]
             : parsedDoc.lines[idx];
 
-        const baseStart = parsedLine.startMs ?? parsedLine.words.find((w) => w.startMs !== undefined)?.startMs ?? 0;
-        const lineStartMs = Math.max(baseStart, prevLineStartMs + minStepMs);
-        let wordCursorMs = lineStartMs;
+        const baseStart = Math.max(
+            0,
+            parsedLine.startMs ?? parsedLine.words.find((w) => w.startMs !== undefined)?.startMs ?? 0,
+        );
+        if (prevLineStartMs !== undefined && baseStart < prevLineStartMs) {
+            regressionCount += 1;
+            warnings.push(`Line ${idx + 1}: line start regressed`);
+        }
+
+        // Preserve AI's raw word timestamps in Beta mode without forcibly clamping regressions.
+        let prevWordStartMs: number | undefined;
         const normalizedWords: TimedWord[] = parsedLine.words.map((word) => {
-            const startMs = Math.max(word.startMs ?? wordCursorMs, wordCursorMs);
-            const endMs = word.endMs !== undefined ? Math.max(word.endMs, startMs) : undefined;
-            wordCursorMs = endMs ?? startMs;
+            const startMs = word.startMs !== undefined ? Math.max(0, word.startMs) : undefined;
+            if (startMs !== undefined && prevWordStartMs !== undefined && startMs < prevWordStartMs) {
+                regressionCount += 1;
+            }
+            if (startMs !== undefined) prevWordStartMs = startMs;
+            const endMs = word.endMs !== undefined
+                ? Math.max(startMs ?? 0, word.endMs)
+                : undefined;
+            if (startMs === undefined) return { text: word.text };
             return endMs === undefined
                 ? { text: word.text, startMs }
                 : { text: word.text, startMs, endMs };
         });
 
+        const lastWordEnd = normalizedWords.at(-1)?.endMs;
         const lineEndMs = parsedLine.endMs !== undefined
-            ? Math.max(parsedLine.endMs, wordCursorMs)
-            : wordCursorMs > lineStartMs
-            ? wordCursorMs
-            : undefined;
+            ? Math.max(baseStart, parsedLine.endMs)
+            : lastWordEnd;
 
         normalizedLines.push({
-            startMs: lineStartMs,
+            startMs: baseStart,
             ...(lineEndMs === undefined ? {} : { endMs: lineEndMs }),
             words: normalizedWords,
         });
-        prevLineStartMs = lineStartMs;
+        prevLineStartMs = baseStart;
     }
 
     const docMetadata = metadata ? Object.fromEntries(metadata.entries()) : {};
@@ -979,7 +1166,17 @@ export const parseCloudWordAlignment = (
         .map((line) => `${formatLrcTimestamp(line.startMs ?? 0, precision)}${lineText(line)}`)
         .join("\n");
 
-    return { document, lrc, lyrics };
+    return {
+        document,
+        lrc,
+        lyrics,
+        validation: {
+            valid: true,
+            warnings,
+            autoFixedCount: 0,
+            regressionCount,
+        },
+    };
 };
 
 const findNextNonEmptyTime = (
@@ -1202,9 +1399,9 @@ const getFirstRecord = (value: unknown): Record<string, unknown> | null =>
     Array.isArray(value) && value.length > 0 ? asRecord(value[0]) : null;
 
 const encodeBase64 = (bytes: Uint8Array): string => {
-    let binary = "";
+    const parts: string[] = [];
     for (let index = 0; index < bytes.length; index += 32_768) {
-        binary += String.fromCharCode(...bytes.subarray(index, index + 32_768));
+        parts.push(String.fromCharCode(...bytes.subarray(index, index + 32_768)));
     }
-    return btoa(binary);
+    return btoa(parts.join(""));
 };

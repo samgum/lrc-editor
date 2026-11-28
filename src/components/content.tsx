@@ -153,10 +153,16 @@ export const Content: React.FC = () => {
             if (advancedState.document) {
                 localStorage.setItem(LSK.advancedLyrics, JSON.stringify(advancedState.document));
             }
+        }, 120);
+        return () => clearTimeout(saveTimer);
+    }, [advancedState.document]);
+
+    useEffect(() => {
+        const saveTimer = setTimeout(() => {
             sessionStorage.setItem(SSK.advancedWordCursor, JSON.stringify(advancedState.cursor));
         }, 120);
         return () => clearTimeout(saveTimer);
-    }, [advancedState.cursor, advancedState.document]);
+    }, [advancedState.cursor]);
 
     useEffect(() => {
         const saveTimer = setTimeout(() => {

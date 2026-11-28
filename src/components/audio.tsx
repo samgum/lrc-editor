@@ -145,6 +145,8 @@ const TimeLine: React.FC<{ duration: number; paused: boolean }> = ({ duration, p
         return duration > 0 ? " / " + formatTimeTag(duration, fixed, false) : false;
     }, [duration, fixed]);
 
+    const onWaveformUnavailable = useCallback(() => setWaveformFailed(true), []);
+
     return (
         <>
             <time>
@@ -160,7 +162,7 @@ const TimeLine: React.FC<{ duration: number; paused: boolean }> = ({ duration, p
                                 themeColor={prefState.themeColor}
                                 ariaLabel={lang.visual.playbackPosition}
                                 onSeek={onSeek}
-                                onUnavailable={() => setWaveformFailed(true)}
+                                onUnavailable={onWaveformUnavailable}
                             />
                         </Suspense>
                     </div>

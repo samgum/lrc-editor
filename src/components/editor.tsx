@@ -26,6 +26,7 @@ import {
 import { aiEngineDownloadUrl } from "../utils/ai-engine-download.js";
 import { getStoredApiKeySummary, subscribeApiKeyVault } from "../utils/ai-key-vault.js";
 import { getAlignmentMediaInfo, getAlignmentMediaSource } from "../utils/alignment-media.js";
+import { audioRef } from "../utils/audiomodule.js";
 import { CloudAiAlignmentError, type CloudAiTaskMode, runCloudAiAlignment } from "../utils/cloud-ai-alignment.js";
 import {
     LocalAiAlignmentError,
@@ -114,12 +115,16 @@ export const Editor: React.FC<{
             fixed: Fixed;
         } | null
     >(null);
-    const text = timingMode === "word" && advancedState.document
-        ? editedWordSource.current?.document === advancedState.document
-                && editedWordSource.current.fixed === prefState.fixed
-            ? editedWordSource.current.source
-            : toEnhancedLrc(advancedState.document, prefState.fixed)
-        : stringifyLrc(lrcState, prefState);
+    const text = useMemo(
+        () =>
+            timingMode === "word" && advancedState.document
+                ? editedWordSource.current?.document === advancedState.document
+                        && editedWordSource.current.fixed === prefState.fixed
+                    ? editedWordSource.current.source
+                    : toEnhancedLrc(advancedState.document, prefState.fixed)
+                : stringifyLrc(lrcState, prefState),
+        [advancedState.document, lrcState, prefState, timingMode],
+    );
 
     const commitText = useCallback(
         (rawText: string) => {
@@ -206,12 +211,6 @@ export const Editor: React.FC<{
         const dialog = wordTimingDialog.current;
         if (wordTimingOffer && dialog && !dialog.open) dialog.showModal();
     }, [wordTimingOffer]);
-    const aiSession = useSyncExternalStore(
-        subscribeAiAlignmentSession,
-        getAiAlignmentSessionSnapshot,
-        getAiAlignmentSessionSnapshot,
-    );
-    const aiState = aiSession.state;
     const keyVaultSummary = useSyncExternalStore(
         subscribeApiKeyVault,
         getStoredApiKeySummary,
@@ -220,6 +219,11 @@ export const Editor: React.FC<{
     const [aiLaunchOpen, setAiLaunchOpen] = useState(false);
     const [cloudTaskMode, setCloudTaskMode] = useState<CloudAiTaskMode>("line");
     const aiLaunchDialog = useRef<HTMLDialogElement>(null);
+
+    const closeAiLaunch = useCallback(() => {
+        if (aiLaunchDialog.current?.open) aiLaunchDialog.current.close();
+        setAiLaunchOpen(false);
+    }, []);
 
     useEffect(() => {
         const dialog = aiLaunchDialog.current;
@@ -339,37 +343,6 @@ export const Editor: React.FC<{
         });
     }, [exportPayload, lang.advancedLyrics]);
 
-    const statusText = useCallback((progress: AiAlignmentSessionState): string => {
-        const isCloud = progress.provider === "gemini" || progress.provider === "openrouter";
-        switch (progress.phase) {
-            case "connecting":
-                return isCloud ? lang.editor.aiCloudConnecting : lang.editor.aiConnecting;
-            case "uploading":
-                return isCloud ? lang.editor.aiCloudUploading : lang.editor.aiUploading;
-            case "queued":
-                return lang.editor.aiQueued;
-            case "running":
-                if (isCloud) {
-                    return progress.streamChars && progress.streamChars > 0
-                        ? lang.editor.aiCloudStreaming.replace("%d", String(progress.streamChars))
-                        : lang.editor.aiCloudRunning;
-                }
-                return lang.editor.aiRunning;
-            case "downloading":
-                return isCloud ? lang.editor.aiCloudParsing : lang.editor.aiDownloading;
-            case "stopping":
-                return lang.editor.aiStopping;
-            case "stopped":
-                return lang.editor.aiStopped;
-            case "cleaning":
-                return lang.editor.aiCleaning;
-            case "complete":
-                return progress.taskMode === "word-beta"
-                    ? lang.editor.aiWordBetaComplete
-                    : lang.editor.aiComplete;
-        }
-    }, [lang.editor]);
-
     const alignmentErrorText = useCallback((error: unknown): string => {
         if (error instanceof CloudAiAlignmentError) {
             switch (error.code) {
@@ -410,8 +383,8 @@ export const Editor: React.FC<{
     }, [lang.editor]);
 
     const onCloudAiAlign = useCallback((selectedMode: CloudAiTaskMode) => {
-        setAiLaunchOpen(false);
-        if (aiSession.active) {
+        closeAiLaunch();
+        if (getAiAlignmentSessionSnapshot().active) {
             updateAiAlignmentSessionState((state) => state ? { ...state, visible: true } : state);
             toastPubSub.pub({ type: "info", text: lang.editor.aiDuplicate });
             return;
@@ -446,11 +419,13 @@ export const Editor: React.FC<{
             }
 
             try {
+                const audioDurationMs = audioRef.duration > 0 ? Math.round(audioRef.duration * 1000) : undefined;
                 const result = await runCloudAiAlignment({
                     provider,
                     model,
                     audio: media.blob,
                     audioName: media.name,
+                    audioDurationMs,
                     transcript: selectedMode === "transcribe" ? "" : transcript,
                     mode: selectedMode,
                     precision: prefState.fixed === 2 ? 2 : 3,
@@ -491,7 +466,7 @@ export const Editor: React.FC<{
                     progress: 1,
                     provider,
                     taskMode: selectedMode,
-                    visible: true,
+                    visible: false,
                 }));
                 toastPubSub.pub({
                     type: "success",
@@ -504,7 +479,7 @@ export const Editor: React.FC<{
                         progress: state?.progress || 0,
                         provider,
                         taskMode: selectedMode,
-                        visible: true,
+                        visible: false,
                     }));
                     toastPubSub.pub({ type: "info", text: lang.editor.aiStopped });
                     return;
@@ -531,8 +506,8 @@ export const Editor: React.FC<{
         }
     }, [
         advancedDispatch,
-        aiSession.active,
         alignmentErrorText,
+        closeAiLaunch,
         lang.editor,
         lrcDispatch,
         lrcState.info,
@@ -553,7 +528,7 @@ export const Editor: React.FC<{
     ]);
 
     const onAiAlign = useCallback(() => {
-        if (aiSession.active) {
+        if (getAiAlignmentSessionSnapshot().active) {
             updateAiAlignmentSessionState((state) => state ? { ...state, visible: true } : state);
             toastPubSub.pub({ type: "info", text: lang.editor.aiDuplicate });
             return;
@@ -599,7 +574,7 @@ export const Editor: React.FC<{
                     phase: "complete",
                     progress: 1,
                     provider: "local",
-                    visible: true,
+                    visible: false,
                 }));
                 toastPubSub.pub({ type: "success", text: lang.editor.aiComplete });
                 if (result.cacheCleanup === "failed") {
@@ -611,7 +586,7 @@ export const Editor: React.FC<{
                         phase: "stopped",
                         progress: state?.progress || 0,
                         provider: "local",
-                        visible: true,
+                        visible: false,
                     }));
                     toastPubSub.pub({ type: "info", text: lang.editor.aiStopped });
                     return;
@@ -635,7 +610,6 @@ export const Editor: React.FC<{
             toastPubSub.pub({ type: "info", text: lang.editor.aiDuplicate });
         }
     }, [
-        aiSession.active,
         alignmentErrorText,
         lang.editor,
         lrcDispatch,
@@ -650,7 +624,7 @@ export const Editor: React.FC<{
 
     const onAiAlignClick = useCallback(() => {
         if (prefState.aiEngine === "cloud") {
-            if (aiSession.active) {
+            if (getAiAlignmentSessionSnapshot().active) {
                 updateAiAlignmentSessionState((state) => state ? { ...state, visible: true } : state);
                 return;
             }
@@ -668,7 +642,6 @@ export const Editor: React.FC<{
         }
         onAiAlign();
     }, [
-        aiSession.active,
         onAiAlign,
         prefDispatch,
         prefState.aiAlignmentEnabled,
@@ -700,20 +673,6 @@ export const Editor: React.FC<{
     const aiButtonActive = prefState.aiEngine === "cloud"
         ? activeCloudKeyConfigured
         : prefState.aiAlignmentEnabled;
-
-    const aiStatus = aiState && !aiState.error ? statusText(aiState) : aiState?.error;
-    const aiEngineDownload = useMemo(
-        () => aiEngineDownloadUrl(BRAND.extensionRelease, import.meta.env.app!.version, navigator.platform),
-        [],
-    );
-    const aiRemaining = aiState?.phase === "running" && aiState.remainingSeconds
-        ? lang.editor.aiRemaining.replace("%s", formatRemainingTime(aiState.remainingSeconds))
-        : undefined;
-    const canStopAi = aiSession.active && aiState !== null
-        && ["connecting", "uploading", "queued", "running", "downloading"].includes(aiState.phase);
-    const aiDialogTitle = aiState?.provider === "gemini" || aiState?.provider === "openrouter"
-        ? lang.editor.aiCloudTitle
-        : lang.editor.aiTitle;
 
     return (
         <div className="app-editor">
@@ -958,7 +917,7 @@ export const Editor: React.FC<{
                             <a
                                 className="ai-launch-settings-link"
                                 href={prependHash(ROUTER.preferences)}
-                                onClick={() => setAiLaunchOpen(false)}
+                                onClick={closeAiLaunch}
                             >
                                 {lang.editor.aiOpenSettings}
                             </a>
@@ -981,7 +940,7 @@ export const Editor: React.FC<{
                                         type="button"
                                         className="ai-launch-inline-action"
                                         onClick={() => {
-                                            setAiLaunchOpen(false);
+                                            closeAiLaunch();
                                             loadAudioDialogRef.open();
                                         }}
                                     >
@@ -1060,7 +1019,7 @@ export const Editor: React.FC<{
                         )}
 
                         <footer className="ai-launch-footer">
-                            <button type="button" onClick={() => setAiLaunchOpen(false)}>
+                            <button type="button" onClick={closeAiLaunch}>
                                 {lang.editor.aiClose}
                             </button>
                             <button
@@ -1076,57 +1035,112 @@ export const Editor: React.FC<{
                     </article>
                 </dialog>
             )}
-            {aiState?.visible && (
-                <dialog className="ai-align-dialog" open={true} aria-labelledby="ai-align-title">
-                    <article>
-                        <header>
-                            <h2 id="ai-align-title">
-                                {aiDialogTitle}
-                            </h2>
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    updateAiAlignmentSessionState((state) =>
-                                        state && {
-                                            ...state,
-                                            visible: false,
-                                        }
-                                    )}
-                            >
-                                {lang.editor.aiClose}
-                            </button>
-                        </header>
-                        <progress max={1} value={aiState.progress} />
-                        <p>{aiStatus}</p>
-                        {aiRemaining && <p className="ai-align-remaining">{aiRemaining}</p>}
-                        {canStopAi && (
-                            <button type="button" className="ai-align-stop" onClick={stopAiAlignmentSession}>
-                                {lang.editor.aiStop}
-                            </button>
-                        )}
-                        {aiState.showSettings && (
-                            <a
-                                href={prependHash(ROUTER.preferences)}
-                                onClick={() =>
-                                    updateAiAlignmentSessionState((state) => state && { ...state, visible: false })}
-                            >
-                                {lang.editor.aiOpenSettings}
-                            </a>
-                        )}
-                        {aiState.showInstall && (
-                            <a
-                                href={aiEngineDownload}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                            >
-                                {lang.editor.aiInstall}
-                            </a>
-                        )}
-                    </article>
-                </dialog>
-            )}
+            <AiAlignmentStatusDialog lang={lang} />
         </div>
     );
+};
+
+const AiAlignmentStatusDialog: React.FC<{ lang: Language }> = ({ lang }) => {
+    const aiSession = useSyncExternalStore(
+        subscribeAiAlignmentSession,
+        getAiAlignmentSessionSnapshot,
+        getAiAlignmentSessionSnapshot,
+    );
+    const aiState = aiSession.state;
+    const aiEngineDownload = useMemo(
+        () => aiEngineDownloadUrl(BRAND.extensionRelease, import.meta.env.app!.version, navigator.platform),
+        [],
+    );
+
+    if (!aiState?.visible) return null;
+
+    const aiStatus = !aiState.error ? formatAiStatusText(aiState, lang) : aiState.error;
+    const aiRemaining = aiState.phase === "running" && aiState.remainingSeconds
+        ? lang.editor.aiRemaining.replace("%s", formatRemainingTime(aiState.remainingSeconds))
+        : undefined;
+    const canStopAi = aiSession.active
+        && ["connecting", "uploading", "queued", "running", "downloading"].includes(aiState.phase);
+    const aiDialogTitle = aiState.provider === "gemini" || aiState.provider === "openrouter"
+        ? lang.editor.aiCloudTitle
+        : lang.editor.aiTitle;
+
+    return (
+        <dialog className="ai-align-dialog" open={true} aria-labelledby="ai-align-title">
+            <article>
+                <header>
+                    <h2 id="ai-align-title">{aiDialogTitle}</h2>
+                    <button
+                        type="button"
+                        onClick={() =>
+                            updateAiAlignmentSessionState((state) =>
+                                state && {
+                                    ...state,
+                                    visible: false,
+                                }
+                            )}
+                    >
+                        {lang.editor.aiClose}
+                    </button>
+                </header>
+                <progress max={1} value={aiState.progress} />
+                <p>{aiStatus}</p>
+                {aiRemaining && <p className="ai-align-remaining">{aiRemaining}</p>}
+                {canStopAi && (
+                    <button type="button" className="ai-align-stop" onClick={stopAiAlignmentSession}>
+                        {lang.editor.aiStop}
+                    </button>
+                )}
+                {aiState.showSettings && (
+                    <a
+                        href={prependHash(ROUTER.preferences)}
+                        onClick={() => updateAiAlignmentSessionState((state) => state && { ...state, visible: false })}
+                    >
+                        {lang.editor.aiOpenSettings}
+                    </a>
+                )}
+                {aiState.showInstall && (
+                    <a
+                        href={aiEngineDownload}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        {lang.editor.aiInstall}
+                    </a>
+                )}
+            </article>
+        </dialog>
+    );
+};
+
+const formatAiStatusText = (progress: AiAlignmentSessionState, lang: Language): string => {
+    const isCloud = progress.provider === "gemini" || progress.provider === "openrouter";
+    switch (progress.phase) {
+        case "connecting":
+            return isCloud ? lang.editor.aiCloudConnecting : lang.editor.aiConnecting;
+        case "uploading":
+            return isCloud ? lang.editor.aiCloudUploading : lang.editor.aiUploading;
+        case "queued":
+            return lang.editor.aiQueued;
+        case "running":
+            if (isCloud) {
+                return progress.streamChars && progress.streamChars > 0
+                    ? lang.editor.aiCloudStreaming.replace("%d", String(progress.streamChars))
+                    : lang.editor.aiCloudRunning;
+            }
+            return lang.editor.aiRunning;
+        case "downloading":
+            return isCloud ? lang.editor.aiCloudParsing : lang.editor.aiDownloading;
+        case "stopping":
+            return lang.editor.aiStopping;
+        case "stopped":
+            return lang.editor.aiStopped;
+        case "cleaning":
+            return lang.editor.aiCleaning;
+        case "complete":
+            return progress.taskMode === "word-beta"
+                ? lang.editor.aiWordBetaComplete
+                : lang.editor.aiComplete;
+    }
 };
 
 const formatFileSize = (bytes: number): string => {

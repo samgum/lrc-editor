@@ -562,6 +562,7 @@
     z-index: 2;
     color: transparent;
     pointer-events: none;
+    will-change: transform;
 }
 
 .editor-text-row {

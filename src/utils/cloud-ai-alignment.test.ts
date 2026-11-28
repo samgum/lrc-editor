@@ -9,6 +9,7 @@ import {
     parseCloudWordAlignment,
     runCloudAiAlignment,
     stripModelCodeFences,
+    validateGeneratedLrc,
 } from "./cloud-ai-alignment.js";
 
 const createSseResponse = (events: readonly unknown[], status = 200): Response => {
@@ -94,6 +95,51 @@ describe("cloud-ai-alignment", () => {
         expect(parsed.document.lines[0].words.map((w) => w.text)).toEqual(["你", "好"]);
         expect(parsed.document.lines[0].words[0].startMs).toBe(1000);
         expect(parsed.document.lines[2].words[1].endMs).toBe(4200);
+        expect(parsed.validation.valid).toBe(true);
+    });
+
+    it("rejects collapsed fake timelines and timestamps far beyond media duration", () => {
+        const fakeCollapsed = [
+            "[00:00.000]Line 1",
+            "[00:00.000]Line 2",
+            "[00:00.000]Line 3",
+            "[00:00.000]Line 4",
+        ].join("\n");
+        expect(() => parseCloudLineAlignment(fakeCollapsed, "Line 1\nLine 2\nLine 3\nLine 4", 3)).toThrow(
+            CloudAiAlignmentError,
+        );
+
+        const hallucinatedOverflow = [
+            "[04:10.000]Line 1",
+            "[04:20.000]Line 2",
+            "[04:30.000]Line 3",
+            "[04:40.000]Line 4",
+        ].join("\n");
+        expect(() => parseCloudLineAlignment(hallucinatedOverflow, "Line 1\nLine 2\nLine 3\nLine 4", 3, {}, 180_000))
+            .toThrow(CloudAiAlignmentError);
+
+        const report = validateGeneratedLrc("[00:05.000]A\n[00:03.000]B\n[00:05.000]C", 60_000);
+        expect(report.valid).toBe(false);
+        expect(report.warnings.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it("allows minor timestamp regressions in beta word-by-word alignment without throwing or clamping", () => {
+        const raw = [
+            "[00:01.000]<00:01.000>Hello <00:01.600>world<00:02.100>",
+            "[00:02.000]<00:02.000>Overlap <00:01.950>word<00:02.800>",
+            "[00:05.000]<00:05.000>Next <00:05.500>line<00:06.200>",
+            "[00:08.000]<00:08.000>Final <00:08.600>line<00:09.100>",
+        ].join("\n");
+        const parsed = parseCloudWordAlignment(
+            raw,
+            "Hello world\nOverlap word\nNext line\nFinal line",
+            undefined,
+            3,
+            30_000,
+        );
+        expect(parsed.validation.valid).toBe(true);
+        expect(parsed.validation.regressionCount).toBeGreaterThan(0);
+        expect(parsed.document.lines[1].words[1].startMs).toBe(1950);
     });
 
     it("injects {lyrics} into default and custom prompts", () => {
